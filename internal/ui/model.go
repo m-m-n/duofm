@@ -22,9 +22,10 @@ type Model struct {
 	width              int
 	height             int
 	ready              bool
-	lastDiskSpaceCheck time.Time // 最後のディスク容量チェック時刻
-	leftDiskSpace      uint64    // 左ペインのディスク空き容量
-	rightDiskSpace     uint64    // 右ペインのディスク空き容量
+	lastDiskSpaceCheck time.Time    // 最後のディスク容量チェック時刻
+	leftDiskSpace      uint64       // 左ペインのディスク空き容量
+	rightDiskSpace     uint64       // 右ペインのディスク空き容量
+	pendingAction      func() error // 確認待ちのアクション（コンテキストメニューの削除用）
 }
 
 // PanePosition はペインの位置を表す
@@ -68,6 +69,46 @@ func (m Model) Init() tea.Cmd {
 
 // Update はメッセージを処理してモデルを更新
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// コンテキストメニューの結果処理
+	if result, ok := msg.(contextMenuResultMsg); ok {
+		prevDialog := m.dialog
+		m.dialog = nil
+
+		if _, ok := prevDialog.(*ContextMenuDialog); ok {
+			if result.cancelled {
+				// メニューがキャンセルされた
+				return m, nil
+			}
+
+			if result.action != nil {
+				// 削除の場合は確認ダイアログを表示
+				if result.actionID == "delete" {
+					entry := m.getActivePane().SelectedEntry()
+					if entry != nil && !entry.IsParentDir() {
+						m.pendingAction = result.action
+						m.dialog = NewConfirmDialog(
+							"Delete file?",
+							entry.DisplayName(),
+						)
+					}
+					return m, nil
+				}
+
+				// その他のアクションは直接実行
+				if err := result.action(); err != nil {
+					m.dialog = NewErrorDialog(fmt.Sprintf("Operation failed: %v", err))
+					return m, nil
+				}
+
+				// 両ペインを再読み込みして変更を反映
+				m.getActivePane().LoadDirectory()
+				m.getInactivePane().LoadDirectory()
+			}
+		}
+
+		return m, nil
+	}
+
 	// ダイアログの結果処理
 	if result, ok := msg.(dialogResultMsg); ok {
 		prevDialog := m.dialog
@@ -76,7 +117,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 削除確認の結果
 		if result.result.Confirmed {
 			if _, ok := prevDialog.(*ConfirmDialog); ok {
-				// 削除実行
+				// コンテキストメニューからの削除（pendingActionあり）
+				if m.pendingAction != nil {
+					if err := m.pendingAction(); err != nil {
+						m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
+					} else {
+						// 両ペインを再読み込み
+						m.getActivePane().LoadDirectory()
+						m.getInactivePane().LoadDirectory()
+					}
+					m.pendingAction = nil
+					return m, nil
+				}
+
+				// 通常の削除（dキーから）
 				entry := m.getActivePane().SelectedEntry()
 				if entry != nil && !entry.IsParentDir() {
 					fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
@@ -90,6 +144,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		} else {
+			// キャンセルされた場合、pendingActionをクリア
+			m.pendingAction = nil
 		}
 
 		return m, nil
@@ -260,6 +317,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				)
 			}
 			return m, nil
+
+		case KeyContextMenu:
+			// コンテキストメニューを表示
+			activePane := m.getActivePane()
+			entry := activePane.SelectedEntry()
+
+			if entry != nil && !entry.IsParentDir() {
+				m.dialog = NewContextMenuDialogWithPane(
+					entry,
+					activePane.Path(),
+					m.getInactivePane().Path(),
+					activePane,
+				)
+			}
+			return m, nil
 		}
 	}
 
@@ -316,17 +388,43 @@ func (m Model) View() string {
 		statusBar,
 	)
 
-	// ダイアログがある場合はオーバーレイ
+	// ダイアログがある場合はアクティブペインの中央にオーバーレイ
 	if m.dialog != nil && m.dialog.IsActive() {
-		return lipgloss.Place(
-			m.width,
-			m.height,
+		paneWidth := m.width / 2
+		paneHeight := m.height - 2 // タイトルバーとステータスバー分を引く
+
+		// ダイアログをペイン中央に配置
+		dialogView := lipgloss.Place(
+			paneWidth,
+			paneHeight,
 			lipgloss.Center,
 			lipgloss.Center,
 			m.dialog.View(),
 			lipgloss.WithWhitespaceChars("█"),
 			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
 		)
+
+		// タイトルバー
+		title := titleStyle.Render("duofm v0.1.0")
+
+		// ステータスバー
+		statusBar := m.renderStatusBar()
+
+		// 左右ペインの組み合わせ（アクティブペインをダイアログに置き換え）
+		var panes string
+		if m.activePane == LeftPane {
+			panes = lipgloss.JoinHorizontal(lipgloss.Top,
+				dialogView,
+				m.rightPane.ViewWithDiskSpace(m.rightDiskSpace),
+			)
+		} else {
+			panes = lipgloss.JoinHorizontal(lipgloss.Top,
+				m.leftPane.ViewWithDiskSpace(m.leftDiskSpace),
+				dialogView,
+			)
+		}
+
+		return lipgloss.JoinVertical(lipgloss.Left, title, panes, statusBar)
 	}
 
 	return mainView

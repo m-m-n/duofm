@@ -189,6 +189,12 @@ func (p *Pane) MoveToParent() error {
 	return p.LoadDirectory()
 }
 
+// ChangeDirectory は指定されたパスに移動
+func (p *Pane) ChangeDirectory(path string) error {
+	p.path = path
+	return p.LoadDirectory()
+}
+
 // Path は現在のパスを返す
 func (p *Pane) Path() string {
 	return p.path
