@@ -238,3 +238,200 @@ func TestPanePosition(t *testing.T) {
 		})
 	}
 }
+
+// TestModelContextMenuOpen tests that @ key opens context menu
+func TestModelContextMenuOpen(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Verify no dialog initially
+	if m.dialog != nil {
+		t.Error("dialog should be nil initially")
+	}
+
+	// Move cursor to a file (not parent directory ..)
+	// Assuming first entry is "..", move to second entry
+	m.getActivePane().MoveCursorDown()
+
+	// Press @ key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'@'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify context menu is opened
+	if m.dialog == nil {
+		t.Error("dialog should be opened after @ key")
+	}
+
+	_, isContextMenu := m.dialog.(*ContextMenuDialog)
+	if !isContextMenu {
+		t.Error("dialog should be ContextMenuDialog")
+	}
+}
+
+// TestModelContextMenuParentDirProtection tests that @ key does nothing for parent directory
+func TestModelContextMenuParentDirProtection(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Cursor is at position 0 which should be ".." (parent directory)
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || !entry.IsParentDir() {
+		// If first entry is not "..", skip this test
+		t.Skip("First entry is not parent directory, skipping test")
+	}
+
+	// Press @ key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'@'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify no dialog is opened for parent directory
+	if m.dialog != nil {
+		t.Error("dialog should not be opened for parent directory")
+	}
+}
+
+// TestModelContextMenuDeleteShowsConfirmDialog tests that delete action shows confirmation dialog
+func TestModelContextMenuDeleteShowsConfirmDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent directory)
+	m.getActivePane().MoveCursorDown()
+
+	// Press @ key to open context menu
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'@'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Fatal("context menu should be opened")
+	}
+
+	// Simulate selecting delete (press '3' for delete)
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Execute the command to send contextMenuResultMsg
+	if cmd != nil {
+		resultMsg := cmd()
+		updatedModel, _ = m.Update(resultMsg)
+		m = updatedModel.(Model)
+	}
+
+	// Verify ConfirmDialog is shown (not direct deletion)
+	if m.dialog == nil {
+		t.Error("dialog should be shown after delete action")
+	}
+
+	_, isConfirmDialog := m.dialog.(*ConfirmDialog)
+	if !isConfirmDialog {
+		t.Error("dialog should be ConfirmDialog after delete action from context menu")
+	}
+
+	// Verify pendingAction is set
+	if m.pendingAction == nil {
+		t.Error("pendingAction should be set for delete confirmation")
+	}
+}
+
+// TestModelContextMenuCancelledClearsPendingAction tests that cancelling clears pendingAction
+func TestModelContextMenuCancelledClearsPendingAction(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set a pending action manually
+	m.pendingAction = func() error { return nil }
+
+	// Create a ConfirmDialog
+	m.dialog = NewConfirmDialog("Test", "test")
+
+	// Simulate pressing 'n' to cancel
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Execute the command to send dialogResultMsg
+	if cmd != nil {
+		resultMsg := cmd()
+		updatedModel, _ = m.Update(resultMsg)
+		m = updatedModel.(Model)
+	}
+
+	// Verify pendingAction is cleared
+	if m.pendingAction != nil {
+		t.Error("pendingAction should be cleared after cancellation")
+	}
+}
+
+// TestModelContextMenuEscClosesMenu tests that Esc closes context menu
+func TestModelContextMenuEscClosesMenu(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file
+	m.getActivePane().MoveCursorDown()
+
+	// Press @ key to open context menu
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'@'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Fatal("context menu should be opened")
+	}
+
+	// Press Esc to close
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Execute the command
+	if cmd != nil {
+		resultMsg := cmd()
+		updatedModel, _ = m.Update(resultMsg)
+		m = updatedModel.(Model)
+	}
+
+	// Verify dialog is closed
+	if m.dialog != nil {
+		t.Error("dialog should be closed after Esc")
+	}
+}

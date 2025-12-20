@@ -222,6 +222,28 @@ func TestPaneEnterDirectory(t *testing.T) {
 	})
 }
 
+func TestPaneChangeDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("指定したディレクトリに移動", func(t *testing.T) {
+		err := pane.ChangeDirectory(subDir)
+		if err != nil {
+			t.Errorf("ChangeDirectory() error = %v", err)
+		}
+
+		if pane.Path() != subDir {
+			t.Errorf("ChangeDirectory() path = %s, want %s", pane.Path(), subDir)
+		}
+	})
+}
+
 func TestPaneMoveToParent(t *testing.T) {
 	tmpDir := t.TempDir()
 	subDir := filepath.Join(tmpDir, "subdir")
