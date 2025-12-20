@@ -38,13 +38,40 @@ func ReadDirectory(path string) ([]FileEntry, error) {
 			continue // エラーは無視して次へ
 		}
 
-		fileEntries = append(fileEntries, FileEntry{
+		entryPath := filepath.Join(absPath, entry.Name())
+
+		// 基本情報
+		fileEntry := FileEntry{
 			Name:        entry.Name(),
 			IsDir:       entry.IsDir(),
 			Size:        info.Size(),
 			ModTime:     info.ModTime(),
 			Permissions: info.Mode(),
-		})
+		}
+
+		// 所有者・グループ情報を取得
+		owner, group, err := GetFileOwnerGroup(entryPath)
+		if err == nil {
+			fileEntry.Owner = owner
+			fileEntry.Group = group
+		} else {
+			fileEntry.Owner = "unknown"
+			fileEntry.Group = "unknown"
+		}
+
+		// シンボリックリンク情報を取得
+		isLink, target, isBroken, isTargetDir, err := GetSymlinkInfo(entryPath)
+		if err == nil {
+			fileEntry.IsSymlink = isLink
+			fileEntry.LinkTarget = target
+			fileEntry.LinkBroken = isBroken
+			// シンボリックリンクがディレクトリを指している場合、IsDirを更新
+			if isLink && !isBroken && isTargetDir {
+				fileEntry.IsDir = true
+			}
+		}
+
+		fileEntries = append(fileEntries, fileEntry)
 	}
 
 	return fileEntries, nil

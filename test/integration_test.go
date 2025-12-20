@@ -150,7 +150,7 @@ func TestDirectoryNavigation(t *testing.T) {
 	// カーソルをsubdirに移動してEnter
 	inputs := []tea.Msg{
 		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}, // subdirに移動（..の次）
-		tea.KeyMsg{Type: tea.KeyEnter},                      // ディレクトリに入る
+		tea.KeyMsg{Type: tea.KeyEnter},                     // ディレクトリに入る
 	}
 
 	for _, input := range inputs {

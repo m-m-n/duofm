@@ -155,3 +155,12 @@ func Delete(path string) error {
 	}
 	return DeleteFile(path)
 }
+
+// IsDirectory は指定されたパスがディレクトリかどうかを判定
+func IsDirectory(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return info.IsDir(), nil
+}

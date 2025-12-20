@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -12,15 +13,18 @@ import (
 
 // Model はアプリケーション全体の状態を保持
 type Model struct {
-	leftPane   *Pane
-	rightPane  *Pane
-	leftPath   string
-	rightPath  string
-	activePane PanePosition
-	dialog     Dialog
-	width      int
-	height     int
-	ready      bool
+	leftPane           *Pane
+	rightPane          *Pane
+	leftPath           string
+	rightPath          string
+	activePane         PanePosition
+	dialog             Dialog
+	width              int
+	height             int
+	ready              bool
+	lastDiskSpaceCheck time.Time // 最後のディスク容量チェック時刻
+	leftDiskSpace      uint64    // 左ペインのディスク空き容量
+	rightDiskSpace     uint64    // 右ペインのディスク空き容量
 }
 
 // PanePosition はペインの位置を表す
@@ -113,7 +117,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Quit
 			}
 
+			// 初回のディスク容量を取得してタイマー開始
+			m.updateDiskSpace()
 			m.ready = true
+
+			return m, diskSpaceTickCmd()
 		} else {
 			// リサイズ時のペインサイズ更新
 			paneWidth := msg.Width / 2
@@ -122,6 +130,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rightPane.SetSize(paneWidth, paneHeight)
 		}
 
+		return m, nil
+
+	case diskSpaceUpdateMsg:
+		// ディスク容量を更新して次の更新をスケジュール
+		m.updateDiskSpace()
+		return m, diskSpaceTickCmd()
+
+	case directoryLoadCompleteMsg:
+		// ディレクトリ読み込み完了
+		var targetPane *Pane
+		if msg.panePath == m.leftPane.Path() {
+			targetPane = m.leftPane
+		} else if msg.panePath == m.rightPane.Path() {
+			targetPane = m.rightPane
+		}
+
+		if targetPane != nil {
+			if msg.err != nil {
+				// エラーダイアログを表示
+				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to read directory: %v", msg.err))
+				targetPane.loading = false
+				targetPane.loadingProgress = ""
+			} else {
+				// エントリを更新
+				targetPane.entries = msg.entries
+				targetPane.cursor = 0
+				targetPane.scrollOffset = 0
+				targetPane.loading = false
+				targetPane.loadingProgress = ""
+			}
+		}
 		return m, nil
 
 	case tea.KeyMsg:
@@ -167,6 +206,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyEnter:
 			m.getActivePane().EnterDirectory()
+			// ディレクトリ移動時にディスク容量を更新
+			m.updateDiskSpace()
+
+		case KeyToggleInfo:
+			// 表示モードを切り替え（端末が十分な幅の場合のみ）
+			activePane := m.getActivePane()
+			if activePane.CanToggleMode() {
+				activePane.ToggleDisplayMode()
+			}
+			return m, nil
 
 		case KeyCopy:
 			// コピー操作
@@ -249,11 +298,11 @@ func (m Model) View() string {
 	// タイトルバー
 	title := titleStyle.Render("duofm v0.1.0")
 
-	// 2つのペインを横に並べる
+	// 2つのペインを横に並べる（ディスク容量情報付き）
 	panes := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		m.leftPane.View(),
-		m.rightPane.View(),
+		m.leftPane.ViewWithDiskSpace(m.leftDiskSpace),
+		m.rightPane.ViewWithDiskSpace(m.rightDiskSpace),
 	)
 
 	// ステータスバー
@@ -290,8 +339,11 @@ func (m Model) renderStatusBar() string {
 	// 選択位置情報
 	posInfo := fmt.Sprintf("%d/%d", activePane.cursor+1, len(activePane.entries))
 
-	// キーヒント
+	// キーヒント（動的に変更）
 	hints := "?:help q:quit"
+	if activePane != nil && activePane.CanToggleMode() {
+		hints = "i:info " + hints
+	}
 
 	// スペースで埋める
 	padding := m.width - len(posInfo) - len(hints) - 4
@@ -311,4 +363,21 @@ func (m Model) renderStatusBar() string {
 		Foreground(lipgloss.Color("15"))
 
 	return style.Render(statusBar)
+}
+
+// updateDiskSpace はディスク容量を更新
+func (m *Model) updateDiskSpace() {
+	if m.leftPane != nil {
+		if freeBytes, _, err := fs.GetDiskSpace(m.leftPane.Path()); err == nil {
+			m.leftDiskSpace = freeBytes
+		}
+	}
+
+	if m.rightPane != nil {
+		if freeBytes, _, err := fs.GetDiskSpace(m.rightPane.Path()); err == nil {
+			m.rightDiskSpace = freeBytes
+		}
+	}
+
+	m.lastDiskSpaceCheck = time.Now()
 }
