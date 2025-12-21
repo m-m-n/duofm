@@ -12,18 +12,25 @@ import (
 	"github.com/sakura/duofm/internal/fs"
 )
 
+// PaneChanger is an interface for directory navigation.
+// This allows mocking the Pane for testing.
+type PaneChanger interface {
+	ChangeDirectory(path string) error
+}
+
 // ContextMenuDialog represents a context menu that displays available file operations.
 // It implements the Dialog interface and manages menu items, cursor position, and pagination.
 type ContextMenuDialog struct {
-	items        []MenuItem // Available menu items
-	cursor       int        // Current cursor position
-	currentPage  int        // Current page number (for pagination)
-	itemsPerPage int        // Maximum items per page (default: 9)
-	active       bool       // Whether dialog is active
-	width        int        // Calculated dialog width
-	minWidth     int        // Minimum dialog width
-	maxWidth     int        // Maximum dialog width
-	pane         *Pane      // Reference to active pane for symlink navigation
+	items        []MenuItem  // Available menu items
+	cursor       int         // Current cursor position
+	currentPage  int         // Current page number (for pagination)
+	itemsPerPage int         // Maximum items per page (default: 9)
+	active       bool        // Whether dialog is active
+	width        int         // Calculated dialog width
+	minWidth     int         // Minimum dialog width
+	maxWidth     int         // Maximum dialog width
+	pane         *Pane       // Reference to active pane for symlink navigation
+	paneChanger  PaneChanger // Interface for directory changes (for testing)
 }
 
 // MenuItem represents a single menu item with an action closure.
@@ -75,6 +82,27 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 		minWidth:     40,
 		maxWidth:     60,
 		pane:         pane,
+		paneChanger:  pane, // Pane implements PaneChanger
+	}
+
+	d.items = d.buildMenuItems(entry, sourcePath, destPath)
+	d.calculateWidth()
+
+	return d
+}
+
+// NewContextMenuDialogWithMockPane creates a context menu dialog with a mock pane for testing.
+// This allows testing symlink navigation without a real Pane instance.
+func NewContextMenuDialogWithMockPane(entry *fs.FileEntry, sourcePath, destPath string, paneChanger PaneChanger) *ContextMenuDialog {
+	d := &ContextMenuDialog{
+		cursor:       0,
+		currentPage:  0,
+		itemsPerPage: 9,
+		active:       true,
+		minWidth:     40,
+		maxWidth:     60,
+		pane:         nil,
+		paneChanger:  paneChanger,
 	}
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
@@ -125,9 +153,9 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 			Label: "Enter as directory (logical path)",
 			Action: func() error {
 				// Navigate to the symlink directory (following the symlink)
-				if d.pane != nil {
+				if d.paneChanger != nil {
 					fullPath := filepath.Join(sourcePath, entry.Name)
-					return d.pane.ChangeDirectory(fullPath)
+					return d.paneChanger.ChangeDirectory(fullPath)
 				}
 				return nil
 			},
@@ -138,19 +166,19 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 			ID:    "enter_physical",
 			Label: "Open link target (physical path)",
 			Action: func() error {
-				// Navigate to the parent directory of the actual target
-				if d.pane != nil {
+				// Navigate directly to the link target itself
+				if d.paneChanger != nil {
 					targetPath := entry.LinkTarget
-					var targetDir string
 
-					if filepath.IsAbs(targetPath) {
-						targetDir = filepath.Dir(targetPath)
-					} else {
-						absTarget := filepath.Join(sourcePath, targetPath)
-						targetDir = filepath.Dir(absTarget)
+					// Handle relative paths by converting to absolute
+					if !filepath.IsAbs(targetPath) {
+						targetPath = filepath.Join(sourcePath, targetPath)
 					}
 
-					return d.pane.ChangeDirectory(targetDir)
+					// Clean the path to resolve any .. components
+					targetPath = filepath.Clean(targetPath)
+
+					return d.paneChanger.ChangeDirectory(targetPath)
 				}
 				return nil
 			},
