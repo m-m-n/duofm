@@ -30,6 +30,8 @@ type Model struct {
 	leftDiskSpace      uint64       // 左ペインのディスク空き容量
 	rightDiskSpace     uint64       // 右ペインのディスク空き容量
 	pendingAction      func() error // 確認待ちのアクション（コンテキストメニューの削除用）
+	statusMessage      string       // ステータスバーに表示するメッセージ
+	isStatusError      bool         // エラーメッセージかどうか
 }
 
 // PanePosition はペインの位置を表す
@@ -198,33 +200,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.updateDiskSpace()
 		return m, diskSpaceTickCmd()
 
+	case clearStatusMsg:
+		// ステータスメッセージをクリア
+		m.statusMessage = ""
+		m.isStatusError = false
+		return m, nil
+
 	case directoryLoadCompleteMsg:
 		// ディレクトリ読み込み完了
 		var targetPane *Pane
-		if msg.panePath == m.leftPane.Path() {
+		// どのペインの読み込みかを判定（pendingPathも確認）
+		if msg.panePath == m.leftPane.Path() || msg.panePath == m.leftPane.pendingPath {
 			targetPane = m.leftPane
-		} else if msg.panePath == m.rightPane.Path() {
+		} else if msg.panePath == m.rightPane.Path() || msg.panePath == m.rightPane.pendingPath {
 			targetPane = m.rightPane
 		}
 
 		if targetPane != nil {
+			targetPane.loading = false
+			targetPane.loadingProgress = ""
+
 			if msg.err != nil {
-				// エラーダイアログを表示
-				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to read directory: %v", msg.err))
-				targetPane.loading = false
-				targetPane.loadingProgress = ""
-			} else {
-				// エントリを更新（隠しファイルのフィルタリングを適用）
-				entries := msg.entries
-				if !targetPane.showHidden {
-					entries = filterHiddenFiles(entries)
-				}
-				targetPane.entries = entries
-				targetPane.cursor = 0
-				targetPane.scrollOffset = 0
-				targetPane.loading = false
-				targetPane.loadingProgress = ""
+				// エラー時: パスを復元してステータスバーにメッセージ表示
+				targetPane.restorePreviousPath()
+				m.statusMessage = formatDirectoryError(msg.err, msg.attemptedPath)
+				m.isStatusError = true
+				return m, statusMessageClearCmd(5 * time.Second)
 			}
+
+			// 成功時: エントリを更新
+			entries := msg.entries
+			if !targetPane.showHidden {
+				entries = filterHiddenFiles(entries)
+			}
+			targetPane.entries = entries
+			targetPane.cursor = 0
+			targetPane.scrollOffset = 0
+			targetPane.pendingPath = ""
+
+			// ディスク容量を更新
+			m.updateDiskSpace()
 		}
 		return m, nil
 
@@ -234,6 +249,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			var cmd tea.Cmd
 			m.dialog, cmd = m.dialog.Update(msg)
 			return m, cmd
+		}
+
+		// ステータスメッセージがあればクリア
+		if m.statusMessage != "" {
+			m.statusMessage = ""
+			m.isStatusError = false
 		}
 
 		switch msg.String() {
@@ -253,8 +274,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyMoveLeft, KeyArrowLeft:
 			if m.activePane == LeftPane {
-				// 左ペインで h/← -> 親ディレクトリへ
-				m.leftPane.MoveToParent()
+				// 左ペインで h/← -> 親ディレクトリへ（非同期版）
+				cmd := m.leftPane.MoveToParentAsync()
+				return m, cmd
 			} else {
 				// 右ペインで h/← -> 左ペインへ切り替え
 				m.switchToPane(LeftPane)
@@ -262,17 +284,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyMoveRight, KeyArrowRight:
 			if m.activePane == RightPane {
-				// 右ペインで l/→ -> 親ディレクトリへ
-				m.rightPane.MoveToParent()
+				// 右ペインで l/→ -> 親ディレクトリへ（非同期版）
+				cmd := m.rightPane.MoveToParentAsync()
+				return m, cmd
 			} else {
 				// 左ペインで l/→ -> 右ペインへ切り替え
 				m.switchToPane(RightPane)
 			}
 
 		case KeyEnter:
-			m.getActivePane().EnterDirectory()
-			// ディレクトリ移動時にディスク容量を更新
-			m.updateDiskSpace()
+			// 非同期版を使用（ディスク容量更新は成功時にdirectoryLoadCompleteMsg内で実施）
+			cmd := m.getActivePane().EnterDirectoryAsync()
+			return m, cmd
 
 		case KeyToggleInfo:
 			// 表示モードを切り替え（端末が十分な幅の場合のみ）
@@ -347,20 +370,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case KeyHome:
-			// ホームディレクトリへ移動
-			if err := m.getActivePane().NavigateToHome(); err != nil {
-				m.dialog = NewErrorDialog(fmt.Sprintf("Cannot navigate to home: %v", err))
-			}
-			m.updateDiskSpace()
-			return m, nil
+			// ホームディレクトリへ移動（非同期版）
+			cmd := m.getActivePane().NavigateToHomeAsync()
+			return m, cmd
 
 		case KeyPrevDir:
-			// 直前のディレクトリへ移動
-			if err := m.getActivePane().NavigateToPrevious(); err != nil {
-				m.dialog = NewErrorDialog(fmt.Sprintf("Cannot navigate: %v", err))
-			}
-			m.updateDiskSpace()
-			return m, nil
+			// 直前のディレクトリへ移動（非同期版）
+			cmd := m.getActivePane().NavigateToPreviousAsync()
+			return m, cmd
 		}
 	}
 
@@ -551,6 +568,33 @@ func (m Model) overlayDialogOnPane(dimmedPane string, paneWidth, paneHeight int)
 
 // renderStatusBar はステータスバーをレンダリング
 func (m Model) renderStatusBar() string {
+	// ステータスメッセージがある場合はそれを優先表示
+	if m.statusMessage != "" {
+		style := lipgloss.NewStyle().
+			Width(m.width).
+			Padding(0, 1)
+
+		if m.isStatusError {
+			// エラーメッセージは赤背景で表示
+			style = style.
+				Background(lipgloss.Color("124")). // 暗めの赤
+				Foreground(lipgloss.Color("15"))   // 白
+		} else {
+			style = style.
+				Background(lipgloss.Color("240")).
+				Foreground(lipgloss.Color("15"))
+		}
+
+		// メッセージを幅に合わせて切り詰め
+		msg := m.statusMessage
+		maxLen := m.width - 2 // パディング分を引く
+		if len(msg) > maxLen {
+			msg = msg[:maxLen-3] + "..."
+		}
+
+		return style.Render(msg)
+	}
+
 	activePane := m.getActivePane()
 
 	// 選択位置情報

@@ -546,3 +546,86 @@ func TestModelContextMenuEscClosesMenu(t *testing.T) {
 		t.Error("dialog should be closed after Esc")
 	}
 }
+
+// === Phase 2: ステータスバーメッセージ機能のテスト ===
+
+func TestStatusMessageField(t *testing.T) {
+	model := NewModel()
+
+	t.Run("初期状態でstatusMessageは空", func(t *testing.T) {
+		if model.statusMessage != "" {
+			t.Errorf("statusMessage should be empty initially, got %s", model.statusMessage)
+		}
+	})
+
+	t.Run("初期状態でisStatusErrorはfalse", func(t *testing.T) {
+		if model.isStatusError {
+			t.Error("isStatusError should be false initially")
+		}
+	})
+}
+
+func TestClearStatusMsg(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set status message
+	m.statusMessage = "Test error message"
+	m.isStatusError = true
+
+	// Send clearStatusMsg
+	updatedModel, _ = m.Update(clearStatusMsg{})
+	m = updatedModel.(Model)
+
+	if m.statusMessage != "" {
+		t.Errorf("statusMessage should be cleared, got %s", m.statusMessage)
+	}
+
+	if m.isStatusError {
+		t.Error("isStatusError should be false after clearStatusMsg")
+	}
+}
+
+func TestStatusMessageClearCmd(t *testing.T) {
+	// Test that statusMessageClearCmd returns a non-nil command
+	cmd := statusMessageClearCmd(100)
+	if cmd == nil {
+		t.Error("statusMessageClearCmd should return a non-nil command")
+	}
+}
+
+func TestStatusMessageClearOnKeyPress(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set status message
+	m.statusMessage = "Test error message"
+	m.isStatusError = true
+
+	// Press any key (j for down)
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.statusMessage != "" {
+		t.Errorf("statusMessage should be cleared after key press, got %s", m.statusMessage)
+	}
+
+	if m.isStatusError {
+		t.Error("isStatusError should be false after key press")
+	}
+}

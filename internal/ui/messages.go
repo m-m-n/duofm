@@ -17,6 +17,16 @@ func diskSpaceTickCmd() tea.Cmd {
 	})
 }
 
+// clearStatusMsg はステータスメッセージをクリアするメッセージ
+type clearStatusMsg struct{}
+
+// statusMessageClearCmd は指定時間後にclearStatusMsgを送信するコマンド
+func statusMessageClearCmd(duration time.Duration) tea.Cmd {
+	return tea.Tick(duration, func(t time.Time) tea.Msg {
+		return clearStatusMsg{}
+	})
+}
+
 // directoryLoadStartMsg はディレクトリ読み込み開始を通知
 type directoryLoadStartMsg struct {
 	panePath string
@@ -24,9 +34,10 @@ type directoryLoadStartMsg struct {
 
 // directoryLoadCompleteMsg はディレクトリ読み込み完了を通知
 type directoryLoadCompleteMsg struct {
-	panePath string
-	entries  []fs.FileEntry
-	err      error
+	panePath      string
+	entries       []fs.FileEntry
+	err           error
+	attemptedPath string // エラー時にメッセージに表示するパス
 }
 
 // directoryLoadProgressMsg は読み込み進捗を通知（オプション）
