@@ -32,6 +32,8 @@ type Model struct {
 	pendingAction      func() error // 確認待ちのアクション（コンテキストメニューの削除用）
 	statusMessage      string       // ステータスバーに表示するメッセージ
 	isStatusError      bool         // エラーメッセージかどうか
+	searchState        SearchState  // 検索状態
+	minibuffer         *Minibuffer  // ミニバッファ
 }
 
 // PanePosition はペインの位置を表す
@@ -58,13 +60,15 @@ func NewModel() Model {
 	}
 
 	return Model{
-		leftPane:   nil, // Updateで初期化
-		rightPane:  nil, // Updateで初期化
-		leftPath:   cwd,
-		rightPath:  home,
-		activePane: LeftPane,
-		dialog:     nil,
-		ready:      false,
+		leftPane:    nil, // Updateで初期化
+		rightPane:   nil, // Updateで初期化
+		leftPath:    cwd,
+		rightPath:   home,
+		activePane:  LeftPane,
+		dialog:      nil,
+		ready:       false,
+		searchState: SearchState{Mode: SearchModeNone},
+		minibuffer:  NewMinibuffer(),
 	}
 }
 
@@ -251,6 +255,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// ミニバッファがアクティブな場合（検索中）
+		if m.searchState.IsActive {
+			switch msg.Type {
+			case tea.KeyEnter:
+				// 検索を確定
+				m.confirmSearch()
+				return m, nil
+
+			case tea.KeyEsc:
+				// 検索をキャンセル
+				m.cancelSearch()
+				return m, nil
+
+			default:
+				// ミニバッファにキー入力を渡す
+				if m.minibuffer.HandleKey(msg) {
+					// インクリメンタル検索の場合は即座にフィルタを適用
+					m.applyIncrementalFilter()
+					return m, nil
+				}
+			}
+			return m, nil
+		}
+
 		// ステータスメッセージがあればクリア
 		if m.statusMessage != "" {
 			m.statusMessage = ""
@@ -264,6 +292,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case KeyHelp:
 			// ヘルプダイアログを表示
 			m.dialog = NewHelpDialog()
+			return m, nil
+
+		case KeySearch:
+			// インクリメンタル検索を開始
+			m.startSearch(SearchModeIncremental)
+			return m, nil
+
+		case KeyRegexSearch:
+			// 正規表現検索を開始
+			m.startSearch(SearchModeRegex)
 			return m, nil
 
 		case KeyMoveDown, KeyArrowDown:
@@ -402,6 +440,11 @@ func (m *Model) getInactivePane() *Pane {
 
 // switchToPane はアクティブペインを切り替え
 func (m *Model) switchToPane(pos PanePosition) {
+	// 検索中の場合はキャンセル
+	if m.searchState.IsActive {
+		m.cancelSearch()
+	}
+
 	m.activePane = pos
 	m.leftPane.SetActive(pos == LeftPane)
 	m.rightPane.SetActive(pos == RightPane)
@@ -417,11 +460,21 @@ func (m Model) View() string {
 	title := titleStyle.Render("duofm v0.1.0")
 
 	// 2つのペインを横に並べる（ディスク容量情報付き）
-	panes := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		m.leftPane.ViewWithDiskSpace(m.leftDiskSpace),
-		m.rightPane.ViewWithDiskSpace(m.rightDiskSpace),
-	)
+	// 検索モードの場合はアクティブペインにミニバッファを渡す
+	var leftView, rightView string
+	if m.searchState.IsActive {
+		if m.activePane == LeftPane {
+			leftView = m.leftPane.ViewWithMinibuffer(m.leftDiskSpace, m.minibuffer)
+			rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+		} else {
+			leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
+			rightView = m.rightPane.ViewWithMinibuffer(m.rightDiskSpace, m.minibuffer)
+		}
+	} else {
+		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
+		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+	}
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
 
 	// ステータスバー
 	statusBar := m.renderStatusBar()
@@ -641,4 +694,91 @@ func (m *Model) updateDiskSpace() {
 	}
 
 	m.lastDiskSpaceCheck = time.Now()
+}
+
+// startSearch は検索モードを開始する
+func (m *Model) startSearch(mode SearchMode) {
+	// 現在のフィルタ状態を保存（Esc時に復元するため）
+	pane := m.getActivePane()
+	if pane.IsFiltered() {
+		m.searchState.PreviousResult = &SearchResult{
+			Mode:    pane.FilterMode(),
+			Pattern: pane.FilterPattern(),
+		}
+	} else {
+		m.searchState.PreviousResult = nil
+	}
+
+	m.searchState.Mode = mode
+	m.searchState.Pattern = ""
+	m.searchState.IsActive = true
+
+	// ミニバッファの設定
+	if mode == SearchModeIncremental {
+		m.minibuffer.SetPrompt("/: ")
+	} else {
+		m.minibuffer.SetPrompt("(search): ")
+	}
+	m.minibuffer.Clear()
+	m.minibuffer.SetWidth(m.getActivePane().width)
+	m.minibuffer.Show()
+}
+
+// confirmSearch は検索を確定する
+func (m *Model) confirmSearch() {
+	pattern := m.minibuffer.Input()
+	pane := m.getActivePane()
+
+	if pattern == "" {
+		// 空のパターンでEnter→フィルタをクリア
+		pane.ClearFilter()
+		m.searchState.PreviousResult = nil
+	} else {
+		// パターンがある場合はフィルタを適用
+		if err := pane.ApplyFilter(pattern, m.searchState.Mode); err != nil {
+			// 正規表現エラーの場合はステータスバーに表示してミニバッファを維持
+			m.statusMessage = fmt.Sprintf("Invalid regex: %v", err)
+			m.isStatusError = true
+			return
+		}
+		// 成功した場合、現在のフィルタを「前の結果」として保存
+		m.searchState.PreviousResult = &SearchResult{
+			Mode:    m.searchState.Mode,
+			Pattern: pattern,
+		}
+	}
+
+	// ミニバッファを閉じる
+	m.minibuffer.Hide()
+	m.searchState.IsActive = false
+	m.searchState.Mode = SearchModeNone
+}
+
+// cancelSearch は検索をキャンセルする
+func (m *Model) cancelSearch() {
+	pane := m.getActivePane()
+
+	// 前の検索結果があれば復元
+	if m.searchState.PreviousResult != nil {
+		pane.ApplyFilter(m.searchState.PreviousResult.Pattern, m.searchState.PreviousResult.Mode)
+	} else {
+		// 前の結果がなければフィルタをクリア
+		pane.ClearFilter()
+	}
+
+	// ミニバッファを閉じる
+	m.minibuffer.Hide()
+	m.searchState.IsActive = false
+	m.searchState.Mode = SearchModeNone
+}
+
+// applyIncrementalFilter はインクリメンタル検索のフィルタを適用する
+func (m *Model) applyIncrementalFilter() {
+	pattern := m.minibuffer.Input()
+	pane := m.getActivePane()
+
+	// インクリメンタル検索の場合は即座にフィルタを適用
+	if m.searchState.Mode == SearchModeIncremental {
+		pane.ApplyFilter(pattern, SearchModeIncremental)
+	}
 }

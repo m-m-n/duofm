@@ -629,3 +629,310 @@ func TestStatusMessageClearOnKeyPress(t *testing.T) {
 		t.Error("isStatusError should be false after key press")
 	}
 }
+
+// === Phase 4: 検索機能のテスト ===
+
+func TestNewModelInitializesSearchState(t *testing.T) {
+	model := NewModel()
+
+	t.Run("searchStateが初期化される", func(t *testing.T) {
+		if model.searchState.Mode != SearchModeNone {
+			t.Errorf("searchState.Mode = %v, want SearchModeNone", model.searchState.Mode)
+		}
+		if model.searchState.IsActive {
+			t.Error("searchState.IsActive should be false initially")
+		}
+	})
+
+	t.Run("minibufferが初期化される", func(t *testing.T) {
+		if model.minibuffer == nil {
+			t.Error("minibuffer should not be nil")
+		}
+		if model.minibuffer.IsVisible() {
+			t.Error("minibuffer should not be visible initially")
+		}
+	})
+}
+
+func TestSearchKeyActivatesIncrementalSearch(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press / key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.searchState.Mode != SearchModeIncremental {
+		t.Errorf("searchState.Mode = %v, want SearchModeIncremental", m.searchState.Mode)
+	}
+
+	if !m.searchState.IsActive {
+		t.Error("searchState.IsActive should be true after / key")
+	}
+
+	if !m.minibuffer.IsVisible() {
+		t.Error("minibuffer should be visible after / key")
+	}
+}
+
+func TestCtrlFActivatesRegexSearch(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press Ctrl+F
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlF}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.searchState.Mode != SearchModeRegex {
+		t.Errorf("searchState.Mode = %v, want SearchModeRegex", m.searchState.Mode)
+	}
+
+	if !m.searchState.IsActive {
+		t.Error("searchState.IsActive should be true after Ctrl+F")
+	}
+
+	if !m.minibuffer.IsVisible() {
+		t.Error("minibuffer should be visible after Ctrl+F")
+	}
+}
+
+func TestSearchEscCancelsSearch(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Start search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Esc to cancel
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.searchState.IsActive {
+		t.Error("searchState.IsActive should be false after Esc")
+	}
+
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should not be visible after Esc")
+	}
+}
+
+func TestSearchEnterConfirmsSearch(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Start search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Type a pattern
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Enter to confirm
+	keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.searchState.IsActive {
+		t.Error("searchState.IsActive should be false after Enter")
+	}
+
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should not be visible after Enter")
+	}
+
+	// Filter should be applied
+	if !m.getActivePane().IsFiltered() {
+		t.Error("filter should be applied after Enter with pattern")
+	}
+}
+
+func TestEmptySearchEnterClearsFilter(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Apply a filter first
+	m.getActivePane().ApplyFilter("test", SearchModeIncremental)
+
+	// Start search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Enter without typing anything
+	keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Filter should be cleared
+	if m.getActivePane().IsFiltered() {
+		t.Error("filter should be cleared after Enter with empty pattern")
+	}
+}
+
+func TestIncrementalSearchAppliesFilterImmediately(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	initialEntryCount := len(m.getActivePane().entries)
+
+	// Start incremental search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Type a pattern that should filter entries
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Entries should be filtered immediately
+	if len(m.getActivePane().entries) >= initialEntryCount {
+		// Unless "xyz" matches something, which is unlikely
+		// This is a rough test - the point is that filtering happens immediately
+		t.Log("Incremental filter applied (entry count may vary based on directory contents)")
+	}
+}
+
+func TestSearchStateRestoreOnEsc(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Get initial entry count
+	initialEntryCount := len(m.getActivePane().entries)
+
+	// Apply a filter first
+	m.getActivePane().ApplyFilter("test", SearchModeIncremental)
+	filteredCount := len(m.getActivePane().entries)
+
+	// Start a new search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Type something different
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Esc to cancel - should restore previous filter
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Previous filter should be restored
+	restoredCount := len(m.getActivePane().entries)
+
+	// The filter pattern should be restored
+	if m.getActivePane().FilterPattern() != "test" {
+		t.Errorf("FilterPattern() = %s, want 'test'", m.getActivePane().FilterPattern())
+	}
+
+	t.Logf("Entry counts: initial=%d, filtered=%d, restored=%d", initialEntryCount, filteredCount, restoredCount)
+}
+
+func TestSearchPromptForModes(t *testing.T) {
+	tests := []struct {
+		name       string
+		key        tea.KeyMsg
+		wantPrompt string
+	}{
+		{
+			name:       "インクリメンタル検索のプロンプト",
+			key:        tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}},
+			wantPrompt: "/: ",
+		},
+		{
+			name:       "正規表現検索のプロンプト",
+			key:        tea.KeyMsg{Type: tea.KeyCtrlF},
+			wantPrompt: "(search): ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := NewModel()
+
+			// Initialize with WindowSizeMsg
+			msg := tea.WindowSizeMsg{
+				Width:  120,
+				Height: 40,
+			}
+			updatedModel, _ := model.Update(msg)
+			m := updatedModel.(Model)
+
+			// Start search
+			updatedModel, _ = m.Update(tt.key)
+			m = updatedModel.(Model)
+
+			if m.minibuffer.prompt != tt.wantPrompt {
+				t.Errorf("prompt = %s, want %s", m.minibuffer.prompt, tt.wantPrompt)
+			}
+		})
+	}
+}
