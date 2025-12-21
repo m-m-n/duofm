@@ -147,14 +147,18 @@ func TestDirectoryNavigation(t *testing.T) {
 		t.Error("Should show subdir in initial view")
 	}
 
-	// カーソルをsubdirに移動してEnter
-	inputs := []tea.Msg{
-		tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}, // subdirに移動（..の次）
-		tea.KeyMsg{Type: tea.KeyEnter},                     // ディレクトリに入る
-	}
+	// カーソルをsubdirに移動
+	result, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	m = result.(ui.Model)
 
-	for _, input := range inputs {
-		result, _ := m.Update(input)
+	// Enterを押して非同期コマンドを取得
+	result, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	m = result.(ui.Model)
+
+	// 非同期コマンドを実行して結果を処理
+	if cmd != nil {
+		msg := cmd()
+		result, _ = m.Update(msg)
 		m = result.(ui.Model)
 	}
 

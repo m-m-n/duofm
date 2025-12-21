@@ -42,6 +42,7 @@ type Pane struct {
 	loadingProgress string      // ローディングメッセージ
 	showHidden      bool        // 隠しファイル表示フラグ（デフォルト: false）
 	previousPath    string      // 直前のディレクトリパス（履歴なしの場合は空文字列）
+	pendingPath     string      // 読み込み中の暫定パス（エラー時に元に戻す）
 }
 
 // NewPane は新しいペインを作成
@@ -111,17 +112,19 @@ func LoadDirectoryAsync(panePath string) tea.Cmd {
 		entries, err := fs.ReadDirectory(panePath)
 		if err != nil {
 			return directoryLoadCompleteMsg{
-				panePath: panePath,
-				entries:  nil,
-				err:      err,
+				panePath:      panePath,
+				entries:       nil,
+				err:           err,
+				attemptedPath: panePath,
 			}
 		}
 
 		fs.SortEntries(entries)
 		return directoryLoadCompleteMsg{
-			panePath: panePath,
-			entries:  entries,
-			err:      nil,
+			panePath:      panePath,
+			entries:       entries,
+			err:           nil,
+			attemptedPath: panePath,
 		}
 	}
 }
@@ -165,6 +168,61 @@ func (p *Pane) SelectedEntry() *fs.FileEntry {
 // recordPreviousPath はナビゲーション前に現在のパスを記録する
 func (p *Pane) recordPreviousPath() {
 	p.previousPath = p.path
+}
+
+// restorePreviousPath は読み込み失敗時に前のパスに復元する
+func (p *Pane) restorePreviousPath() {
+	if p.previousPath != "" {
+		p.path = p.previousPath
+		p.pendingPath = ""
+	}
+}
+
+// EnterDirectoryAsync はディレクトリへの移動を開始し、Cmdを返す
+func (p *Pane) EnterDirectoryAsync() tea.Cmd {
+	entry := p.SelectedEntry()
+	if entry == nil {
+		return nil
+	}
+
+	// シンボリックリンクの処理
+	if entry.IsSymlink {
+		if entry.LinkBroken {
+			// リンク切れの場合は何もしない
+			return nil
+		}
+
+		// リンク先がディレクトリかチェック
+		isDir, err := fs.IsDirectory(entry.LinkTarget)
+		if err != nil || !isDir {
+			// リンク先がファイルまたはエラーの場合は何もしない
+			return nil
+		}
+	}
+
+	// 通常のディレクトリ処理
+	if !entry.IsDir && !entry.IsSymlink {
+		return nil // ファイルの場合は何もしない
+	}
+
+	var newPath string
+	if entry.IsParentDir() {
+		// 親ディレクトリに移動
+		newPath = filepath.Dir(p.path)
+	} else {
+		// サブディレクトリに移動（シンボリックリンク含む）
+		newPath = filepath.Join(p.path, entry.Name)
+	}
+
+	// 現在のパスを記録（復元用）
+	p.recordPreviousPath()
+	p.pendingPath = newPath
+	p.path = newPath
+
+	// ローディング状態を開始
+	p.StartLoadingDirectory()
+
+	return LoadDirectoryAsync(newPath)
 }
 
 // EnterDirectory はディレクトリに入る
@@ -226,11 +284,33 @@ func (p *Pane) MoveToParent() error {
 	return p.LoadDirectory()
 }
 
+// MoveToParentAsync は親ディレクトリへの移動を開始
+func (p *Pane) MoveToParentAsync() tea.Cmd {
+	if p.path == "/" {
+		return nil
+	}
+	newPath := filepath.Dir(p.path)
+	p.recordPreviousPath()
+	p.pendingPath = newPath
+	p.path = newPath
+	p.StartLoadingDirectory()
+	return LoadDirectoryAsync(newPath)
+}
+
 // ChangeDirectory は指定されたパスに移動
 func (p *Pane) ChangeDirectory(path string) error {
 	p.recordPreviousPath()
 	p.path = path
 	return p.LoadDirectory()
+}
+
+// ChangeDirectoryAsync は指定パスへの移動を開始
+func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
+	p.recordPreviousPath()
+	p.pendingPath = path
+	p.path = path
+	p.StartLoadingDirectory()
+	return LoadDirectoryAsync(path)
 }
 
 // Path は現在のパスを返す
@@ -662,6 +742,22 @@ func (p *Pane) NavigateToHome() error {
 	return p.LoadDirectory()
 }
 
+// NavigateToHomeAsync はホームディレクトリへの移動を開始
+func (p *Pane) NavigateToHomeAsync() tea.Cmd {
+	home, err := fs.HomeDirectory()
+	if err != nil {
+		return nil
+	}
+	if p.path == home {
+		return nil
+	}
+	p.recordPreviousPath()
+	p.pendingPath = home
+	p.path = home
+	p.StartLoadingDirectory()
+	return LoadDirectoryAsync(home)
+}
+
 // NavigateToPrevious は直前のディレクトリに移動する（トグル動作）
 func (p *Pane) NavigateToPrevious() error {
 	if p.previousPath == "" {
@@ -674,4 +770,17 @@ func (p *Pane) NavigateToPrevious() error {
 	p.previousPath = current
 
 	return p.LoadDirectory()
+}
+
+// NavigateToPreviousAsync は直前のディレクトリへの移動を開始（トグル動作）
+func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
+	if p.previousPath == "" {
+		return nil
+	}
+	current := p.path
+	p.pendingPath = p.previousPath
+	p.path = p.previousPath
+	p.previousPath = current
+	p.StartLoadingDirectory()
+	return LoadDirectoryAsync(p.path)
 }

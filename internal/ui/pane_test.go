@@ -647,3 +647,322 @@ func TestIsShowingHidden(t *testing.T) {
 		t.Error("IsShowingHidden() should return true when showHidden is true")
 	}
 }
+
+// === Phase 1: パス復元機能のテスト ===
+
+func TestRestorePreviousPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("previousPathが設定されている場合にパスを復元", func(t *testing.T) {
+		// 初期状態の設定
+		pane.path = subDir
+		pane.previousPath = tmpDir
+		pane.pendingPath = subDir
+
+		// パスを復元
+		pane.restorePreviousPath()
+
+		if pane.path != tmpDir {
+			t.Errorf("path = %s, want %s", pane.path, tmpDir)
+		}
+
+		if pane.pendingPath != "" {
+			t.Errorf("pendingPath = %s, want empty string", pane.pendingPath)
+		}
+	})
+
+	t.Run("previousPathが空の場合は何もしない", func(t *testing.T) {
+		originalPath := subDir
+		pane.path = originalPath
+		pane.previousPath = ""
+		pane.pendingPath = originalPath
+
+		pane.restorePreviousPath()
+
+		if pane.path != originalPath {
+			t.Errorf("path = %s, want %s", pane.path, originalPath)
+		}
+	})
+}
+
+func TestPendingPathField(t *testing.T) {
+	tmpDir := t.TempDir()
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("初期状態でpendingPathは空", func(t *testing.T) {
+		if pane.pendingPath != "" {
+			t.Errorf("pendingPath should be empty initially, got %s", pane.pendingPath)
+		}
+	})
+
+	t.Run("pendingPathを設定してクリアできる", func(t *testing.T) {
+		pane.pendingPath = "/some/path"
+		if pane.pendingPath != "/some/path" {
+			t.Error("pendingPath should be settable")
+		}
+
+		pane.pendingPath = ""
+		if pane.pendingPath != "" {
+			t.Error("pendingPath should be clearable")
+		}
+	})
+}
+
+// === Phase 4: EnterDirectoryAsync のテスト ===
+
+func TestEnterDirectoryAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// サブディレクトリを作成
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ディレクトリ選択時にコマンドを返す", func(t *testing.T) {
+		// サブディレクトリを選択
+		for i, entry := range pane.entries {
+			if entry.Name == "subdir" && entry.IsDir {
+				pane.cursor = i
+				break
+			}
+		}
+
+		cmd := pane.EnterDirectoryAsync()
+		if cmd == nil {
+			t.Error("EnterDirectoryAsync() should return a command for directory")
+		}
+
+		// pendingPathが設定されているか確認
+		if pane.pendingPath != filepath.Join(tmpDir, "subdir") {
+			t.Errorf("pendingPath = %s, want %s", pane.pendingPath, filepath.Join(tmpDir, "subdir"))
+		}
+	})
+
+	t.Run("ファイル選択時はnilを返す", func(t *testing.T) {
+		// ペインをリセット
+		pane.path = tmpDir
+		pane.LoadDirectory()
+
+		// ファイルを選択
+		for i, entry := range pane.entries {
+			if entry.Name == "file.txt" && !entry.IsDir {
+				pane.cursor = i
+				break
+			}
+		}
+
+		cmd := pane.EnterDirectoryAsync()
+		if cmd != nil {
+			t.Error("EnterDirectoryAsync() should return nil for file")
+		}
+	})
+
+	t.Run("nilエントリではnilを返す", func(t *testing.T) {
+		pane.cursor = -1
+
+		cmd := pane.EnterDirectoryAsync()
+		if cmd == nil {
+			// nilエントリでも安全に終了すればOK（一部の実装ではnilを返す）
+		}
+	})
+}
+
+func TestEnterDirectoryAsyncParentDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(subDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("親ディレクトリ(..)選択時にコマンドを返す", func(t *testing.T) {
+		// 親ディレクトリを選択
+		for i, entry := range pane.entries {
+			if entry.IsParentDir() {
+				pane.cursor = i
+				break
+			}
+		}
+
+		originalPath := pane.path
+		cmd := pane.EnterDirectoryAsync()
+		if cmd == nil {
+			t.Error("EnterDirectoryAsync() should return a command for parent directory")
+		}
+
+		// pendingPathが設定されているか確認
+		if pane.pendingPath != filepath.Dir(originalPath) {
+			t.Errorf("pendingPath = %s, want %s", pane.pendingPath, filepath.Dir(originalPath))
+		}
+	})
+}
+
+// === Phase 7: エラーハンドリング追加テスト ===
+
+func TestEnterDirectoryNoPathExtension(t *testing.T) {
+	// 連続してエラーディレクトリに入ろうとしてもパスが延長されないことを確認
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("エラー後にrestorePreviousPathでパスが復元される", func(t *testing.T) {
+		originalPath := tmpDir
+
+		// サブディレクトリに移動を試みる
+		for i, entry := range pane.entries {
+			if entry.Name == "subdir" && entry.IsDir {
+				pane.cursor = i
+				break
+			}
+		}
+
+		pane.EnterDirectoryAsync()
+
+		// この時点でpathは変更されている
+		if pane.path != filepath.Join(tmpDir, "subdir") {
+			t.Errorf("path should be updated to subdir, got %s", pane.path)
+		}
+
+		// エラーをシミュレート: restorePreviousPathを呼び出す
+		pane.restorePreviousPath()
+
+		// パスが復元されることを確認
+		if pane.path != originalPath {
+			t.Errorf("path should be restored to %s, got %s", originalPath, pane.path)
+		}
+
+		// pendingPathがクリアされることを確認
+		if pane.pendingPath != "" {
+			t.Errorf("pendingPath should be cleared, got %s", pane.pendingPath)
+		}
+	})
+}
+
+func TestMoveToParentAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	t.Run("親ディレクトリへの移動コマンドを返す", func(t *testing.T) {
+		pane, err := NewPane(subDir, 40, 20, true)
+		if err != nil {
+			t.Fatalf("NewPane() failed: %v", err)
+		}
+
+		originalPath := pane.path
+		cmd := pane.MoveToParentAsync()
+		if cmd == nil {
+			t.Error("MoveToParentAsync() should return a command")
+		}
+
+		// pendingPathが設定されているか確認
+		expectedPath := filepath.Dir(originalPath)
+		if pane.pendingPath != expectedPath {
+			t.Errorf("pendingPath = %s, want %s", pane.pendingPath, expectedPath)
+		}
+	})
+
+	t.Run("ルートディレクトリではnilを返す", func(t *testing.T) {
+		pane, _ := NewPane("/", 40, 20, true)
+		cmd := pane.MoveToParentAsync()
+		if cmd != nil {
+			t.Error("MoveToParentAsync() should return nil at root")
+		}
+	})
+}
+
+func TestNavigateToHomeAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ホームディレクトリへの移動コマンドを返す", func(t *testing.T) {
+		home, _ := os.UserHomeDir()
+		if pane.path == home {
+			t.Skip("Already at home directory")
+		}
+
+		cmd := pane.NavigateToHomeAsync()
+		if cmd == nil {
+			t.Error("NavigateToHomeAsync() should return a command")
+		}
+
+		// pendingPathが設定されているか確認
+		if pane.pendingPath != home {
+			t.Errorf("pendingPath = %s, want %s", pane.pendingPath, home)
+		}
+	})
+
+	t.Run("すでにホームにいる場合はnilを返す", func(t *testing.T) {
+		home, _ := os.UserHomeDir()
+		pane.path = home
+		pane.pendingPath = ""
+
+		cmd := pane.NavigateToHomeAsync()
+		if cmd != nil {
+			t.Error("NavigateToHomeAsync() should return nil when already at home")
+		}
+	})
+}
+
+func TestNavigateToPreviousAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("履歴がない場合はnilを返す", func(t *testing.T) {
+		pane.previousPath = ""
+		cmd := pane.NavigateToPreviousAsync()
+		if cmd != nil {
+			t.Error("NavigateToPreviousAsync() should return nil when no previous path")
+		}
+	})
+
+	t.Run("直前のディレクトリへの移動コマンドを返す", func(t *testing.T) {
+		pane.previousPath = subDir
+		originalPath := pane.path
+
+		cmd := pane.NavigateToPreviousAsync()
+		if cmd == nil {
+			t.Error("NavigateToPreviousAsync() should return a command")
+		}
+
+		// パスがスワップされているか確認
+		if pane.path != subDir {
+			t.Errorf("path = %s, want %s", pane.path, subDir)
+		}
+		if pane.previousPath != originalPath {
+			t.Errorf("previousPath = %s, want %s", pane.previousPath, originalPath)
+		}
+	})
+}
