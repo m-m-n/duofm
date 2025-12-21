@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -10,6 +11,9 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/sakura/duofm/internal/fs"
 )
+
+// ANSIエスケープシーケンスを除去するための正規表現
+var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
 // Model はアプリケーション全体の状態を保持
 type Model struct {
@@ -388,46 +392,136 @@ func (m Model) View() string {
 		statusBar,
 	)
 
-	// ダイアログがある場合はアクティブペインの中央にオーバーレイ
+	// ダイアログがある場合は表示タイプに応じて描画
 	if m.dialog != nil && m.dialog.IsActive() {
-		paneWidth := m.width / 2
-		paneHeight := m.height - 2 // タイトルバーとステータスバー分を引く
-
-		// ダイアログをペイン中央に配置
-		dialogView := lipgloss.Place(
-			paneWidth,
-			paneHeight,
-			lipgloss.Center,
-			lipgloss.Center,
-			m.dialog.View(),
-			lipgloss.WithWhitespaceChars("█"),
-			lipgloss.WithWhitespaceForeground(lipgloss.Color("236")),
-		)
-
-		// タイトルバー
-		title := titleStyle.Render("duofm v0.1.0")
-
-		// ステータスバー
-		statusBar := m.renderStatusBar()
-
-		// 左右ペインの組み合わせ（アクティブペインをダイアログに置き換え）
-		var panes string
-		if m.activePane == LeftPane {
-			panes = lipgloss.JoinHorizontal(lipgloss.Top,
-				dialogView,
-				m.rightPane.ViewWithDiskSpace(m.rightDiskSpace),
-			)
-		} else {
-			panes = lipgloss.JoinHorizontal(lipgloss.Top,
-				m.leftPane.ViewWithDiskSpace(m.leftDiskSpace),
-				dialogView,
-			)
+		switch m.dialog.DisplayType() {
+		case DialogDisplayScreen:
+			return m.renderDialogScreen()
+		case DialogDisplayPane:
+			return m.renderDialogPane()
 		}
-
-		return lipgloss.JoinVertical(lipgloss.Left, title, panes, statusBar)
 	}
 
 	return mainView
+}
+
+// renderDialogScreen は画面全体表示ダイアログをレンダリング（両ペインdimmed）
+func (m Model) renderDialogScreen() string {
+	// タイトルバー
+	title := titleStyle.Render("duofm v0.1.0")
+
+	// 両方のペインをdimmedスタイルで描画
+	leftView := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
+	rightView := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
+
+	// ステータスバー
+	statusBar := m.renderStatusBar()
+
+	// ペイン全体のサイズ
+	panesHeight := m.height - 2 // タイトルバーとステータスバー分を引く
+
+	// ダイアログを画面中央に配置（背景をdimmed色で埋める）
+	dialogView := lipgloss.Place(
+		m.width,
+		panesHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		m.dialog.View(),
+		lipgloss.WithWhitespaceBackground(dimmedBgColor),
+	)
+
+	// dimmedペインの上にダイアログをオーバーレイ
+	// 各行を結合してオーバーレイ効果を出す
+	panesLines := strings.Split(panes, "\n")
+	dialogLines := strings.Split(dialogView, "\n")
+
+	var result strings.Builder
+	for i := 0; i < len(panesLines) && i < len(dialogLines); i++ {
+		// ダイアログ行が空白のみなら背景を使用、そうでなければダイアログを使用
+		dialogLine := dialogLines[i]
+		paneLine := panesLines[i]
+
+		// ダイアログ行の内容をチェック（ANSIエスケープシーケンスを除去してから空白判定）
+		stripped := ansiRegex.ReplaceAllString(dialogLine, "")
+		trimmed := strings.TrimSpace(stripped)
+		if trimmed == "" {
+			result.WriteString(paneLine)
+		} else {
+			result.WriteString(dialogLine)
+		}
+		if i < len(panesLines)-1 {
+			result.WriteString("\n")
+		}
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, title, result.String(), statusBar)
+}
+
+// renderDialogPane はペインローカルダイアログをレンダリング（アクティブペインのみdimmed）
+func (m Model) renderDialogPane() string {
+	paneWidth := m.width / 2
+	paneHeight := m.height - 2 // タイトルバーとステータスバー分を引く
+
+	// タイトルバー
+	title := titleStyle.Render("duofm v0.1.0")
+
+	// ステータスバー
+	statusBar := m.renderStatusBar()
+
+	var leftView, rightView string
+
+	if m.activePane == LeftPane {
+		// 左ペインをdimmedで描画してダイアログをオーバーレイ
+		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
+		leftView = m.overlayDialogOnPane(dimmedLeft, paneWidth, paneHeight)
+		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+	} else {
+		// 右ペインをdimmedで描画してダイアログをオーバーレイ
+		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
+		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+		rightView = m.overlayDialogOnPane(dimmedRight, paneWidth, paneHeight)
+	}
+
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
+	return lipgloss.JoinVertical(lipgloss.Left, title, panes, statusBar)
+}
+
+// overlayDialogOnPane はdimmedペインの上にダイアログをオーバーレイする
+func (m Model) overlayDialogOnPane(dimmedPane string, paneWidth, paneHeight int) string {
+	// ダイアログをペイン中央に配置（背景をdimmed色で埋める）
+	dialogView := lipgloss.Place(
+		paneWidth,
+		paneHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		m.dialog.View(),
+		lipgloss.WithWhitespaceBackground(dimmedBgColor),
+	)
+
+	// dimmedペインの上にダイアログをオーバーレイ
+	paneLines := strings.Split(dimmedPane, "\n")
+	dialogLines := strings.Split(dialogView, "\n")
+
+	var result strings.Builder
+	for i := 0; i < len(paneLines) && i < len(dialogLines); i++ {
+		dialogLine := dialogLines[i]
+		paneLine := paneLines[i]
+
+		// ダイアログ行が空白のみなら背景を使用（ANSIエスケープシーケンスを除去してから判定）
+		stripped := ansiRegex.ReplaceAllString(dialogLine, "")
+		trimmed := strings.TrimSpace(stripped)
+		if trimmed == "" {
+			result.WriteString(paneLine)
+		} else {
+			result.WriteString(dialogLine)
+		}
+		if i < len(paneLines)-1 {
+			result.WriteString("\n")
+		}
+	}
+
+	return result.String()
 }
 
 // renderStatusBar はステータスバーをレンダリング

@@ -22,6 +22,12 @@ const (
 	DisplayDetail
 )
 
+// ダイアログオーバーレイ用のdimmedスタイル色
+var (
+	dimmedBgColor = lipgloss.Color("236") // 濃いグレー背景
+	dimmedFgColor = lipgloss.Color("243") // 暗いテキスト
+)
+
 // Pane は1つのファイルリストペインを表現
 type Pane struct {
 	path            string
@@ -478,4 +484,91 @@ func (p *Pane) GetEffectiveDisplayMode() DisplayMode {
 // CanToggleMode は現在iキーが有効かどうかを返す
 func (p *Pane) CanToggleMode() bool {
 	return !p.ShouldUseMinimalMode()
+}
+
+// ViewDimmedWithDiskSpace はダイアログオーバーレイ用にdimmedスタイルでペインをレンダリング
+func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
+	var b strings.Builder
+
+	// パス表示（暗いスタイル）
+	displayPath := p.formatPath()
+	pathStyle := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1).
+		Bold(true).
+		Background(dimmedBgColor).
+		Foreground(dimmedFgColor)
+
+	b.WriteString(pathStyle.Render(displayPath))
+	b.WriteString("\n")
+
+	// ヘッダー2行目（マーク情報と空き容量）
+	headerLine2 := p.renderHeaderLine2(diskSpace)
+	headerStyle := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1).
+		Background(dimmedBgColor).
+		Foreground(dimmedFgColor)
+	b.WriteString(headerStyle.Render(headerLine2))
+	b.WriteString("\n")
+
+	// 区切り線
+	border := strings.Repeat("─", p.width-2)
+	borderStyle := lipgloss.NewStyle().
+		Padding(0, 1).
+		Background(dimmedBgColor).
+		Foreground(dimmedFgColor)
+	b.WriteString(borderStyle.Render(border))
+	b.WriteString("\n")
+
+	// ファイルリスト
+	visibleLines := p.height - 4 // ヘッダー2行 + ボーダー1行 = 3行
+	endIdx := p.scrollOffset + visibleLines
+	if endIdx > len(p.entries) {
+		endIdx = len(p.entries)
+	}
+
+	for i := p.scrollOffset; i < endIdx; i++ {
+		entry := p.entries[i]
+		line := p.formatEntryDimmed(entry)
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+
+	// 空行で埋める（dimmedスタイル）
+	emptyStyle := lipgloss.NewStyle().
+		Width(p.width).
+		Background(dimmedBgColor)
+	for i := endIdx - p.scrollOffset; i < visibleLines; i++ {
+		b.WriteString(emptyStyle.Render(""))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
+// formatEntryDimmed はエントリをdimmedスタイルで1行にフォーマット
+func (p *Pane) formatEntryDimmed(entry fs.FileEntry) string {
+	mode := p.GetEffectiveDisplayMode()
+	nameWidth, _ := CalculateColumnWidths(p.width)
+
+	var line string
+
+	switch mode {
+	case DisplayMinimal:
+		line = p.formatMinimalEntry(entry, nameWidth)
+	case DisplayBasic:
+		line = p.formatBasicEntry(entry, nameWidth)
+	case DisplayDetail:
+		line = p.formatDetailEntry(entry, nameWidth)
+	}
+
+	// dimmedスタイルを適用（カーソルハイライトなし、ファイルタイプ色なし）
+	style := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1).
+		Background(dimmedBgColor).
+		Foreground(dimmedFgColor)
+
+	return style.Render(line)
 }

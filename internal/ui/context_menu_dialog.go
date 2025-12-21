@@ -323,6 +323,11 @@ func (d *ContextMenuDialog) IsActive() bool {
 	return d.active
 }
 
+// DisplayType returns the dialog display type
+func (d *ContextMenuDialog) DisplayType() DialogDisplayType {
+	return DialogDisplayPane
+}
+
 // getCurrentPageItems returns items for the current page
 func (d *ContextMenuDialog) getCurrentPageItems() []MenuItem {
 	start := d.currentPage * d.itemsPerPage

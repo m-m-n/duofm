@@ -90,3 +90,8 @@ func (d *ErrorDialog) View() string {
 func (d *ErrorDialog) IsActive() bool {
 	return d.active
 }
+
+// DisplayType はダイアログの表示タイプを返す
+func (d *ErrorDialog) DisplayType() DialogDisplayType {
+	return DialogDisplayScreen
+}
