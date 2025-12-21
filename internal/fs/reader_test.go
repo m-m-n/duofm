@@ -190,3 +190,48 @@ func TestFileEntryProperties(t *testing.T) {
 		t.Error("testdir not found in entries")
 	}
 }
+
+func TestReadDirectory_ParentDirMetadata(t *testing.T) {
+	// Create a subdirectory to test parent metadata
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	if err := os.Mkdir(subDir, 0755); err != nil {
+		t.Fatalf("Failed to create subdirectory: %v", err)
+	}
+
+	entries, err := ReadDirectory(subDir)
+	if err != nil {
+		t.Fatalf("ReadDirectory() failed: %v", err)
+	}
+
+	// Find parent directory entry
+	var parentEntry *FileEntry
+	for i := range entries {
+		if entries[i].IsParentDir() {
+			parentEntry = &entries[i]
+			break
+		}
+	}
+
+	if parentEntry == nil {
+		t.Fatal("Parent directory entry not found")
+	}
+
+	// Verify ModTime is not zero value
+	if parentEntry.ModTime.IsZero() {
+		t.Error("Parent directory ModTime should not be zero")
+	}
+
+	// Verify Permissions is set
+	if parentEntry.Permissions == 0 {
+		t.Error("Parent directory Permissions should be set")
+	}
+
+	// Verify Owner/Group are populated
+	if parentEntry.Owner == "" {
+		t.Error("Parent directory Owner should not be empty")
+	}
+	if parentEntry.Group == "" {
+		t.Error("Parent directory Group should not be empty")
+	}
+}
