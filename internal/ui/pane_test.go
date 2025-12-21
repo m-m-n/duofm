@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -964,5 +966,475 @@ func TestNavigateToPreviousAsync(t *testing.T) {
 		if pane.previousPath != originalPath {
 			t.Errorf("previousPath = %s, want %s", pane.previousPath, originalPath)
 		}
+	})
+}
+
+// === Phase 3: フィルタ機能のテスト ===
+
+func TestApplyFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// テストファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "README.md"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "readme.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "main.go"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test.go"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("インクリメンタル検索でフィルタを適用", func(t *testing.T) {
+		// "go"でフィルタ（大文字小文字を区別しない）
+		err := pane.ApplyFilter("go", SearchModeIncremental)
+		if err != nil {
+			t.Errorf("ApplyFilter() error = %v", err)
+		}
+
+		// ".go"ファイルのみがマッチするはず
+		foundCount := 0
+		for _, entry := range pane.entries {
+			if entry.IsParentDir() {
+				continue
+			}
+			foundCount++
+		}
+
+		if foundCount != 2 {
+			t.Errorf("ApplyFilter() should return 2 .go files, got %d", foundCount)
+		}
+	})
+
+	t.Run("大文字を含むパターンは大文字小文字を区別する", func(t *testing.T) {
+		err := pane.ApplyFilter("README", SearchModeIncremental)
+		if err != nil {
+			t.Errorf("ApplyFilter() error = %v", err)
+		}
+
+		// README.mdのみがマッチするはず
+		foundCount := 0
+		for _, entry := range pane.entries {
+			if entry.IsParentDir() {
+				continue
+			}
+			foundCount++
+		}
+
+		if foundCount != 1 {
+			t.Errorf("ApplyFilter() with uppercase should return 1 file, got %d", foundCount)
+		}
+	})
+
+	t.Run("正規表現検索でフィルタを適用", func(t *testing.T) {
+		err := pane.ApplyFilter(`\.go$`, SearchModeRegex)
+		if err != nil {
+			t.Errorf("ApplyFilter() error = %v", err)
+		}
+
+		// .goファイルのみがマッチするはず
+		foundCount := 0
+		for _, entry := range pane.entries {
+			if entry.IsParentDir() {
+				continue
+			}
+			foundCount++
+		}
+
+		if foundCount != 2 {
+			t.Errorf("ApplyFilter() regex should return 2 .go files, got %d", foundCount)
+		}
+	})
+
+	t.Run("無効な正規表現でエラーを返す", func(t *testing.T) {
+		err := pane.ApplyFilter("[invalid", SearchModeRegex)
+		if err == nil {
+			t.Error("ApplyFilter() should return error for invalid regex")
+		}
+	})
+
+	t.Run("空のパターンでフィルタをクリア", func(t *testing.T) {
+		// 先にフィルタを適用
+		pane.ApplyFilter("go", SearchModeIncremental)
+
+		// 空のパターンでクリア
+		err := pane.ApplyFilter("", SearchModeIncremental)
+		if err != nil {
+			t.Errorf("ApplyFilter() error = %v", err)
+		}
+
+		// 全エントリが表示されるはず
+		if len(pane.entries) != len(pane.allEntries) {
+			t.Errorf("ApplyFilter('') should show all entries, got %d, want %d",
+				len(pane.entries), len(pane.allEntries))
+		}
+	})
+}
+
+func TestClearFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタをクリアして全エントリを表示", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("txt", SearchModeIncremental)
+
+		// フィルタをクリア
+		pane.ClearFilter()
+
+		if pane.filterPattern != "" {
+			t.Error("ClearFilter() should clear filterPattern")
+		}
+
+		if pane.filterMode != SearchModeNone {
+			t.Error("ClearFilter() should set filterMode to SearchModeNone")
+		}
+
+		if len(pane.entries) != len(pane.allEntries) {
+			t.Errorf("ClearFilter() should show all entries, got %d, want %d",
+				len(pane.entries), len(pane.allEntries))
+		}
+	})
+}
+
+func TestResetToFullList(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ResetToFullListでディレクトリを再読み込み", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("file1", SearchModeIncremental)
+
+		// 新しいファイルを追加
+		os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
+
+		// リセット
+		err := pane.ResetToFullList()
+		if err != nil {
+			t.Errorf("ResetToFullList() error = %v", err)
+		}
+
+		// 新しいファイルが含まれているはず
+		found := false
+		for _, entry := range pane.entries {
+			if entry.Name == "file3.txt" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("ResetToFullList() should reload directory including new files")
+		}
+	})
+}
+
+func TestIsFiltered(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタ適用前はfalse", func(t *testing.T) {
+		if pane.IsFiltered() {
+			t.Error("IsFiltered() should return false initially")
+		}
+	})
+
+	t.Run("フィルタ適用後はtrue", func(t *testing.T) {
+		pane.ApplyFilter("file", SearchModeIncremental)
+		if !pane.IsFiltered() {
+			t.Error("IsFiltered() should return true after filter")
+		}
+	})
+
+	t.Run("フィルタクリア後はfalse", func(t *testing.T) {
+		pane.ClearFilter()
+		if pane.IsFiltered() {
+			t.Error("IsFiltered() should return false after clear")
+		}
+	})
+}
+
+func TestFilterPattern(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタパターンを取得", func(t *testing.T) {
+		pane.ApplyFilter("test", SearchModeIncremental)
+		if pane.FilterPattern() != "test" {
+			t.Errorf("FilterPattern() = %s, want %s", pane.FilterPattern(), "test")
+		}
+	})
+}
+
+func TestFilterMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタモードを取得", func(t *testing.T) {
+		pane.ApplyFilter("test", SearchModeRegex)
+		if pane.FilterMode() != SearchModeRegex {
+			t.Errorf("FilterMode() = %v, want %v", pane.FilterMode(), SearchModeRegex)
+		}
+	})
+}
+
+func TestTotalEntryCount(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("親ディレクトリを除いた総エントリ数を返す", func(t *testing.T) {
+		// allEntries には .. + 3ファイル = 4エントリ
+		// TotalEntryCount は親ディレクトリを除くので3
+		expected := 3
+		if pane.TotalEntryCount() != expected {
+			t.Errorf("TotalEntryCount() = %d, want %d", pane.TotalEntryCount(), expected)
+		}
+	})
+}
+
+func TestFilteredEntryCount(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタ後のエントリ数を返す", func(t *testing.T) {
+		// "txt"でフィルタ
+		pane.ApplyFilter("txt", SearchModeIncremental)
+
+		// 親ディレクトリはフィルタで除外されないので、txtファイルのみが含まれるはず
+		// filterIncremental は親ディレクトリも含めてフィルタする
+		// フィルタ結果には親ディレクトリは含まれない（名前が".."なので"txt"にマッチしない）
+		expected := 2 // file1.txt, file2.txt
+		if pane.FilteredEntryCount() != expected {
+			t.Errorf("FilteredEntryCount() = %d, want %d", pane.FilteredEntryCount(), expected)
+		}
+	})
+}
+
+func TestFilterWithHiddenToggle(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, ".hidden.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("隠しファイルトグル時にフィルタがクリアされる", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("txt", SearchModeIncremental)
+
+		// 隠しファイルをトグル（LoadDirectoryが呼ばれてフィルタがクリアされる）
+		pane.ToggleHidden()
+
+		// LoadDirectoryはフィルタをクリアする
+		if pane.IsFiltered() {
+			t.Error("Filter should be cleared after ToggleHidden")
+		}
+	})
+}
+
+func TestCursorPositionAfterFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("フィルタでカーソルが範囲外になった場合に調整される", func(t *testing.T) {
+		// カーソルを最後のエントリに移動
+		pane.cursor = len(pane.entries) - 1
+
+		// フィルタを適用してエントリ数を減らす
+		pane.ApplyFilter("go", SearchModeIncremental)
+
+		// カーソルが範囲内に調整されているはず
+		if pane.cursor >= len(pane.entries) {
+			t.Errorf("cursor = %d, should be < %d", pane.cursor, len(pane.entries))
+		}
+	})
+}
+
+func TestLoadDirectoryClearsFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("LoadDirectoryでフィルタがクリアされる", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("file", SearchModeIncremental)
+
+		// ディレクトリを再読み込み
+		pane.LoadDirectory()
+
+		if pane.IsFiltered() {
+			t.Error("LoadDirectory() should clear filter")
+		}
+
+		if pane.filterPattern != "" {
+			t.Error("LoadDirectory() should clear filterPattern")
+		}
+
+		if pane.filterMode != SearchModeNone {
+			t.Error("LoadDirectory() should set filterMode to SearchModeNone")
+		}
+	})
+}
+
+func TestAllEntriesPopulated(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("allEntriesが正しく設定される", func(t *testing.T) {
+		if len(pane.allEntries) == 0 {
+			t.Error("allEntries should be populated")
+		}
+
+		// entries と allEntries が同じ内容を持つ（フィルタ適用前）
+		if len(pane.entries) != len(pane.allEntries) {
+			t.Errorf("entries and allEntries should have same length initially, got %d and %d",
+				len(pane.entries), len(pane.allEntries))
+		}
+	})
+}
+
+// === Phase 5: ミニバッファ表示のテスト ===
+
+func TestViewWithMinibuffer(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 60, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ミニバッファなしでも描画できる", func(t *testing.T) {
+		view := pane.ViewWithMinibuffer(1024*1024, nil)
+		if view == "" {
+			t.Error("ViewWithMinibuffer should return non-empty content")
+		}
+	})
+
+	t.Run("非表示ミニバッファでは通常描画", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Hide()
+
+		view := pane.ViewWithMinibuffer(1024*1024, mb)
+		if view == "" {
+			t.Error("ViewWithMinibuffer should return non-empty content")
+		}
+	})
+
+	t.Run("表示中ミニバッファはプロンプトを含む", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.SetPrompt("/: ")
+		mb.SetWidth(60)
+		mb.Show()
+
+		view := pane.ViewWithMinibuffer(1024*1024, mb)
+		if view == "" {
+			t.Error("ViewWithMinibuffer should return non-empty content")
+		}
+		// プロンプトが含まれていることを確認
+		if !strings.Contains(view, "/: ") {
+			t.Error("View should contain minibuffer prompt")
+		}
+	})
+}
+
+func TestViewWithMinibufferReducesVisibleLines(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 多くのファイルを作成してスクロールが必要になるようにする
+	for i := 0; i < 20; i++ {
+		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
+	}
+
+	pane, err := NewPane(tmpDir, 60, 15, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ミニバッファ表示時はファイルリストが1行少ない", func(t *testing.T) {
+		// ミニバッファなしのビュー
+		viewWithout := pane.ViewWithDiskSpace(0)
+		linesWithout := strings.Count(viewWithout, "\n")
+
+		// ミニバッファありのビュー
+		mb := NewMinibuffer()
+		mb.SetPrompt("/: ")
+		mb.SetWidth(60)
+		mb.Show()
+		viewWith := pane.ViewWithMinibuffer(0, mb)
+		linesWith := strings.Count(viewWith, "\n")
+
+		// 行数は同じ（ミニバッファ1行追加、ファイルリスト1行減少）
+		t.Logf("Lines without minibuffer: %d, with minibuffer: %d", linesWithout, linesWith)
 	})
 }

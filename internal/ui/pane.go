@@ -31,7 +31,8 @@ var (
 // Pane は1つのファイルリストペインを表現
 type Pane struct {
 	path            string
-	entries         []fs.FileEntry
+	entries         []fs.FileEntry // フィルタ適用後の表示用エントリ
+	allEntries      []fs.FileEntry // フィルタ適用前のすべてのエントリ
 	cursor          int
 	scrollOffset    int
 	width           int
@@ -43,6 +44,8 @@ type Pane struct {
 	showHidden      bool        // 隠しファイル表示フラグ（デフォルト: false）
 	previousPath    string      // 直前のディレクトリパス（履歴なしの場合は空文字列）
 	pendingPath     string      // 読み込み中の暫定パス（エラー時に元に戻す）
+	filterPattern   string      // 現在のフィルタパターン（空の場合はフィルタなし）
+	filterMode      SearchMode  // 現在のフィルタモード
 }
 
 // NewPane は新しいペインを作成
@@ -80,7 +83,12 @@ func (p *Pane) LoadDirectory() error {
 		entries = filterHiddenFiles(entries)
 	}
 
+	// allEntriesにすべてのエントリを保存
+	p.allEntries = entries
+	// フィルタをクリアして全エントリを表示
 	p.entries = entries
+	p.filterPattern = ""
+	p.filterMode = SearchModeNone
 	p.cursor = 0
 	p.scrollOffset = 0
 
@@ -325,6 +333,16 @@ func (p *Pane) View() string {
 
 // ViewWithDiskSpace はペインをレンダリング（ディスク容量情報付き）
 func (p *Pane) ViewWithDiskSpace(diskSpace uint64) string {
+	return p.viewInternal(diskSpace, nil)
+}
+
+// ViewWithMinibuffer はペインをレンダリング（ミニバッファ付き）
+func (p *Pane) ViewWithMinibuffer(diskSpace uint64, minibuffer *Minibuffer) string {
+	return p.viewInternal(diskSpace, minibuffer)
+}
+
+// viewInternal は内部レンダリング関数
+func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 	var b strings.Builder
 
 	// パス表示（ホームディレクトリは ~ に置換）
@@ -332,6 +350,11 @@ func (p *Pane) ViewWithDiskSpace(diskSpace uint64) string {
 	// 隠しファイル表示中は [H] インジケーターを追加
 	if p.showHidden {
 		displayPath = "[H] " + displayPath
+	}
+	// フィルタ適用中はインジケーターを追加
+	if p.IsFiltered() {
+		filterIndicator := p.formatFilterIndicator()
+		displayPath = filterIndicator + " " + displayPath
 	}
 	pathStyle := lipgloss.NewStyle().
 		Width(p.width-2).
@@ -365,23 +388,51 @@ func (p *Pane) ViewWithDiskSpace(diskSpace uint64) string {
 	b.WriteString(lipgloss.NewStyle().Padding(0, 1).Render(border))
 	b.WriteString("\n")
 
-	// ファイルリスト
+	// ファイルリスト（ミニバッファ表示時は1行少なく）
 	visibleLines := p.height - 4 // ヘッダー2行 + ボーダー1行 = 3行
-	endIdx := p.scrollOffset + visibleLines
-	if endIdx > len(p.entries) {
-		endIdx = len(p.entries)
+	if minibuffer != nil && minibuffer.IsVisible() {
+		visibleLines-- // ミニバッファ分1行減らす
 	}
 
-	for i := p.scrollOffset; i < endIdx; i++ {
-		entry := p.entries[i]
-		line := p.formatEntry(entry, i == p.cursor)
-		b.WriteString(line)
+	// フィルタ適用中で結果が空の場合
+	if p.IsFiltered() && len(p.entries) == 0 {
+		// "(No matches)" メッセージを表示
+		noMatchStyle := lipgloss.NewStyle().
+			Width(p.width-2).
+			Padding(0, 1).
+			Foreground(lipgloss.Color("243")).
+			Italic(true)
+		b.WriteString(noMatchStyle.Render("(No matches)"))
 		b.WriteString("\n")
+
+		// 残りを空行で埋める
+		for i := 1; i < visibleLines; i++ {
+			b.WriteString(strings.Repeat(" ", p.width))
+			b.WriteString("\n")
+		}
+	} else {
+		endIdx := p.scrollOffset + visibleLines
+		if endIdx > len(p.entries) {
+			endIdx = len(p.entries)
+		}
+
+		for i := p.scrollOffset; i < endIdx; i++ {
+			entry := p.entries[i]
+			line := p.formatEntry(entry, i == p.cursor)
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
+
+		// 空行で埋める
+		for i := endIdx - p.scrollOffset; i < visibleLines; i++ {
+			b.WriteString(strings.Repeat(" ", p.width))
+			b.WriteString("\n")
+		}
 	}
 
-	// 空行で埋める
-	for i := endIdx - p.scrollOffset; i < visibleLines; i++ {
-		b.WriteString(strings.Repeat(" ", p.width))
+	// ミニバッファの表示
+	if minibuffer != nil && minibuffer.IsVisible() {
+		b.WriteString(minibuffer.View())
 		b.WriteString("\n")
 	}
 
@@ -406,16 +457,19 @@ func (p *Pane) renderHeaderLine2(diskSpace uint64) string {
 
 	// マーク情報（現在は未実装なので0）
 	markedCount := 0
-	totalCount := len(p.entries)
-	// 親ディレクトリエントリを除外
-	if totalCount > 0 && p.entries[0].IsParentDir() {
-		totalCount--
-	}
-
 	markedSize := int64(0)
 
-	// マーク情報を作成
-	markedInfo := fmt.Sprintf("Marked %d/%d %s", markedCount, totalCount, FormatSize(markedSize))
+	// フィルタ適用中は "Marked 0/5 (15) 0 B" 形式（5=フィルタ後、15=フィルタ前）
+	// 通常は "Marked 0/15 0 B" 形式
+	var markedInfo string
+	if p.IsFiltered() {
+		filteredCount := p.FilteredEntryCount()
+		totalCount := p.TotalEntryCount()
+		markedInfo = fmt.Sprintf("Marked %d/%d (%d) %s", markedCount, filteredCount, totalCount, FormatSize(markedSize))
+	} else {
+		totalCount := p.TotalEntryCount()
+		markedInfo = fmt.Sprintf("Marked %d/%d %s", markedCount, totalCount, FormatSize(markedSize))
+	}
 
 	// 空き容量情報
 	freeInfo := ""
@@ -783,4 +837,127 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 	p.previousPath = current
 	p.StartLoadingDirectory()
 	return LoadDirectoryAsync(p.path)
+}
+
+// ApplyFilter はフィルタパターンを適用してエントリをフィルタリングする
+func (p *Pane) ApplyFilter(pattern string, mode SearchMode) error {
+	p.filterPattern = pattern
+	p.filterMode = mode
+
+	if pattern == "" {
+		// パターンが空の場合はフィルタをクリア
+		p.entries = p.allEntries
+		p.cursor = 0
+		p.scrollOffset = 0
+		return nil
+	}
+
+	var filtered []fs.FileEntry
+	var err error
+
+	switch mode {
+	case SearchModeIncremental:
+		filtered = filterIncremental(p.allEntries, pattern)
+	case SearchModeRegex:
+		filtered, err = filterRegex(p.allEntries, pattern)
+		if err != nil {
+			return err
+		}
+	default:
+		filtered = p.allEntries
+	}
+
+	p.entries = filtered
+
+	// カーソル位置を調整
+	if p.cursor >= len(p.entries) {
+		if len(p.entries) > 0 {
+			p.cursor = len(p.entries) - 1
+		} else {
+			p.cursor = 0
+		}
+	}
+	p.scrollOffset = 0
+	p.adjustScroll()
+
+	return nil
+}
+
+// ClearFilter はフィルタをクリアしてすべてのエントリを表示する
+func (p *Pane) ClearFilter() {
+	p.filterPattern = ""
+	p.filterMode = SearchModeNone
+	p.entries = p.allEntries
+
+	// カーソル位置を調整
+	if p.cursor >= len(p.entries) {
+		if len(p.entries) > 0 {
+			p.cursor = len(p.entries) - 1
+		} else {
+			p.cursor = 0
+		}
+	}
+	p.adjustScroll()
+}
+
+// ResetToFullList はディレクトリを再読み込みしてフィルタをクリアする
+func (p *Pane) ResetToFullList() error {
+	return p.LoadDirectory()
+}
+
+// IsFiltered はフィルタが適用中かどうかを返す
+func (p *Pane) IsFiltered() bool {
+	return p.filterPattern != ""
+}
+
+// FilterPattern は現在のフィルタパターンを返す
+func (p *Pane) FilterPattern() string {
+	return p.filterPattern
+}
+
+// FilterMode は現在のフィルタモードを返す
+func (p *Pane) FilterMode() SearchMode {
+	return p.filterMode
+}
+
+// TotalEntryCount はフィルタ前のエントリ数を返す（親ディレクトリを除く）
+func (p *Pane) TotalEntryCount() int {
+	count := len(p.allEntries)
+	if count > 0 && p.allEntries[0].IsParentDir() {
+		count--
+	}
+	return count
+}
+
+// FilteredEntryCount はフィルタ後のエントリ数を返す（親ディレクトリを除く）
+func (p *Pane) FilteredEntryCount() int {
+	count := len(p.entries)
+	if count > 0 && p.entries[0].IsParentDir() {
+		count--
+	}
+	return count
+}
+
+// formatFilterIndicator はフィルタインジケーターをフォーマットする
+// 例: [/pattern] または [re/pattern]
+func (p *Pane) formatFilterIndicator() string {
+	if !p.IsFiltered() {
+		return ""
+	}
+
+	pattern := p.filterPattern
+	// パターンが長い場合は切り詰める
+	maxLen := 15
+	if len(pattern) > maxLen {
+		pattern = pattern[:maxLen-2] + ".."
+	}
+
+	switch p.filterMode {
+	case SearchModeIncremental:
+		return fmt.Sprintf("[/%s]", pattern)
+	case SearchModeRegex:
+		return fmt.Sprintf("[re/%s]", pattern)
+	default:
+		return ""
+	}
 }
