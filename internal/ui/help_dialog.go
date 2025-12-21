@@ -67,8 +67,8 @@ func (d *HelpDialog) View() string {
 
 	content := []string{
 		"Navigation",
-		"  j/k      : move cursor down/up",
-		"  h/l      : move to left/right pane or parent directory",
+		"  j/k/↑/↓  : move cursor down/up",
+		"  h/l/←/→  : move to left/right pane or parent directory",
 		"  Enter    : enter directory",
 		"  q        : quit",
 		"",

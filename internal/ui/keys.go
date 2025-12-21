@@ -15,4 +15,10 @@ const (
 	KeyQuit        = "q"
 	KeyToggleInfo  = "i" // 表示モード切り替え
 	KeyContextMenu = "@" // コンテキストメニュー
+
+	// カーソルキー（hjklの代替）
+	KeyArrowDown  = "down"
+	KeyArrowUp    = "up"
+	KeyArrowLeft  = "left"
+	KeyArrowRight = "right"
 )

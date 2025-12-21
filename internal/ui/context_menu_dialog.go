@@ -188,6 +188,22 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 			return d, nil
 
+		case "h", "left":
+			// Previous page (if pagination exists)
+			if d.getTotalPages() > 1 && d.currentPage > 0 {
+				d.currentPage--
+				d.cursor = 0
+			}
+			return d, nil
+
+		case "l", "right":
+			// Next page (if pagination exists)
+			if d.getTotalPages() > 1 && d.currentPage < d.getTotalPages()-1 {
+				d.currentPage++
+				d.cursor = 0
+			}
+			return d, nil
+
 		case "esc":
 			// Cancel and close
 			d.active = false

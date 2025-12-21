@@ -394,6 +394,117 @@ func TestModelContextMenuCancelledClearsPendingAction(t *testing.T) {
 	}
 }
 
+// TestArrowKeyNavigation tests arrow key navigation in main view
+func TestArrowKeyNavigation(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Save initial cursor position
+	initialCursor := m.getActivePane().cursor
+
+	// Test down arrow
+	keyMsg := tea.KeyMsg{Type: tea.KeyDown}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.getActivePane().cursor != initialCursor+1 {
+		t.Errorf("down arrow: cursor = %d, want %d", m.getActivePane().cursor, initialCursor+1)
+	}
+
+	// Test up arrow
+	keyMsg = tea.KeyMsg{Type: tea.KeyUp}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.getActivePane().cursor != initialCursor {
+		t.Errorf("up arrow: cursor = %d, want %d", m.getActivePane().cursor, initialCursor)
+	}
+}
+
+// TestArrowKeyPaneSwitching tests arrow key pane switching
+func TestArrowKeyPaneSwitching(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Initial active pane should be LeftPane
+	if m.activePane != LeftPane {
+		t.Fatalf("initial activePane = %v, want LeftPane", m.activePane)
+	}
+
+	// Press right arrow to switch to right pane
+	keyMsg := tea.KeyMsg{Type: tea.KeyRight}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.activePane != RightPane {
+		t.Errorf("after right arrow: activePane = %v, want RightPane", m.activePane)
+	}
+
+	// Press left arrow to switch back to left pane
+	keyMsg = tea.KeyMsg{Type: tea.KeyLeft}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.activePane != LeftPane {
+		t.Errorf("after left arrow: activePane = %v, want LeftPane", m.activePane)
+	}
+}
+
+// TestArrowKeysEquivalentToHJKL tests that arrow keys work the same as hjkl
+func TestArrowKeysEquivalentToHJKL(t *testing.T) {
+	tests := []struct {
+		name     string
+		arrowKey tea.KeyType
+		vimKey   string
+	}{
+		{"down arrow equals j", tea.KeyDown, "j"},
+		{"up arrow equals k", tea.KeyUp, "k"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Test with arrow key
+			model1 := NewModel()
+			msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+			updatedModel, _ := model1.Update(msg)
+			m1 := updatedModel.(Model)
+
+			arrowMsg := tea.KeyMsg{Type: tt.arrowKey}
+			updatedModel, _ = m1.Update(arrowMsg)
+			m1 = updatedModel.(Model)
+			arrowCursor := m1.getActivePane().cursor
+
+			// Test with vim key
+			model2 := NewModel()
+			updatedModel, _ = model2.Update(msg)
+			m2 := updatedModel.(Model)
+
+			vimMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.vimKey)}
+			updatedModel, _ = m2.Update(vimMsg)
+			m2 = updatedModel.(Model)
+			vimCursor := m2.getActivePane().cursor
+
+			if arrowCursor != vimCursor {
+				t.Errorf("arrow key cursor = %d, vim key cursor = %d", arrowCursor, vimCursor)
+			}
+		})
+	}
+}
+
 // TestModelContextMenuEscClosesMenu tests that Esc closes context menu
 func TestModelContextMenuEscClosesMenu(t *testing.T) {
 	model := NewModel()
