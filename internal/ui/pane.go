@@ -188,9 +188,10 @@ func (p *Pane) EnterDirectory() error {
 			return nil
 		}
 
-		// 直前のパスを記録してからリンク先のディレクトリに移動
+		// 直前のパスを記録してから論理パス（シンボリックリンク自体のパス）に移動
+		// これにより、..で論理的な親ディレクトリに戻れる
 		p.recordPreviousPath()
-		p.path = entry.LinkTarget
+		p.path = filepath.Join(p.path, entry.Name)
 		return p.LoadDirectory()
 	}
 

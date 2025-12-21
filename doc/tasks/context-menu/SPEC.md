@@ -47,7 +47,7 @@ When a symlink is selected:
 
 - FR3.1: In addition to normal actions (copy/move/delete), add the following:
   - "Enter as directory (logical path)": Follow symlink and enter target directory (default `Enter` key behavior)
-  - "Open link target (physical path)": Open parent directory of the actual file/directory
+  - "Open link target (physical path)": Navigate to the link target directory/file location
 - FR3.2: When link is broken, disable or gray out "Open link target" option
 
 #### FR4: Menu Navigation

@@ -667,6 +667,122 @@ func TestUpdate_LeftRightArrowKeys(t *testing.T) {
 	}
 }
 
+// MockPane is a test double for Pane that records ChangeDirectory calls
+type MockPane struct {
+	LastChangedDir string
+	ChangeError    error
+}
+
+func (m *MockPane) ChangeDirectory(path string) error {
+	m.LastChangedDir = path
+	return m.ChangeError
+}
+
+// TestEnterPhysical_NavigatesToLinkTarget tests that enter_physical navigates to the link target itself
+func TestEnterPhysical_NavigatesToLinkTarget(t *testing.T) {
+	tests := []struct {
+		name       string
+		linkTarget string
+		sourcePath string
+		wantDir    string
+	}{
+		{
+			name:       "absolute path link target",
+			linkTarget: "/usr/share",
+			sourcePath: "/home/user",
+			wantDir:    "/usr/share", // Should navigate to /usr/share, NOT /usr
+		},
+		{
+			name:       "relative path link target",
+			linkTarget: "../share",
+			sourcePath: "/usr/bin",
+			wantDir:    "/usr/share", // ../share from /usr/bin = /usr/share
+		},
+		{
+			name:       "relative path with dot components",
+			linkTarget: "./subdir/../target",
+			sourcePath: "/home/user",
+			wantDir:    "/home/user/target",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := &fs.FileEntry{
+				Name:       "testlink",
+				IsDir:      true,
+				IsSymlink:  true,
+				LinkTarget: tt.linkTarget,
+				LinkBroken: false,
+			}
+
+			mockPane := &MockPane{}
+			dialog := NewContextMenuDialogWithMockPane(entry, tt.sourcePath, "/dest", mockPane)
+
+			// Find and execute the enter_physical action
+			var enterPhysicalAction func() error
+			for _, item := range dialog.items {
+				if item.ID == "enter_physical" {
+					enterPhysicalAction = item.Action
+					break
+				}
+			}
+
+			if enterPhysicalAction == nil {
+				t.Fatal("enter_physical action not found")
+			}
+
+			err := enterPhysicalAction()
+			if err != nil {
+				t.Fatalf("enter_physical action returned error: %v", err)
+			}
+
+			if mockPane.LastChangedDir != tt.wantDir {
+				t.Errorf("ChangeDirectory called with %q, want %q", mockPane.LastChangedDir, tt.wantDir)
+			}
+		})
+	}
+}
+
+// TestEnterPhysical_ChainedSymlink tests that chained symlinks follow one level only
+func TestEnterPhysical_ChainedSymlink(t *testing.T) {
+	// Setup: link1 -> /tmp/link2 (where link2 is also a symlink)
+	// Expected: Navigate to /tmp/link2 (not the final target)
+	entry := &fs.FileEntry{
+		Name:       "link1",
+		IsDir:      true,
+		IsSymlink:  true,
+		LinkTarget: "/tmp/link2", // This is also a symlink, but we should only follow one level
+		LinkBroken: false,
+	}
+
+	mockPane := &MockPane{}
+	dialog := NewContextMenuDialogWithMockPane(entry, "/home/user", "/dest", mockPane)
+
+	// Find and execute the enter_physical action
+	var enterPhysicalAction func() error
+	for _, item := range dialog.items {
+		if item.ID == "enter_physical" {
+			enterPhysicalAction = item.Action
+			break
+		}
+	}
+
+	if enterPhysicalAction == nil {
+		t.Fatal("enter_physical action not found")
+	}
+
+	err := enterPhysicalAction()
+	if err != nil {
+		t.Fatalf("enter_physical action returned error: %v", err)
+	}
+
+	// Should navigate to /tmp/link2 directly, not follow the chain
+	if mockPane.LastChangedDir != "/tmp/link2" {
+		t.Errorf("ChangeDirectory called with %q, want %q", mockPane.LastChangedDir, "/tmp/link2")
+	}
+}
+
 // TestUpdate_HLKeys tests h/l key pagination
 func TestUpdate_HLKeys(t *testing.T) {
 	// Create a dialog with many items to enable pagination
