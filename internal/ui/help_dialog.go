@@ -104,3 +104,8 @@ func (d *HelpDialog) View() string {
 func (d *HelpDialog) IsActive() bool {
 	return d.active
 }
+
+// DisplayType はダイアログの表示タイプを返す
+func (d *HelpDialog) DisplayType() DialogDisplayType {
+	return DialogDisplayScreen
+}

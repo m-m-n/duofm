@@ -100,3 +100,8 @@ func (d *ConfirmDialog) View() string {
 func (d *ConfirmDialog) IsActive() bool {
 	return d.active
 }
+
+// DisplayType はダイアログの表示タイプを返す
+func (d *ConfirmDialog) DisplayType() DialogDisplayType {
+	return DialogDisplayPane
+}
