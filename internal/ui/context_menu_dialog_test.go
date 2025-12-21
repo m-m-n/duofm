@@ -619,3 +619,89 @@ func TestUpdate_ArrowKeys(t *testing.T) {
 		t.Errorf("after up arrow, cursor = %d, want 0", dialog.cursor)
 	}
 }
+
+// TestUpdate_LeftRightArrowKeys tests left/right arrow key pagination
+func TestUpdate_LeftRightArrowKeys(t *testing.T) {
+	// Create a dialog with many items to enable pagination
+	dialog := &ContextMenuDialog{
+		items:        make([]MenuItem, 20), // 20 items, more than one page
+		cursor:       0,
+		currentPage:  0,
+		itemsPerPage: 9,
+		active:       true,
+		minWidth:     40,
+		maxWidth:     60,
+	}
+
+	// Fill items
+	for i := range dialog.items {
+		dialog.items[i] = MenuItem{
+			ID:      "item",
+			Label:   "Item",
+			Enabled: true,
+		}
+	}
+
+	// Test right arrow (next page)
+	updatedDialog, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyRight})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.currentPage != 1 {
+		t.Errorf("after right arrow, currentPage = %d, want 1", dialog.currentPage)
+	}
+
+	// Test left arrow (previous page)
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.currentPage != 0 {
+		t.Errorf("after left arrow, currentPage = %d, want 0", dialog.currentPage)
+	}
+
+	// Test left arrow at first page (should stay at 0)
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.currentPage != 0 {
+		t.Errorf("left arrow at first page: currentPage = %d, want 0", dialog.currentPage)
+	}
+}
+
+// TestUpdate_HLKeys tests h/l key pagination
+func TestUpdate_HLKeys(t *testing.T) {
+	// Create a dialog with many items to enable pagination
+	dialog := &ContextMenuDialog{
+		items:        make([]MenuItem, 20), // 20 items, more than one page
+		cursor:       0,
+		currentPage:  0,
+		itemsPerPage: 9,
+		active:       true,
+		minWidth:     40,
+		maxWidth:     60,
+	}
+
+	// Fill items
+	for i := range dialog.items {
+		dialog.items[i] = MenuItem{
+			ID:      "item",
+			Label:   "Item",
+			Enabled: true,
+		}
+	}
+
+	// Test 'l' key (next page)
+	updatedDialog, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.currentPage != 1 {
+		t.Errorf("after 'l' key, currentPage = %d, want 1", dialog.currentPage)
+	}
+
+	// Test 'h' key (previous page)
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.currentPage != 0 {
+		t.Errorf("after 'h' key, currentPage = %d, want 0", dialog.currentPage)
+	}
+}

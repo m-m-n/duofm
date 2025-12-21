@@ -241,27 +241,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.dialog = NewHelpDialog()
 			return m, nil
 
-		case KeyMoveDown:
+		case KeyMoveDown, KeyArrowDown:
 			m.getActivePane().MoveCursorDown()
 
-		case KeyMoveUp:
+		case KeyMoveUp, KeyArrowUp:
 			m.getActivePane().MoveCursorUp()
 
-		case KeyMoveLeft:
+		case KeyMoveLeft, KeyArrowLeft:
 			if m.activePane == LeftPane {
-				// 左ペインで h -> 親ディレクトリへ
+				// 左ペインで h/← -> 親ディレクトリへ
 				m.leftPane.MoveToParent()
 			} else {
-				// 右ペインで h -> 左ペインへ切り替え
+				// 右ペインで h/← -> 左ペインへ切り替え
 				m.switchToPane(LeftPane)
 			}
 
-		case KeyMoveRight:
+		case KeyMoveRight, KeyArrowRight:
 			if m.activePane == RightPane {
-				// 右ペインで l -> 親ディレクトリへ
+				// 右ペインで l/→ -> 親ディレクトリへ
 				m.rightPane.MoveToParent()
 			} else {
-				// 左ペインで l -> 右ペインへ切り替え
+				// 左ペインで l/→ -> 右ペインへ切り替え
 				m.switchToPane(RightPane)
 			}
 
