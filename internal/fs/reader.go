@@ -25,10 +25,28 @@ func ReadDirectory(path string) ([]FileEntry, error) {
 
 	// 親ディレクトリエントリを追加（ルートディレクトリ以外）
 	if absPath != "/" {
-		fileEntries = append(fileEntries, FileEntry{
+		parentPath := filepath.Dir(absPath)
+		parentEntry := FileEntry{
 			Name:  "..",
 			IsDir: true,
-		})
+		}
+
+		// 親ディレクトリの情報を取得
+		if info, err := os.Stat(parentPath); err == nil {
+			parentEntry.ModTime = info.ModTime()
+			parentEntry.Permissions = info.Mode()
+		}
+
+		// 所有者・グループ情報を取得
+		if owner, group, err := GetFileOwnerGroup(parentPath); err == nil {
+			parentEntry.Owner = owner
+			parentEntry.Group = group
+		} else {
+			parentEntry.Owner = "unknown"
+			parentEntry.Group = "unknown"
+		}
+
+		fileEntries = append(fileEntries, parentEntry)
 	}
 
 	// 各エントリを処理
