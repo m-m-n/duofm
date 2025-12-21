@@ -214,8 +214,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				targetPane.loading = false
 				targetPane.loadingProgress = ""
 			} else {
-				// エントリを更新
-				targetPane.entries = msg.entries
+				// エントリを更新（隠しファイルのフィルタリングを適用）
+				entries := msg.entries
+				if !targetPane.showHidden {
+					entries = filterHiddenFiles(entries)
+				}
+				targetPane.entries = entries
 				targetPane.cursor = 0
 				targetPane.scrollOffset = 0
 				targetPane.loading = false
@@ -335,6 +339,27 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					activePane,
 				)
 			}
+			return m, nil
+
+		case KeyToggleHidden:
+			// 隠しファイル表示をトグル
+			m.getActivePane().ToggleHidden()
+			return m, nil
+
+		case KeyHome:
+			// ホームディレクトリへ移動
+			if err := m.getActivePane().NavigateToHome(); err != nil {
+				m.dialog = NewErrorDialog(fmt.Sprintf("Cannot navigate to home: %v", err))
+			}
+			m.updateDiskSpace()
+			return m, nil
+
+		case KeyPrevDir:
+			// 直前のディレクトリへ移動
+			if err := m.getActivePane().NavigateToPrevious(); err != nil {
+				m.dialog = NewErrorDialog(fmt.Sprintf("Cannot navigate: %v", err))
+			}
+			m.updateDiskSpace()
 			return m, nil
 		}
 	}

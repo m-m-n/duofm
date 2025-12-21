@@ -40,6 +40,8 @@ type Pane struct {
 	displayMode     DisplayMode // ユーザーが選択した表示モード
 	loading         bool        // ローディング中フラグ
 	loadingProgress string      // ローディングメッセージ
+	showHidden      bool        // 隠しファイル表示フラグ（デフォルト: false）
+	previousPath    string      // 直前のディレクトリパス（履歴なしの場合は空文字列）
 }
 
 // NewPane は新しいペインを作成
@@ -71,11 +73,30 @@ func (p *Pane) LoadDirectory() error {
 	}
 
 	fs.SortEntries(entries)
+
+	// 隠しファイルをフィルタリング
+	if !p.showHidden {
+		entries = filterHiddenFiles(entries)
+	}
+
 	p.entries = entries
 	p.cursor = 0
 	p.scrollOffset = 0
 
 	return nil
+}
+
+// filterHiddenFiles は隠しファイル（.で始まるファイル）を除外する
+// ただし親ディレクトリ（..）は常に表示する
+func filterHiddenFiles(entries []fs.FileEntry) []fs.FileEntry {
+	result := make([]fs.FileEntry, 0, len(entries))
+	for _, e := range entries {
+		// 親ディレクトリは常に表示
+		if e.IsParentDir() || !strings.HasPrefix(e.Name, ".") {
+			result = append(result, e)
+		}
+	}
+	return result
 }
 
 // StartLoadingDirectory はローディング状態を開始
@@ -141,6 +162,11 @@ func (p *Pane) SelectedEntry() *fs.FileEntry {
 	return &p.entries[p.cursor]
 }
 
+// recordPreviousPath はナビゲーション前に現在のパスを記録する
+func (p *Pane) recordPreviousPath() {
+	p.previousPath = p.path
+}
+
 // EnterDirectory はディレクトリに入る
 func (p *Pane) EnterDirectory() error {
 	entry := p.SelectedEntry()
@@ -162,7 +188,8 @@ func (p *Pane) EnterDirectory() error {
 			return nil
 		}
 
-		// リンク先のディレクトリに移動
+		// 直前のパスを記録してからリンク先のディレクトリに移動
+		p.recordPreviousPath()
 		p.path = entry.LinkTarget
 		return p.LoadDirectory()
 	}
@@ -181,6 +208,8 @@ func (p *Pane) EnterDirectory() error {
 		newPath = filepath.Join(p.path, entry.Name)
 	}
 
+	// 直前のパスを記録
+	p.recordPreviousPath()
 	p.path = newPath
 	return p.LoadDirectory()
 }
@@ -191,12 +220,14 @@ func (p *Pane) MoveToParent() error {
 		return nil // ルートより上には行けない
 	}
 
+	p.recordPreviousPath()
 	p.path = filepath.Dir(p.path)
 	return p.LoadDirectory()
 }
 
 // ChangeDirectory は指定されたパスに移動
 func (p *Pane) ChangeDirectory(path string) error {
+	p.recordPreviousPath()
 	p.path = path
 	return p.LoadDirectory()
 }
@@ -217,6 +248,10 @@ func (p *Pane) ViewWithDiskSpace(diskSpace uint64) string {
 
 	// パス表示（ホームディレクトリは ~ に置換）
 	displayPath := p.formatPath()
+	// 隠しファイル表示中は [H] インジケーターを追加
+	if p.showHidden {
+		displayPath = "[H] " + displayPath
+	}
 	pathStyle := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
@@ -492,6 +527,10 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 
 	// パス表示（暗いスタイル）
 	displayPath := p.formatPath()
+	// 隠しファイル表示中は [H] インジケーターを追加
+	if p.showHidden {
+		displayPath = "[H] " + displayPath
+	}
 	pathStyle := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
@@ -571,4 +610,67 @@ func (p *Pane) formatEntryDimmed(entry fs.FileEntry) string {
 		Foreground(dimmedFgColor)
 
 	return style.Render(line)
+}
+
+// ToggleHidden は隠しファイルの表示/非表示を切り替える
+// カーソル位置は可能な限り維持する
+func (p *Pane) ToggleHidden() {
+	// 現在選択中のファイル名を記憶
+	var selectedName string
+	if p.cursor >= 0 && p.cursor < len(p.entries) {
+		selectedName = p.entries[p.cursor].Name
+	}
+
+	p.showHidden = !p.showHidden
+	p.LoadDirectory()
+
+	// カーソル位置の復元を試みる
+	if selectedName != "" {
+		for i, e := range p.entries {
+			if e.Name == selectedName {
+				p.cursor = i
+				p.adjustScroll()
+				return
+			}
+		}
+	}
+	// 見つからない場合（隠しファイルだった場合）は先頭にリセット
+	p.cursor = 0
+	p.scrollOffset = 0
+}
+
+// IsShowingHidden は隠しファイルが表示中かどうかを返す
+func (p *Pane) IsShowingHidden() bool {
+	return p.showHidden
+}
+
+// NavigateToHome はホームディレクトリに移動する
+func (p *Pane) NavigateToHome() error {
+	home, err := fs.HomeDirectory()
+	if err != nil {
+		return err
+	}
+
+	// すでにホームにいる場合は何もしない
+	if p.path == home {
+		return nil
+	}
+
+	p.recordPreviousPath()
+	p.path = home
+	return p.LoadDirectory()
+}
+
+// NavigateToPrevious は直前のディレクトリに移動する（トグル動作）
+func (p *Pane) NavigateToPrevious() error {
+	if p.previousPath == "" {
+		return nil // 履歴がない場合は何もしない
+	}
+
+	// 現在のパスと直前のパスをスワップ（トグル動作）
+	current := p.path
+	p.path = p.previousPath
+	p.previousPath = current
+
+	return p.LoadDirectory()
 }
