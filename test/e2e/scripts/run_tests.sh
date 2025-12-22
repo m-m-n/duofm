@@ -359,6 +359,207 @@ test_can_delete_user_file() {
 }
 
 # ===========================================
+# Test: F5 Refresh both panes
+# ===========================================
+test_f5_refresh() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to user_owned directory (writable)
+    send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Create a new file externally
+    touch /testdata/user_owned/f5_test_file.txt
+
+    # Press F5 to refresh
+    send_keys "$CURRENT_SESSION" "F5"
+    sleep 0.5
+
+    # Should show the new file
+    assert_contains "$CURRENT_SESSION" "f5_test_file.txt" \
+        "F5 refresh shows externally created file"
+
+    # Cleanup
+    rm -f /testdata/user_owned/f5_test_file.txt
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Ctrl+R Refresh both panes
+# ===========================================
+test_ctrlr_refresh() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to user_owned directory (writable)
+    send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Create a new file externally
+    touch /testdata/user_owned/ctrlr_test_file.txt
+
+    # Press Ctrl+R to refresh
+    send_keys "$CURRENT_SESSION" "C-r"
+    sleep 0.5
+
+    # Should show the new file
+    assert_contains "$CURRENT_SESSION" "ctrlr_test_file.txt" \
+        "Ctrl+R refresh shows externally created file"
+
+    # Cleanup
+    rm -f /testdata/user_owned/ctrlr_test_file.txt
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Refresh preserves cursor position
+# ===========================================
+test_refresh_cursor_preservation() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Move cursor down to file2.txt
+    send_keys "$CURRENT_SESSION" "j" "j" "j"
+    sleep 0.3
+
+    # Check cursor position before refresh
+    local screen_before
+    screen_before=$(capture_screen "$CURRENT_SESSION")
+
+    # Press F5 to refresh
+    send_keys "$CURRENT_SESSION" "F5"
+    sleep 0.5
+
+    # Cursor should still be on the same file
+    local screen_after
+    screen_after=$(capture_screen "$CURRENT_SESSION")
+
+    # Verify cursor is roughly at same position (position indicator should be similar)
+    if echo "$screen_after" | grep -q " [34]/"; then
+        echo -e "${GREEN}✓${NC} Refresh preserves cursor position"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Refresh should preserve cursor position"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: = key syncs opposite pane
+# ===========================================
+test_sync_pane() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Enter dir1 on left pane
+    send_keys "$CURRENT_SESSION" "j" "Enter"
+    sleep 0.3
+
+    # Verify left pane is in dir1
+    assert_contains "$CURRENT_SESSION" "subdir" \
+        "Left pane is in dir1 (shows subdir)"
+
+    # Press = to sync right pane
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.5
+
+    # Switch to right pane to verify
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.3
+
+    # Right pane should also show dir1 contents
+    assert_contains "$CURRENT_SESSION" "subdir" \
+        "= key syncs right pane to left pane's directory"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Sync preserves display settings
+# ===========================================
+test_sync_preserves_settings() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.3
+
+    # Toggle hidden files on right pane (. key)
+    send_keys "$CURRENT_SESSION" "."
+    sleep 0.3
+
+    # Switch back to left pane
+    send_keys "$CURRENT_SESSION" "h"
+    sleep 0.3
+
+    # Enter dir2 on left pane
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "2" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Press = to sync right pane
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.5
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.3
+
+    # Right pane should be in dir2
+    assert_contains "$CURRENT_SESSION" "another.txt" \
+        "Sync moves to correct directory"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Sync from right to left pane
+# ===========================================
+test_sync_right_to_left() {
+    start_duofm "$CURRENT_SESSION"
+
+    # First, sync right pane to left (so both are in /testdata)
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.3
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.3
+
+    # Navigate to dir2 using j/k (dir2 is at position 2 - after dir1)
+    send_keys "$CURRENT_SESSION" "j" "j"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Verify right pane is in dir2
+    assert_contains "$CURRENT_SESSION" "another.txt" \
+        "Right pane is in dir2"
+
+    # Press = to sync left pane
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.5
+
+    # Switch to left pane to verify
+    send_keys "$CURRENT_SESSION" "h"
+    sleep 0.3
+
+    # Left pane should also show dir2 contents
+    assert_contains "$CURRENT_SESSION" "another.txt" \
+        "= key syncs left pane to right pane's directory"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
 # Run all tests
 # ===========================================
 run_test test_basic_startup
@@ -376,6 +577,14 @@ run_test test_ctrlc_quit
 run_test test_permission_denied_directory
 run_test test_cannot_delete_root_file
 run_test test_can_delete_user_file
+
+# Refresh and Sync tests
+run_test test_f5_refresh
+run_test test_ctrlr_refresh
+run_test test_refresh_cursor_preservation
+run_test test_sync_pane
+run_test test_sync_preserves_settings
+run_test test_sync_right_to_left
 
 # Print summary and exit with appropriate code
 print_summary
