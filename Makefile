@@ -1,4 +1,4 @@
-.PHONY: build test clean install run fmt vet lint deps
+.PHONY: build test clean install run fmt vet lint deps test-e2e test-e2e-build
 
 BINARY_NAME=duofm
 BINARY_PATH=./cmd/duofm
@@ -38,5 +38,14 @@ lint:
 deps:
 	$(GO) mod download
 	$(GO) mod tidy
+
+# E2E Tests with Docker (isolated environment with permission tests)
+E2E_IMAGE=duofm-e2e-test
+
+test-e2e-build:
+	docker build -t $(E2E_IMAGE) -f test/e2e/Dockerfile .
+
+test-e2e: test-e2e-build
+	docker run --rm $(E2E_IMAGE)
 
 .DEFAULT_GOAL := build
