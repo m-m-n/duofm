@@ -232,7 +232,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 			return d, nil
 
-		case "esc":
+		case "esc", "ctrl+c":
 			// Cancel and close
 			d.active = false
 			return d, func() tea.Msg {

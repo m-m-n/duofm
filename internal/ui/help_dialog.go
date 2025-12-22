@@ -28,7 +28,7 @@ func (d *HelpDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "?":
+		case "esc", "?", "ctrl+c":
 			d.active = false
 			return d, func() tea.Msg {
 				return dialogResultMsg{

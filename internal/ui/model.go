@@ -34,6 +34,7 @@ type Model struct {
 	isStatusError      bool         // エラーメッセージかどうか
 	searchState        SearchState  // 検索状態
 	minibuffer         *Minibuffer  // ミニバッファ
+	ctrlCPending       bool         // Ctrl+Cが1回押された状態かどうか
 }
 
 // PanePosition はペインの位置を表す
@@ -210,6 +211,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStatusError = false
 		return m, nil
 
+	case ctrlCTimeoutMsg:
+		// Ctrl+Cタイムアウト - 状態をリセット
+		if m.ctrlCPending {
+			m.ctrlCPending = false
+			m.statusMessage = ""
+		}
+		return m, nil
+
 	case directoryLoadCompleteMsg:
 		// ディレクトリ読み込み完了
 		var targetPane *Pane
@@ -263,7 +272,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.confirmSearch()
 				return m, nil
 
-			case tea.KeyEsc:
+			case tea.KeyEsc, tea.KeyCtrlC:
 				// 検索をキャンセル
 				m.cancelSearch()
 				return m, nil
@@ -279,14 +288,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		// ステータスメッセージがあればクリア
-		if m.statusMessage != "" {
+		// Ctrl+Cのダブルプレス処理（他のキー処理より先に実行）
+		if msg.String() == "ctrl+c" {
+			if m.ctrlCPending {
+				// 2回目のCtrl+C - 終了
+				return m, tea.Quit
+			}
+			// 1回目のCtrl+C - メッセージ表示とタイマー開始
+			m.ctrlCPending = true
+			m.statusMessage = "Press Ctrl+C again to quit"
+			m.isStatusError = false
+			return m, ctrlCTimeoutCmd(2 * time.Second)
+		}
+
+		// ステータスメッセージがあればクリア、Ctrl+C待機状態もリセット
+		if m.statusMessage != "" || m.ctrlCPending {
 			m.statusMessage = ""
 			m.isStatusError = false
+			m.ctrlCPending = false
 		}
 
 		switch msg.String() {
-		case "ctrl+c", KeyQuit:
+
+		case KeyQuit:
 			return m, tea.Quit
 
 		case KeyHelp:

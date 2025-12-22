@@ -821,3 +821,44 @@ func TestUpdate_HLKeys(t *testing.T) {
 		t.Errorf("after 'h' key, currentPage = %d, want 0", dialog.currentPage)
 	}
 }
+
+// TestUpdate_CtrlC tests Ctrl+C cancellation
+func TestUpdate_CtrlC(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	// Press Ctrl+C
+	updatedDialog, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.IsActive() {
+		t.Error("dialog should be closed after Ctrl+C")
+	}
+
+	if cmd == nil {
+		t.Error("cmd should not be nil after Ctrl+C")
+	}
+
+	// Execute the command to get the result message
+	msg := cmd()
+	if msg == nil {
+		t.Fatal("cmd() returned nil message")
+	}
+
+	result, ok := msg.(contextMenuResultMsg)
+	if !ok {
+		t.Fatal("cmd() did not return contextMenuResultMsg")
+	}
+
+	if !result.cancelled {
+		t.Error("result should be cancelled after Ctrl+C")
+	}
+
+	if result.action != nil {
+		t.Error("result.action should be nil after cancellation")
+	}
+}

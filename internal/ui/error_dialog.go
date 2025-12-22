@@ -30,7 +30,7 @@ func (d *ErrorDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc", "enter":
+		case "esc", "enter", "ctrl+c":
 			d.active = false
 			return d, func() tea.Msg {
 				return dialogResultMsg{

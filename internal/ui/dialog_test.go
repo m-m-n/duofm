@@ -242,3 +242,73 @@ func TestDialogInterface(t *testing.T) {
 		var _ Dialog = &HelpDialog{}
 	})
 }
+
+// === Ctrl+Cダイアログキャンセルのテスト ===
+
+func TestConfirmDialogCtrlCCancels(t *testing.T) {
+	dialog := NewConfirmDialog("Test", "Message")
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedDialog, cmd := dialog.Update(keyMsg)
+
+	if updatedDialog.IsActive() {
+		t.Error("Dialog should be inactive after Ctrl+C")
+	}
+
+	if cmd == nil {
+		t.Error("Dialog should return command after Ctrl+C")
+	}
+
+	// Execute and verify result
+	if cmd != nil {
+		msg := cmd()
+		if result, ok := msg.(dialogResultMsg); ok {
+			if result.result.Confirmed {
+				t.Error("Result should not be confirmed")
+			}
+			if !result.result.Cancelled {
+				t.Error("Result should be cancelled")
+			}
+		}
+	}
+}
+
+func TestErrorDialogCtrlCCloses(t *testing.T) {
+	dialog := NewErrorDialog("Error message")
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedDialog, cmd := dialog.Update(keyMsg)
+
+	if updatedDialog.IsActive() {
+		t.Error("Dialog should be inactive after Ctrl+C")
+	}
+
+	if cmd == nil {
+		t.Error("Dialog should return command after Ctrl+C")
+	}
+}
+
+func TestHelpDialogCtrlCCloses(t *testing.T) {
+	dialog := NewHelpDialog()
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedDialog, cmd := dialog.Update(keyMsg)
+
+	if updatedDialog.IsActive() {
+		t.Error("Dialog should be inactive after Ctrl+C")
+	}
+
+	if cmd == nil {
+		t.Error("Dialog should return command after Ctrl+C")
+	}
+
+	// Execute and verify result
+	if cmd != nil {
+		msg := cmd()
+		if result, ok := msg.(dialogResultMsg); ok {
+			if !result.result.Cancelled {
+				t.Error("Result should be cancelled")
+			}
+		}
+	}
+}

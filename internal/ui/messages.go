@@ -45,3 +45,13 @@ type directoryLoadProgressMsg struct {
 	panePath  string
 	fileCount int
 }
+
+// ctrlCTimeoutMsg はCtrl+C終了確認のタイムアウトを通知
+type ctrlCTimeoutMsg struct{}
+
+// ctrlCTimeoutCmd は指定時間後にctrlCTimeoutMsgを送信するコマンド
+func ctrlCTimeoutCmd(duration time.Duration) tea.Cmd {
+	return tea.Tick(duration, func(t time.Time) tea.Msg {
+		return ctrlCTimeoutMsg{}
+	})
+}
