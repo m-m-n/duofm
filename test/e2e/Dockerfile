@@ -9,7 +9,9 @@ RUN apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         tmux \
-        ncurses-bin && \
+        ncurses-bin \
+        less \
+        vim && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

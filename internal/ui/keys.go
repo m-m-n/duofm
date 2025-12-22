@@ -30,4 +30,8 @@ const (
 	// 検索機能
 	KeySearch      = "/"      // インクリメンタル検索
 	KeyRegexSearch = "ctrl+f" // 正規表現検索
+
+	// ファイル操作
+	KeyView = "v" // ファイルをビューアー(less)で開く
+	KeyEdit = "e" // ファイルをエディタ(vim)で開く
 )
