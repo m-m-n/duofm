@@ -40,7 +40,7 @@ func (d *ConfirmDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-		case "n", "esc":
+		case "n", "esc", "ctrl+c":
 			d.active = false
 			return d, func() tea.Msg {
 				return dialogResultMsg{

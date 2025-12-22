@@ -936,3 +936,218 @@ func TestSearchPromptForModes(t *testing.T) {
 		})
 	}
 }
+
+// === Ctrl+C機能のテスト ===
+
+// TestCtrlCPendingFieldInitialization tests ctrlCPending field is false initially
+func TestCtrlCPendingFieldInitialization(t *testing.T) {
+	model := NewModel()
+
+	if model.ctrlCPending {
+		t.Error("ctrlCPending should be false initially")
+	}
+}
+
+// TestSingleCtrlCShowsMessage tests that first Ctrl+C shows message
+func TestSingleCtrlCShowsMessage(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press Ctrl+C
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify status message is shown
+	if m.statusMessage != "Press Ctrl+C again to quit" {
+		t.Errorf("statusMessage = %q, want 'Press Ctrl+C again to quit'", m.statusMessage)
+	}
+
+	// Verify ctrlCPending is true
+	if !m.ctrlCPending {
+		t.Error("ctrlCPending should be true after first Ctrl+C")
+	}
+
+	// Verify isStatusError is false
+	if m.isStatusError {
+		t.Error("isStatusError should be false for Ctrl+C message")
+	}
+
+	// Verify a timeout command is returned
+	if cmd == nil {
+		t.Error("should return a timeout command")
+	}
+}
+
+// TestDoubleCtrlCQuits tests that double Ctrl+C quits application
+func TestDoubleCtrlCQuits(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// First Ctrl+C
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Second Ctrl+C - should quit
+	updatedModel, cmd := m.Update(keyMsg)
+
+	// Verify quit command is returned
+	if cmd == nil {
+		t.Error("should return quit command on double Ctrl+C")
+	}
+}
+
+// TestCtrlCTimeoutResetsState tests that timeout resets state
+func TestCtrlCTimeoutResetsState(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// First Ctrl+C
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify ctrlCPending is true
+	if !m.ctrlCPending {
+		t.Error("ctrlCPending should be true after first Ctrl+C")
+	}
+
+	// Send ctrlCTimeoutMsg
+	updatedModel, _ = m.Update(ctrlCTimeoutMsg{})
+	m = updatedModel.(Model)
+
+	// Verify state is reset
+	if m.ctrlCPending {
+		t.Error("ctrlCPending should be false after timeout")
+	}
+
+	if m.statusMessage != "" {
+		t.Errorf("statusMessage should be empty after timeout, got %q", m.statusMessage)
+	}
+}
+
+// TestOtherKeyAfterCtrlCResetsState tests that other key resets state
+func TestOtherKeyAfterCtrlCResetsState(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// First Ctrl+C
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify ctrlCPending is true
+	if !m.ctrlCPending {
+		t.Error("ctrlCPending should be true after first Ctrl+C")
+	}
+
+	// Press 'j' key
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify state is reset
+	if m.ctrlCPending {
+		t.Error("ctrlCPending should be false after other key")
+	}
+
+	if m.statusMessage != "" {
+		t.Errorf("statusMessage should be empty after other key, got %q", m.statusMessage)
+	}
+}
+
+// TestSearchCtrlCCancelsSearch tests Ctrl+C cancels search
+func TestSearchCtrlCCancelsSearch(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Start search
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify search is active
+	if !m.searchState.IsActive {
+		t.Fatal("search should be active after / key")
+	}
+
+	// Press Ctrl+C to cancel
+	keyMsg = tea.KeyMsg{Type: tea.KeyCtrlC}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Verify search is cancelled
+	if m.searchState.IsActive {
+		t.Error("search should be cancelled after Ctrl+C")
+	}
+
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should not be visible after Ctrl+C")
+	}
+}
+
+// TestQKeyStillQuits tests that q key still quits immediately
+func TestQKeyStillQuits(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press 'q' key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	_, cmd := m.Update(keyMsg)
+
+	// Verify quit command is returned
+	if cmd == nil {
+		t.Error("q key should return quit command")
+	}
+}
+
+// TestCtrlCTimeoutCmdReturnsNonNil tests that ctrlCTimeoutCmd returns non-nil command
+func TestCtrlCTimeoutCmdReturnsNonNil(t *testing.T) {
+	cmd := ctrlCTimeoutCmd(100)
+	if cmd == nil {
+		t.Error("ctrlCTimeoutCmd should return non-nil command")
+	}
+}
