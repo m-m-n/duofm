@@ -112,3 +112,15 @@ func CurrentDirectory() (string, error) {
 	}
 	return cwd, nil
 }
+
+// DirectoryExists checks if a directory exists and is accessible
+func DirectoryExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}

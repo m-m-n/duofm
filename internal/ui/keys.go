@@ -34,4 +34,9 @@ const (
 	// ファイル操作
 	KeyView = "v" // ファイルをビューアー(less)で開く
 	KeyEdit = "e" // ファイルをエディタ(vim)で開く
+
+	// Refresh and sync
+	KeyRefresh    = "f5"     // Refresh view
+	KeyRefreshAlt = "ctrl+r" // Refresh view (alternative)
+	KeySyncPane   = "="      // Pane synchronization
 )
