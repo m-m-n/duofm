@@ -235,3 +235,72 @@ func TestReadDirectory_ParentDirMetadata(t *testing.T) {
 		t.Error("Parent directory Group should not be empty")
 	}
 }
+
+func TestDirectoryExists(t *testing.T) {
+	tests := []struct {
+		name     string
+		setup    func(tmpDir string) string // returns path to test
+		expected bool
+	}{
+		{
+			name: "existing directory returns true",
+			setup: func(tmpDir string) string {
+				return tmpDir
+			},
+			expected: true,
+		},
+		{
+			name: "non-existent directory returns false",
+			setup: func(tmpDir string) string {
+				return filepath.Join(tmpDir, "nonexistent")
+			},
+			expected: false,
+		},
+		{
+			name: "file path returns false",
+			setup: func(tmpDir string) string {
+				filePath := filepath.Join(tmpDir, "testfile.txt")
+				os.WriteFile(filePath, []byte("test"), 0644)
+				return filePath
+			},
+			expected: false,
+		},
+		{
+			name: "empty path returns false",
+			setup: func(tmpDir string) string {
+				return ""
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			testPath := tt.setup(tmpDir)
+
+			result := DirectoryExists(testPath)
+			if result != tt.expected {
+				t.Errorf("DirectoryExists(%q) = %v, want %v", testPath, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestDirectoryExists_RootDirectory(t *testing.T) {
+	// Root directory should always exist
+	if !DirectoryExists("/") {
+		t.Error("DirectoryExists('/') should return true")
+	}
+}
+
+func TestDirectoryExists_HomeDirectory(t *testing.T) {
+	home, err := HomeDirectory()
+	if err != nil {
+		t.Skipf("Could not get home directory: %v", err)
+	}
+
+	if !DirectoryExists(home) {
+		t.Errorf("DirectoryExists(%q) should return true for home directory", home)
+	}
+}

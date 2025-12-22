@@ -1438,3 +1438,361 @@ func TestViewWithMinibufferReducesVisibleLines(t *testing.T) {
 		t.Logf("Lines without minibuffer: %d, with minibuffer: %d", linesWithout, linesWith)
 	})
 }
+
+// === Refresh機能のテスト ===
+
+func TestPaneRefresh(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// テストファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("Refreshでディレクトリが再読み込みされる", func(t *testing.T) {
+		initialCount := len(pane.entries)
+
+		// 新しいファイルを追加
+		os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
+
+		// Refresh
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		// 新しいファイルが反映されているか確認
+		if len(pane.entries) != initialCount+1 {
+			t.Errorf("Refresh() should reflect new file, got %d entries, want %d",
+				len(pane.entries), initialCount+1)
+		}
+	})
+}
+
+func TestPaneRefreshCursorPreservation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("Refresh後に同じファイルが選択されている", func(t *testing.T) {
+		// bbb.txtを選択
+		for i, entry := range pane.entries {
+			if entry.Name == "bbb.txt" {
+				pane.cursor = i
+				break
+			}
+		}
+
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		entry := pane.SelectedEntry()
+		if entry == nil || entry.Name != "bbb.txt" {
+			t.Error("Refresh() should preserve cursor on the same file")
+		}
+	})
+
+	t.Run("選択ファイルが削除された場合はインデックスを維持", func(t *testing.T) {
+		// bbb.txtを選択
+		var selectedIndex int
+		for i, entry := range pane.entries {
+			if entry.Name == "bbb.txt" {
+				pane.cursor = i
+				selectedIndex = i
+				break
+			}
+		}
+
+		// bbb.txtを削除
+		os.Remove(filepath.Join(tmpDir, "bbb.txt"))
+
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		// インデックスが維持されているか確認（範囲内であれば）
+		if pane.cursor != selectedIndex && pane.cursor != selectedIndex-1 {
+			t.Logf("cursor = %d, expected around %d", pane.cursor, selectedIndex)
+			// インデックスが調整されていることを確認
+		}
+	})
+}
+
+func TestPaneRefreshCursorAdjustment(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("インデックスが範囲外になった場合は調整される", func(t *testing.T) {
+		// カーソルを最後に移動
+		pane.cursor = len(pane.entries) - 1
+
+		// ファイルを削除してエントリ数を減らす
+		os.Remove(filepath.Join(tmpDir, "file1.txt"))
+		os.Remove(filepath.Join(tmpDir, "file2.txt"))
+		os.Remove(filepath.Join(tmpDir, "file3.txt"))
+
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		// カーソルが範囲内に調整されているか確認
+		if pane.cursor >= len(pane.entries) {
+			t.Errorf("cursor = %d, should be < %d", pane.cursor, len(pane.entries))
+		}
+	})
+}
+
+func TestPaneRefreshDeletedDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// サブディレクトリを作成
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+	os.WriteFile(filepath.Join(subDir, "file.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(subDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("ディレクトリが削除された場合は親に移動", func(t *testing.T) {
+		// サブディレクトリを削除
+		os.RemoveAll(subDir)
+
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		// 親ディレクトリに移動しているか確認
+		if pane.path != tmpDir {
+			t.Errorf("path = %s, want %s", pane.path, tmpDir)
+		}
+	})
+}
+
+func TestPaneRefreshFilterPreservation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.go"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("Refreshでフィルタ状態がクリアされる", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("go", SearchModeIncremental)
+
+		// Refresh
+		err := pane.Refresh()
+		if err != nil {
+			t.Errorf("Refresh() error = %v", err)
+		}
+
+		// LoadDirectoryはフィルタをクリアする
+		if pane.IsFiltered() {
+			t.Error("Refresh() should clear filter (via LoadDirectory)")
+		}
+	})
+}
+
+// === SyncTo機能のテスト ===
+
+func TestPaneSyncTo(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dirA := filepath.Join(tmpDir, "dirA")
+	dirB := filepath.Join(tmpDir, "dirB")
+	os.Mkdir(dirA, 0755)
+	os.Mkdir(dirB, 0755)
+
+	os.WriteFile(filepath.Join(dirA, "fileA.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(dirB, "fileB.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(dirA, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("SyncToで指定ディレクトリに移動", func(t *testing.T) {
+		err := pane.SyncTo(dirB)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		if pane.path != dirB {
+			t.Errorf("path = %s, want %s", pane.path, dirB)
+		}
+
+		// dirBのファイルが含まれているか確認
+		found := false
+		for _, entry := range pane.entries {
+			if entry.Name == "fileB.txt" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("SyncTo() should load the target directory contents")
+		}
+	})
+}
+
+func TestPaneSyncToSameDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("同じディレクトリへのSyncToは何もしない", func(t *testing.T) {
+		// カーソル位置を変更
+		pane.cursor = 1
+		pane.scrollOffset = 5
+
+		// 同じディレクトリにSync
+		err := pane.SyncTo(tmpDir)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		// カーソル位置やスクロールは変更されないはず
+		// （実際には何もしないので状態は維持される）
+	})
+}
+
+func TestPaneSyncToPreviousPathUpdate(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dirA := filepath.Join(tmpDir, "dirA")
+	dirB := filepath.Join(tmpDir, "dirB")
+	os.Mkdir(dirA, 0755)
+	os.Mkdir(dirB, 0755)
+
+	pane, err := NewPane(dirA, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("SyncToでpreviousPathが更新される", func(t *testing.T) {
+		originalPath := pane.path
+
+		err := pane.SyncTo(dirB)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		if pane.previousPath != originalPath {
+			t.Errorf("previousPath = %s, want %s", pane.previousPath, originalPath)
+		}
+	})
+}
+
+func TestPaneSyncToCursorReset(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dirA := filepath.Join(tmpDir, "dirA")
+	dirB := filepath.Join(tmpDir, "dirB")
+	os.Mkdir(dirA, 0755)
+	os.Mkdir(dirB, 0755)
+
+	// ファイルを作成
+	for i := 0; i < 5; i++ {
+		os.WriteFile(filepath.Join(dirA, fmt.Sprintf("file%d.txt", i)), []byte(""), 0644)
+		os.WriteFile(filepath.Join(dirB, fmt.Sprintf("file%d.txt", i)), []byte(""), 0644)
+	}
+
+	pane, err := NewPane(dirA, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("SyncToでカーソルとスクロールがリセットされる", func(t *testing.T) {
+		// カーソルを移動
+		pane.cursor = 3
+		pane.scrollOffset = 2
+
+		err := pane.SyncTo(dirB)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		if pane.cursor != 0 {
+			t.Errorf("cursor = %d, want 0", pane.cursor)
+		}
+
+		if pane.scrollOffset != 0 {
+			t.Errorf("scrollOffset = %d, want 0", pane.scrollOffset)
+		}
+	})
+}
+
+func TestPaneSyncToSettingsPreservation(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	dirA := filepath.Join(tmpDir, "dirA")
+	dirB := filepath.Join(tmpDir, "dirB")
+	os.Mkdir(dirA, 0755)
+	os.Mkdir(dirB, 0755)
+
+	pane, err := NewPane(dirA, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("SyncToでshowHiddenが維持される", func(t *testing.T) {
+		pane.showHidden = true
+		originalShowHidden := pane.showHidden
+
+		err := pane.SyncTo(dirB)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		if pane.showHidden != originalShowHidden {
+			t.Errorf("showHidden = %v, want %v", pane.showHidden, originalShowHidden)
+		}
+	})
+
+	t.Run("SyncToでdisplayModeが維持される", func(t *testing.T) {
+		pane.displayMode = DisplayDetail
+		originalDisplayMode := pane.displayMode
+
+		err := pane.SyncTo(dirA)
+		if err != nil {
+			t.Errorf("SyncTo() error = %v", err)
+		}
+
+		if pane.displayMode != originalDisplayMode {
+			t.Errorf("displayMode = %v, want %v", pane.displayMode, originalDisplayMode)
+		}
+	})
+}

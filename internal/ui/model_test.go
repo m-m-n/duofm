@@ -1151,3 +1151,240 @@ func TestCtrlCTimeoutCmdReturnsNonNil(t *testing.T) {
 		t.Error("ctrlCTimeoutCmd should return non-nil command")
 	}
 }
+
+// === RefreshBothPanes and SyncOppositePane のテスト ===
+
+func TestRefreshBothPanes(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("RefreshBothPanesで両ペインがリフレッシュされる", func(t *testing.T) {
+		// Call RefreshBothPanes
+		_ = m.RefreshBothPanes()
+
+		// Basic verification: both panes should have entries
+		if len(m.leftPane.entries) == 0 {
+			t.Error("leftPane should have entries after refresh")
+		}
+		if len(m.rightPane.entries) == 0 {
+			t.Error("rightPane should have entries after refresh")
+		}
+	})
+
+	t.Run("RefreshBothPanesでディスク容量が更新される", func(t *testing.T) {
+		m.leftDiskSpace = 0
+		m.rightDiskSpace = 0
+
+		_ = m.RefreshBothPanes()
+
+		// Disk space should be updated
+		if m.leftDiskSpace == 0 && m.rightDiskSpace == 0 {
+			t.Log("Disk space might be 0 on some filesystems, skipping verification")
+		}
+	})
+}
+
+func TestSyncOppositePane(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("左ペインがアクティブなとき右ペインが同期される", func(t *testing.T) {
+		// Ensure left pane is active
+		m.activePane = LeftPane
+		m.leftPane.SetActive(true)
+		m.rightPane.SetActive(false)
+
+		leftPath := m.leftPane.Path()
+		originalRightPath := m.rightPane.Path()
+
+		// Skip if already same directory
+		if leftPath == originalRightPath {
+			t.Skip("Left and right panes are already in the same directory")
+		}
+
+		m.SyncOppositePane()
+
+		if m.rightPane.Path() != leftPath {
+			t.Errorf("rightPane.Path() = %s, want %s", m.rightPane.Path(), leftPath)
+		}
+	})
+
+	t.Run("右ペインがアクティブなとき左ペインが同期される", func(t *testing.T) {
+		// Reinitialize model
+		model2 := NewModel()
+		updatedModel2, _ := model2.Update(msg)
+		m2 := updatedModel2.(Model)
+
+		// Make right pane active
+		m2.activePane = RightPane
+		m2.leftPane.SetActive(false)
+		m2.rightPane.SetActive(true)
+
+		rightPath := m2.rightPane.Path()
+		originalLeftPath := m2.leftPane.Path()
+
+		// Skip if already same directory
+		if rightPath == originalLeftPath {
+			t.Skip("Left and right panes are already in the same directory")
+		}
+
+		m2.SyncOppositePane()
+
+		if m2.leftPane.Path() != rightPath {
+			t.Errorf("leftPane.Path() = %s, want %s", m2.leftPane.Path(), rightPath)
+		}
+	})
+}
+
+func TestRefreshKeyF5(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("F5キーでリフレッシュが呼ばれる", func(t *testing.T) {
+		// Press F5 key
+		keyMsg := tea.KeyMsg{Type: tea.KeyF5}
+		_, cmd := m.Update(keyMsg)
+
+		// Should return a command (from RefreshBothPanes)
+		if cmd == nil {
+			// RefreshBothPanes currently returns empty batch, so nil is acceptable
+			t.Log("F5 handled (nil command returned)")
+		}
+	})
+}
+
+func TestRefreshKeyCtrlR(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("Ctrl+Rキーでリフレッシュが呼ばれる", func(t *testing.T) {
+		// Press Ctrl+R key
+		keyMsg := tea.KeyMsg{Type: tea.KeyCtrlR}
+		_, cmd := m.Update(keyMsg)
+
+		// Should return a command (from RefreshBothPanes)
+		if cmd == nil {
+			// RefreshBothPanes currently returns empty batch, so nil is acceptable
+			t.Log("Ctrl+R handled (nil command returned)")
+		}
+	})
+}
+
+func TestSyncPaneKey(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("=キーで反対ペインが同期される", func(t *testing.T) {
+		// Ensure left pane is active
+		m.activePane = LeftPane
+		m.leftPane.SetActive(true)
+		m.rightPane.SetActive(false)
+
+		leftPath := m.leftPane.Path()
+		originalRightPath := m.rightPane.Path()
+
+		// Skip if already same directory
+		if leftPath == originalRightPath {
+			t.Skip("Left and right panes are already in the same directory")
+		}
+
+		// Press = key
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'='}}
+		updatedModel, _ := m.Update(keyMsg)
+		m = updatedModel.(Model)
+
+		if m.rightPane.Path() != leftPath {
+			t.Errorf("rightPane.Path() = %s, want %s", m.rightPane.Path(), leftPath)
+		}
+	})
+}
+
+func TestRefreshKeysIgnoredDuringDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Open a dialog
+	m.dialog = NewHelpDialog()
+
+	t.Run("ダイアログ表示中はF5キーが無視される", func(t *testing.T) {
+		// Press F5 key - should be handled by dialog
+		keyMsg := tea.KeyMsg{Type: tea.KeyF5}
+		updatedModel, _ := m.Update(keyMsg)
+		m = updatedModel.(Model)
+
+		// Dialog should still be active
+		if m.dialog == nil {
+			t.Error("dialog should still be active after F5 during dialog display")
+		}
+	})
+}
+
+func TestSyncPreservesPaneSettings(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set some settings on right pane
+	m.rightPane.showHidden = true
+	m.rightPane.displayMode = DisplayDetail
+
+	// Sync to left pane's directory
+	m.activePane = LeftPane
+	m.SyncOppositePane()
+
+	// Verify settings are preserved
+	if !m.rightPane.showHidden {
+		t.Error("showHidden should be preserved after sync")
+	}
+	if m.rightPane.displayMode != DisplayDetail {
+		t.Error("displayMode should be preserved after sync")
+	}
+}

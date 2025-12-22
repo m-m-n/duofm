@@ -323,6 +323,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 
+		case KeyRefresh, KeyRefreshAlt:
+			return m, m.RefreshBothPanes()
+
+		case KeySyncPane:
+			m.SyncOppositePane()
+			return m, nil
+
 		case KeyQuit:
 			return m, tea.Quit
 
@@ -856,5 +863,35 @@ func (m *Model) applyIncrementalFilter() {
 	// インクリメンタル検索の場合は即座にフィルタを適用
 	if m.searchState.Mode == SearchModeIncremental {
 		pane.ApplyFilter(pattern, SearchModeIncremental)
+	}
+}
+
+// RefreshBothPanes refreshes both panes
+func (m *Model) RefreshBothPanes() tea.Cmd {
+	var cmds []tea.Cmd
+
+	// Refresh left pane
+	if err := m.leftPane.Refresh(); err != nil {
+		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to refresh left pane: %v", err))
+	}
+
+	// Refresh right pane
+	if err := m.rightPane.Refresh(); err != nil {
+		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to refresh right pane: %v", err))
+	}
+
+	// Update disk space
+	m.updateDiskSpace()
+
+	return tea.Batch(cmds...)
+}
+
+// SyncOppositePane synchronizes the opposite pane to the active pane's directory
+func (m *Model) SyncOppositePane() {
+	activePane := m.getActivePane()
+	oppositePane := m.getInactivePane()
+
+	if err := oppositePane.SyncTo(activePane.path); err != nil {
+		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to sync pane: %v", err))
 	}
 }

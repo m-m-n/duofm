@@ -961,3 +961,94 @@ func (p *Pane) formatFilterIndicator() string {
 		return ""
 	}
 }
+
+// Refresh reloads the current directory, preserving cursor position
+func (p *Pane) Refresh() error {
+	// Save currently selected filename
+	var selectedName string
+	if p.cursor >= 0 && p.cursor < len(p.entries) {
+		selectedName = p.entries[p.cursor].Name
+	}
+	savedCursor := p.cursor
+
+	// Reload directory with existence check
+	currentPath := p.path
+	for {
+		if fs.DirectoryExists(currentPath) {
+			break
+		}
+		// Navigate up to parent directory
+		parent := filepath.Dir(currentPath)
+		if parent == currentPath {
+			// Reached root but it doesn't exist
+			home, err := fs.HomeDirectory()
+			if err == nil && fs.DirectoryExists(home) {
+				currentPath = home
+				break
+			}
+			currentPath = "/"
+			break
+		}
+		currentPath = parent
+	}
+
+	if currentPath != p.path {
+		// Directory was changed, update previousPath for navigation history
+		p.previousPath = p.path
+		p.path = currentPath
+	}
+
+	err := p.LoadDirectory()
+	if err != nil {
+		return err
+	}
+
+	// Restore cursor position
+	if selectedName != "" {
+		// Search for the same filename
+		for i, e := range p.entries {
+			if e.Name == selectedName {
+				p.cursor = i
+				p.adjustScroll()
+				return nil
+			}
+		}
+	}
+
+	// If file not found, use previous index
+	if savedCursor < len(p.entries) {
+		p.cursor = savedCursor
+	} else if len(p.entries) > 0 {
+		p.cursor = len(p.entries) - 1
+	} else {
+		p.cursor = 0
+	}
+	p.adjustScroll()
+
+	return nil
+}
+
+// SyncTo synchronizes this pane to the specified directory
+// Preserves display settings but resets cursor to top
+func (p *Pane) SyncTo(path string) error {
+	// Do nothing if already in the same directory
+	if p.path == path {
+		return nil
+	}
+
+	// Update previousPath for navigation history
+	p.previousPath = p.path
+
+	// Change directory
+	p.path = path
+	err := p.LoadDirectory()
+	if err != nil {
+		return err
+	}
+
+	// Reset cursor and scroll to top
+	p.cursor = 0
+	p.scrollOffset = 0
+
+	return nil
+}
