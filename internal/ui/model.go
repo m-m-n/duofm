@@ -256,6 +256,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case execFinishedMsg:
+		// 外部コマンド完了
+		// 両ペインを再読み込みして変更を反映
+		m.getActivePane().LoadDirectory()
+		m.getInactivePane().LoadDirectory()
+
+		if msg.err != nil {
+			m.statusMessage = fmt.Sprintf("Command failed: %v", msg.err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		// ダイアログが開いている場合はダイアログに処理を委譲
 		if m.dialog != nil {
@@ -355,7 +368,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case KeyEnter:
-			// 非同期版を使用（ディスク容量更新は成功時にdirectoryLoadCompleteMsg内で実施）
+			entry := m.getActivePane().SelectedEntry()
+			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
+				// ファイル選択時: ビューアー(less)で開く（vキーと同じ）
+				fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				if err := checkReadPermission(fullPath); err != nil {
+					m.statusMessage = fmt.Sprintf("Cannot read file: %v", err)
+					m.isStatusError = true
+					return m, statusMessageClearCmd(5 * time.Second)
+				}
+				return m, openWithViewer(fullPath)
+			}
+			// ディレクトリまたは親ディレクトリ: 既存の動作（非同期版）
 			cmd := m.getActivePane().EnterDirectoryAsync()
 			return m, cmd
 
@@ -440,6 +464,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// 直前のディレクトリへ移動（非同期版）
 			cmd := m.getActivePane().NavigateToPreviousAsync()
 			return m, cmd
+
+		case KeyView:
+			// ファイルをビューアー(less)で開く
+			entry := m.getActivePane().SelectedEntry()
+			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
+				fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				if err := checkReadPermission(fullPath); err != nil {
+					m.statusMessage = fmt.Sprintf("Cannot read file: %v", err)
+					m.isStatusError = true
+					return m, statusMessageClearCmd(5 * time.Second)
+				}
+				return m, openWithViewer(fullPath)
+			}
+			return m, nil
+
+		case KeyEdit:
+			// ファイルをエディタ(vim)で開く
+			entry := m.getActivePane().SelectedEntry()
+			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
+				fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				if err := checkReadPermission(fullPath); err != nil {
+					m.statusMessage = fmt.Sprintf("Cannot read file: %v", err)
+					m.isStatusError = true
+					return m, statusMessageClearCmd(5 * time.Second)
+				}
+				return m, openWithEditor(fullPath)
+			}
+			return m, nil
 		}
 	}
 
