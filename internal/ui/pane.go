@@ -165,6 +165,11 @@ func (p *Pane) adjustScroll() {
 	}
 }
 
+// EnsureCursorVisible はカーソルが表示範囲内に収まるようスクロールを調整
+func (p *Pane) EnsureCursorVisible() {
+	p.adjustScroll()
+}
+
 // SelectedEntry は選択中のエントリを返す
 func (p *Pane) SelectedEntry() *fs.FileEntry {
 	if p.cursor < 0 || p.cursor >= len(p.entries) {

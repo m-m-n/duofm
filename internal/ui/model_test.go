@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -1386,5 +1387,210 @@ func TestSyncPreservesPaneSettings(t *testing.T) {
 	}
 	if m.rightPane.displayMode != DisplayDetail {
 		t.Error("displayMode should be preserved after sync")
+	}
+}
+
+// === ダイアログ完了後のクリーンアップテスト ===
+// これらのテストは、ダイアログ完了後に m.dialog が nil になることを検証する
+// 回帰テスト: Issue #XXX - ファイル作成後に操作不能になるバグ
+
+func TestInputDialogResultMsgClearsDialog(t *testing.T) {
+	tests := []struct {
+		name      string
+		msg       inputDialogResultMsg
+		wantError bool
+	}{
+		{
+			name: "ファイル作成成功後にdialogがクリアされる",
+			msg: inputDialogResultMsg{
+				operation: "create_file",
+				input:     "test.txt",
+			},
+			wantError: false,
+		},
+		{
+			name: "ディレクトリ作成成功後にdialogがクリアされる",
+			msg: inputDialogResultMsg{
+				operation: "create_dir",
+				input:     "testdir",
+			},
+			wantError: false,
+		},
+		{
+			name: "リネーム成功後にdialogがクリアされる",
+			msg: inputDialogResultMsg{
+				operation: "rename",
+				input:     "newname.txt",
+				oldName:   "oldname.txt",
+			},
+			wantError: false,
+		},
+		{
+			name: "エラー時もdialogがクリアされる",
+			msg: inputDialogResultMsg{
+				operation: "create_file",
+				err:       fmt.Errorf("file already exists"),
+			},
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := NewModel()
+
+			// Initialize with WindowSizeMsg
+			msg := tea.WindowSizeMsg{
+				Width:  120,
+				Height: 40,
+			}
+			updatedModel, _ := model.Update(msg)
+			m := updatedModel.(Model)
+
+			// Simulate an open InputDialog
+			m.dialog = NewInputDialog("Test:", func(s string) tea.Cmd { return nil })
+
+			// Verify dialog is not nil
+			if m.dialog == nil {
+				t.Fatal("dialog should not be nil before test")
+			}
+
+			// Send inputDialogResultMsg
+			updatedModel, _ = m.Update(tt.msg)
+			m = updatedModel.(Model)
+
+			// CRITICAL: dialog must be nil after inputDialogResultMsg
+			if m.dialog != nil {
+				t.Error("dialog should be nil after inputDialogResultMsg - this causes the app to become unresponsive")
+			}
+
+			// Verify error handling
+			if tt.wantError {
+				if m.statusMessage == "" {
+					t.Error("statusMessage should be set on error")
+				}
+				if !m.isStatusError {
+					t.Error("isStatusError should be true on error")
+				}
+			}
+		})
+	}
+}
+
+func TestDialogResultMsgClearsDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Simulate an open ConfirmDialog
+	m.dialog = NewConfirmDialog("Delete?", "test.txt")
+
+	// Verify dialog is not nil
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil before test")
+	}
+
+	// Send dialogResultMsg (cancelled)
+	resultMsg := dialogResultMsg{
+		result: DialogResult{Confirmed: false},
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// dialog must be nil after dialogResultMsg
+	if m.dialog != nil {
+		t.Error("dialog should be nil after dialogResultMsg")
+	}
+}
+
+func TestContextMenuResultMsgClearsDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file and open context menu
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for context menu test")
+	}
+
+	m.dialog = NewContextMenuDialogWithPane(
+		entry,
+		m.getActivePane().Path(),
+		m.getInactivePane().Path(),
+		m.getActivePane(),
+	)
+
+	// Verify dialog is not nil
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil before test")
+	}
+
+	// Send contextMenuResultMsg (cancelled)
+	resultMsg := contextMenuResultMsg{
+		cancelled: true,
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// dialog must be nil after contextMenuResultMsg
+	if m.dialog != nil {
+		t.Error("dialog should be nil after contextMenuResultMsg")
+	}
+}
+
+func TestNavigationWorksAfterDialogClose(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Simulate file creation dialog completion
+	m.dialog = NewInputDialog("New file:", func(s string) tea.Cmd { return nil })
+	resultMsg := inputDialogResultMsg{
+		operation: "create_file",
+		input:     "test.txt",
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Get initial cursor position
+	initialCursor := m.getActivePane().cursor
+
+	// Try to navigate with j key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Cursor should have moved (navigation works)
+	if m.getActivePane().cursor == initialCursor && len(m.getActivePane().entries) > 1 {
+		t.Error("navigation should work after dialog close - cursor didn't move")
+	}
+
+	// Try q key to quit
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	_, cmd := m.Update(keyMsg)
+
+	// q should return quit command
+	if cmd == nil {
+		t.Error("q key should work after dialog close - no quit command returned")
 	}
 }

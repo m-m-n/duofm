@@ -269,6 +269,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case inputDialogResultMsg:
+		// 入力ダイアログの結果処理
+		m.dialog = nil
+
+		if msg.err != nil {
+			m.statusMessage = msg.err.Error()
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+
+		// 両ペインを再読み込み
+		m.getActivePane().LoadDirectory()
+		m.getInactivePane().LoadDirectory()
+
+		// カーソル位置を調整
+		switch msg.operation {
+		case "create_file", "create_dir":
+			m.moveCursorToFile(msg.input)
+		case "rename":
+			m.moveCursorToFileAfterRename(msg.oldName, msg.input)
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		// ダイアログが開いている場合はダイアログに処理を委譲
 		if m.dialog != nil {
@@ -498,6 +521,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, openWithEditor(fullPath)
 			}
+			return m, nil
+
+		case KeyNewFile:
+			// 新規ファイル作成ダイアログを表示
+			pane := m.getActivePane()
+			m.dialog = NewInputDialog("New file:", func(filename string) tea.Cmd {
+				return m.handleCreateFile(pane.Path(), filename)
+			})
+			return m, nil
+
+		case KeyNewDirectory:
+			// 新規ディレクトリ作成ダイアログを表示
+			pane := m.getActivePane()
+			m.dialog = NewInputDialog("New directory:", func(dirname string) tea.Cmd {
+				return m.handleCreateDirectory(pane.Path(), dirname)
+			})
+			return m, nil
+
+		case KeyRename:
+			// リネームダイアログを表示
+			entry := m.getActivePane().SelectedEntry()
+			if entry == nil || entry.IsParentDir() {
+				// 親ディレクトリは無視
+				return m, nil
+			}
+			pane := m.getActivePane()
+			oldName := entry.Name
+			m.dialog = NewInputDialog("Rename to:", func(newName string) tea.Cmd {
+				return m.handleRename(pane.Path(), oldName, newName)
+			})
 			return m, nil
 		}
 	}
@@ -894,4 +947,124 @@ func (m *Model) SyncOppositePane() {
 	if err := oppositePane.SyncTo(activePane.path); err != nil {
 		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to sync pane: %v", err))
 	}
+}
+
+// handleCreateFile は新規ファイル作成を処理
+func (m *Model) handleCreateFile(dirPath, filename string) tea.Cmd {
+	return func() tea.Msg {
+		// バリデーション
+		if err := fs.ValidateFilename(filename); err != nil {
+			return inputDialogResultMsg{
+				operation: "create_file",
+				err:       err,
+			}
+		}
+
+		fullPath := filepath.Join(dirPath, filename)
+		if err := fs.CreateFile(fullPath); err != nil {
+			return inputDialogResultMsg{
+				operation: "create_file",
+				err:       err,
+			}
+		}
+
+		return inputDialogResultMsg{
+			operation: "create_file",
+			input:     filename,
+		}
+	}
+}
+
+// handleCreateDirectory は新規ディレクトリ作成を処理
+func (m *Model) handleCreateDirectory(dirPath, dirname string) tea.Cmd {
+	return func() tea.Msg {
+		// バリデーション
+		if err := fs.ValidateFilename(dirname); err != nil {
+			return inputDialogResultMsg{
+				operation: "create_dir",
+				err:       err,
+			}
+		}
+
+		fullPath := filepath.Join(dirPath, dirname)
+		if err := fs.CreateDirectory(fullPath); err != nil {
+			return inputDialogResultMsg{
+				operation: "create_dir",
+				err:       err,
+			}
+		}
+
+		return inputDialogResultMsg{
+			operation: "create_dir",
+			input:     dirname,
+		}
+	}
+}
+
+// handleRename はリネームを処理
+func (m *Model) handleRename(dirPath, oldName, newName string) tea.Cmd {
+	return func() tea.Msg {
+		// バリデーション
+		if err := fs.ValidateFilename(newName); err != nil {
+			return inputDialogResultMsg{
+				operation: "rename",
+				err:       err,
+			}
+		}
+
+		oldPath := filepath.Join(dirPath, oldName)
+		if err := fs.Rename(oldPath, newName); err != nil {
+			return inputDialogResultMsg{
+				operation: "rename",
+				err:       err,
+			}
+		}
+
+		return inputDialogResultMsg{
+			operation: "rename",
+			input:     newName,
+			oldName:   oldName,
+		}
+	}
+}
+
+// moveCursorToFile は作成されたファイルにカーソルを移動
+func (m *Model) moveCursorToFile(filename string) {
+	pane := m.getActivePane()
+
+	// 隠しファイルで表示OFFの場合はカーソル移動しない
+	if strings.HasPrefix(filename, ".") && !pane.showHidden {
+		return
+	}
+
+	// ファイルを探してカーソルを移動
+	for i, entry := range pane.entries {
+		if entry.Name == filename {
+			pane.cursor = i
+			pane.EnsureCursorVisible()
+			return
+		}
+	}
+}
+
+// moveCursorToFileAfterRename はリネーム後にカーソルを移動
+func (m *Model) moveCursorToFileAfterRename(oldName, newName string) {
+	pane := m.getActivePane()
+
+	// 隠しファイルにリネームされ、表示OFFの場合
+	if strings.HasPrefix(newName, ".") && !pane.showHidden {
+		// 現在のカーソル位置が有効範囲を超えていたら調整
+		if pane.cursor >= len(pane.entries) {
+			if len(pane.entries) > 0 {
+				pane.cursor = len(pane.entries) - 1
+			} else {
+				pane.cursor = 0
+			}
+		}
+		pane.EnsureCursorVisible()
+		return
+	}
+
+	// リネームされたファイルを探してカーソルを移動
+	m.moveCursorToFile(newName)
 }
