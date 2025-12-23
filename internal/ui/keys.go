@@ -39,4 +39,9 @@ const (
 	KeyRefresh    = "f5"     // Refresh view
 	KeyRefreshAlt = "ctrl+r" // Refresh view (alternative)
 	KeySyncPane   = "="      // Pane synchronization
+
+	// File/directory creation and renaming
+	KeyNewFile      = "n" // Create new file
+	KeyNewDirectory = "N" // Create new directory (Shift+n)
+	KeyRename       = "r" // Rename file/directory
 )

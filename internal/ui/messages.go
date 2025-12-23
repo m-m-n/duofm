@@ -55,3 +55,11 @@ func ctrlCTimeoutCmd(duration time.Duration) tea.Cmd {
 		return ctrlCTimeoutMsg{}
 	})
 }
+
+// inputDialogResultMsg は入力ダイアログの結果を通知
+type inputDialogResultMsg struct {
+	operation string // "create_file", "create_dir", "rename"
+	input     string // 入力された名前
+	oldName   string // リネームの場合の元の名前
+	err       error  // エラー
+}

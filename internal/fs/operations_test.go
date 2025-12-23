@@ -341,3 +341,282 @@ func TestCopyFilePermissions(t *testing.T) {
 		}
 	})
 }
+
+// CreateFile テスト
+func TestCreateFile(t *testing.T) {
+	t.Run("新規ファイルの作成", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "newfile.txt")
+
+		err := CreateFile(filePath)
+		if err != nil {
+			t.Fatalf("CreateFile() error = %v", err)
+		}
+
+		// ファイルが存在することを確認
+		info, err := os.Stat(filePath)
+		if err != nil {
+			t.Errorf("File should exist: %v", err)
+		}
+		if info.IsDir() {
+			t.Error("Created path should be a file, not directory")
+		}
+		if info.Size() != 0 {
+			t.Error("Created file should be empty")
+		}
+	})
+
+	t.Run("既存ファイルへの作成は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "existing.txt")
+		os.WriteFile(filePath, []byte("content"), 0644)
+
+		err := CreateFile(filePath)
+		if err == nil {
+			t.Error("CreateFile() should return error for existing file")
+		}
+	})
+
+	t.Run("存在しないディレクトリへの作成は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, "nonexistent", "newfile.txt")
+
+		err := CreateFile(filePath)
+		if err == nil {
+			t.Error("CreateFile() should return error for nonexistent parent directory")
+		}
+	})
+
+	t.Run("ドットファイルの作成", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		filePath := filepath.Join(tmpDir, ".hidden")
+
+		err := CreateFile(filePath)
+		if err != nil {
+			t.Fatalf("CreateFile() error = %v", err)
+		}
+
+		if _, err := os.Stat(filePath); err != nil {
+			t.Errorf("Hidden file should exist: %v", err)
+		}
+	})
+}
+
+// CreateDirectory テスト
+func TestCreateDirectory(t *testing.T) {
+	t.Run("新規ディレクトリの作成", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dirPath := filepath.Join(tmpDir, "newdir")
+
+		err := CreateDirectory(dirPath)
+		if err != nil {
+			t.Fatalf("CreateDirectory() error = %v", err)
+		}
+
+		// ディレクトリが存在することを確認
+		info, err := os.Stat(dirPath)
+		if err != nil {
+			t.Errorf("Directory should exist: %v", err)
+		}
+		if !info.IsDir() {
+			t.Error("Created path should be a directory")
+		}
+	})
+
+	t.Run("既存ディレクトリへの作成は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dirPath := filepath.Join(tmpDir, "existing")
+		os.Mkdir(dirPath, 0755)
+
+		err := CreateDirectory(dirPath)
+		if err == nil {
+			t.Error("CreateDirectory() should return error for existing directory")
+		}
+	})
+
+	t.Run("存在しない親ディレクトリへの作成は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dirPath := filepath.Join(tmpDir, "nonexistent", "newdir")
+
+		err := CreateDirectory(dirPath)
+		if err == nil {
+			t.Error("CreateDirectory() should return error for nonexistent parent directory")
+		}
+	})
+
+	t.Run("同名ファイルが存在する場合は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		path := filepath.Join(tmpDir, "samename")
+		os.WriteFile(path, []byte("content"), 0644)
+
+		err := CreateDirectory(path)
+		if err == nil {
+			t.Error("CreateDirectory() should return error when file exists with same name")
+		}
+	})
+
+	t.Run("ドットディレクトリの作成", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		dirPath := filepath.Join(tmpDir, ".hidden")
+
+		err := CreateDirectory(dirPath)
+		if err != nil {
+			t.Fatalf("CreateDirectory() error = %v", err)
+		}
+
+		info, err := os.Stat(dirPath)
+		if err != nil {
+			t.Errorf("Hidden directory should exist: %v", err)
+		}
+		if !info.IsDir() {
+			t.Error("Created path should be a directory")
+		}
+	})
+}
+
+// Rename テスト
+func TestRename(t *testing.T) {
+	t.Run("ファイルのリネーム", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		oldPath := filepath.Join(tmpDir, "old.txt")
+		os.WriteFile(oldPath, []byte("content"), 0644)
+
+		err := Rename(oldPath, "new.txt")
+		if err != nil {
+			t.Fatalf("Rename() error = %v", err)
+		}
+
+		// 新しいファイルが存在することを確認
+		newPath := filepath.Join(tmpDir, "new.txt")
+		if _, err := os.Stat(newPath); err != nil {
+			t.Errorf("New file should exist: %v", err)
+		}
+
+		// 古いファイルが存在しないことを確認
+		if _, err := os.Stat(oldPath); !os.IsNotExist(err) {
+			t.Error("Old file should not exist")
+		}
+	})
+
+	t.Run("ディレクトリのリネーム", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		oldPath := filepath.Join(tmpDir, "olddir")
+		os.Mkdir(oldPath, 0755)
+		os.WriteFile(filepath.Join(oldPath, "file.txt"), []byte("content"), 0644)
+
+		err := Rename(oldPath, "newdir")
+		if err != nil {
+			t.Fatalf("Rename() error = %v", err)
+		}
+
+		// 新しいディレクトリが存在することを確認
+		newPath := filepath.Join(tmpDir, "newdir")
+		if _, err := os.Stat(newPath); err != nil {
+			t.Errorf("New directory should exist: %v", err)
+		}
+
+		// 中のファイルも移動していることを確認
+		if _, err := os.Stat(filepath.Join(newPath, "file.txt")); err != nil {
+			t.Error("File inside directory should exist")
+		}
+	})
+
+	t.Run("同名ファイルが存在する場合は失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		oldPath := filepath.Join(tmpDir, "old.txt")
+		existingPath := filepath.Join(tmpDir, "existing.txt")
+		os.WriteFile(oldPath, []byte("old"), 0644)
+		os.WriteFile(existingPath, []byte("existing"), 0644)
+
+		err := Rename(oldPath, "existing.txt")
+		if err == nil {
+			t.Error("Rename() should return error when target exists")
+		}
+
+		// 元のファイルはそのまま存在することを確認
+		if _, err := os.Stat(oldPath); err != nil {
+			t.Error("Old file should still exist after failed rename")
+		}
+	})
+
+	t.Run("存在しないファイルのリネームは失敗する", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		oldPath := filepath.Join(tmpDir, "nonexistent.txt")
+
+		err := Rename(oldPath, "new.txt")
+		if err == nil {
+			t.Error("Rename() should return error for nonexistent file")
+		}
+	})
+
+	t.Run("ドットファイルへのリネーム", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		oldPath := filepath.Join(tmpDir, "visible.txt")
+		os.WriteFile(oldPath, []byte("content"), 0644)
+
+		err := Rename(oldPath, ".hidden")
+		if err != nil {
+			t.Fatalf("Rename() error = %v", err)
+		}
+
+		newPath := filepath.Join(tmpDir, ".hidden")
+		if _, err := os.Stat(newPath); err != nil {
+			t.Errorf("Hidden file should exist: %v", err)
+		}
+	})
+}
+
+// ValidateFilename テスト
+func TestValidateFilename(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{
+			name:    "通常のファイル名",
+			input:   "test.txt",
+			wantErr: false,
+		},
+		{
+			name:    "ドットファイル",
+			input:   ".hidden",
+			wantErr: false,
+		},
+		{
+			name:    "空文字列",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "パス区切り文字を含む",
+			input:   "path/to/file",
+			wantErr: true,
+		},
+		{
+			name:    "スペースのみ",
+			input:   "   ",
+			wantErr: false, // スペースのみは許可される（OSに任せる）
+		},
+		{
+			name:    "日本語ファイル名",
+			input:   "テスト.txt",
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateFilename(tt.input)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("ValidateFilename(%q) should return error", tt.input)
+				}
+			} else {
+				if err != nil {
+					t.Errorf("ValidateFilename(%q) error = %v", tt.input, err)
+				}
+			}
+		})
+	}
+}

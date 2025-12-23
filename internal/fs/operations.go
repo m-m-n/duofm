@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // CopyFile はファイルをコピー
@@ -163,4 +164,58 @@ func IsDirectory(path string) (bool, error) {
 		return false, err
 	}
 	return info.IsDir(), nil
+}
+
+// CreateFile は空のファイルを作成
+func CreateFile(path string) error {
+	// ファイルが既に存在するか確認
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("file already exists: %s", filepath.Base(path))
+	}
+
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create file: %w", err)
+	}
+	return file.Close()
+}
+
+// CreateDirectory は新しいディレクトリを作成
+func CreateDirectory(path string) error {
+	// ファイルまたはディレクトリが既に存在するか確認
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("directory already exists: %s", filepath.Base(path))
+	}
+
+	if err := os.Mkdir(path, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+	return nil
+}
+
+// Rename はファイルまたはディレクトリを同一ディレクトリ内でリネーム
+func Rename(oldPath, newName string) error {
+	dir := filepath.Dir(oldPath)
+	newPath := filepath.Join(dir, newName)
+
+	// リネーム先が既に存在するか確認
+	if _, err := os.Stat(newPath); err == nil {
+		return fmt.Errorf("file already exists: %s", newName)
+	}
+
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return fmt.Errorf("failed to rename: %w", err)
+	}
+	return nil
+}
+
+// ValidateFilename はファイル名が有効かどうかを検証
+func ValidateFilename(name string) error {
+	if name == "" {
+		return fmt.Errorf("file name cannot be empty")
+	}
+	if strings.Contains(name, "/") {
+		return fmt.Errorf("invalid file name: path separator not allowed")
+	}
+	return nil
 }
