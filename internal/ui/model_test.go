@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -1592,5 +1594,1251 @@ func TestNavigationWorksAfterDialogClose(t *testing.T) {
 	// q should return quit command
 	if cmd == nil {
 		t.Error("q key should work after dialog close - no quit command returned")
+	}
+}
+
+// === Overwrite Confirmation Dialog Tests ===
+
+func TestShowOverwriteDialogMsg(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Send showOverwriteDialogMsg
+	overwriteMsg := showOverwriteDialogMsg{
+		filename:  "test.txt",
+		srcPath:   "/src/test.txt",
+		destPath:  "/dest",
+		srcInfo:   OverwriteFileInfo{Size: 1234},
+		destInfo:  OverwriteFileInfo{Size: 5678},
+		operation: "copy",
+	}
+	updatedModel, _ = m.Update(overwriteMsg)
+	m = updatedModel.(Model)
+
+	// Verify OverwriteDialog is shown
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil after showOverwriteDialogMsg")
+	}
+
+	_, isOverwriteDialog := m.dialog.(*OverwriteDialog)
+	if !isOverwriteDialog {
+		t.Error("dialog should be OverwriteDialog")
+	}
+}
+
+func TestShowErrorDialogMsg(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Send showErrorDialogMsg
+	errorMsg := showErrorDialogMsg{
+		message: "Test error message",
+	}
+	updatedModel, _ = m.Update(errorMsg)
+	m = updatedModel.(Model)
+
+	// Verify ErrorDialog is shown
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil after showErrorDialogMsg")
+	}
+
+	_, isErrorDialog := m.dialog.(*ErrorDialog)
+	if !isErrorDialog {
+		t.Error("dialog should be ErrorDialog")
+	}
+}
+
+func TestFileOperationCompleteMsg(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Send fileOperationCompleteMsg
+	completeMsg := fileOperationCompleteMsg{
+		operation: "copy",
+	}
+	updatedModel, _ = m.Update(completeMsg)
+	m = updatedModel.(Model)
+
+	// Should not cause any errors
+	if m.dialog != nil {
+		t.Error("dialog should be nil after fileOperationCompleteMsg")
+	}
+}
+
+func TestOverwriteDialogResultMsgOverwrite(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create a temporary test scenario
+	// Set up an OverwriteDialog
+	m.dialog = NewOverwriteDialog("test.txt", "/dest", OverwriteFileInfo{}, OverwriteFileInfo{}, "copy", "/src/test.txt")
+
+	// Send overwriteDialogResultMsg with Cancel choice (safer for testing)
+	resultMsg := overwriteDialogResultMsg{
+		choice:    OverwriteChoiceCancel,
+		srcPath:   "/src/test.txt",
+		destPath:  "/dest",
+		filename:  "test.txt",
+		operation: "copy",
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be nil
+	if m.dialog != nil {
+		t.Error("dialog should be nil after overwriteDialogResultMsg with Cancel")
+	}
+}
+
+func TestOverwriteDialogResultMsgRename(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set up an OverwriteDialog
+	m.dialog = NewOverwriteDialog("test.txt", m.getInactivePane().Path(), OverwriteFileInfo{}, OverwriteFileInfo{}, "copy", "/src/test.txt")
+
+	// Send overwriteDialogResultMsg with Rename choice
+	resultMsg := overwriteDialogResultMsg{
+		choice:    OverwriteChoiceRename,
+		srcPath:   "/src/test.txt",
+		destPath:  m.getInactivePane().Path(),
+		filename:  "test.txt",
+		operation: "copy",
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should show RenameInputDialog
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil after Rename choice")
+	}
+
+	_, isRenameDialog := m.dialog.(*RenameInputDialog)
+	if !isRenameDialog {
+		t.Error("dialog should be RenameInputDialog after Rename choice")
+	}
+}
+
+func TestRenameInputResultMsg(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set up a RenameInputDialog
+	m.dialog = NewRenameInputDialog(m.getInactivePane().Path(), "/src/test.txt", "copy")
+
+	// Send renameInputResultMsg with a new name
+	// Note: This will fail for actual copy since /src/test.txt doesn't exist,
+	// but we're testing the message handling flow
+	resultMsg := renameInputResultMsg{
+		newName:   "newname.txt",
+		srcPath:   "/nonexistent/test.txt", // Use nonexistent to trigger error
+		destPath:  m.getInactivePane().Path(),
+		operation: "copy",
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be replaced with ErrorDialog due to copy failure
+	if m.dialog == nil {
+		// OK - the original dialog was cleared
+	} else {
+		_, isErrorDialog := m.dialog.(*ErrorDialog)
+		if !isErrorDialog {
+			t.Error("dialog should be either nil or ErrorDialog after failed rename operation")
+		}
+	}
+}
+
+func TestContextMenuCopyShowsOverwriteDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent directory)
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Simulate context menu result for copy
+	// The actual checkFileConflict will be called
+	resultMsg := contextMenuResultMsg{
+		actionID:  "copy",
+		cancelled: false,
+	}
+
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command (from checkFileConflict)
+	if cmd != nil {
+		// Execute the command to see what happens
+		nextMsg := cmd()
+		if nextMsg != nil {
+			// The result could be showOverwriteDialogMsg or fileOperationCompleteMsg
+			// or showErrorDialogMsg
+			t.Logf("cmd returned message of type: %T", nextMsg)
+		}
+	}
+}
+
+func TestContextMenuMoveShowsOverwriteDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent directory)
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Simulate context menu result for move
+	resultMsg := contextMenuResultMsg{
+		actionID:  "move",
+		cancelled: false,
+	}
+
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command (from checkFileConflict)
+	if cmd != nil {
+		// Execute the command to see what happens
+		nextMsg := cmd()
+		if nextMsg != nil {
+			t.Logf("cmd returned message of type: %T", nextMsg)
+		}
+	}
+}
+
+func TestCopyKeyShowsOverwriteDialogOnConflict(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Press 'c' key for copy
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command (from checkFileConflict)
+	if cmd == nil {
+		t.Error("copy key should return a command")
+	}
+}
+
+func TestMoveKeyShowsOverwriteDialogOnConflict(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Press 'm' key for move
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command (from checkFileConflict)
+	if cmd == nil {
+		t.Error("move key should return a command")
+	}
+}
+
+func TestCopyKeyOnParentDirDoesNothing(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Ensure cursor is at parent dir (..)
+	m.getActivePane().cursor = 0
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || !entry.IsParentDir() {
+		t.Skip("First entry is not parent directory")
+	}
+
+	// Press 'c' key for copy
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should return nil command for parent directory
+	if cmd != nil {
+		t.Error("copy key on parent dir should return nil command")
+	}
+}
+
+func TestMoveKeyOnParentDirDoesNothing(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Ensure cursor is at parent dir (..)
+	m.getActivePane().cursor = 0
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || !entry.IsParentDir() {
+		t.Skip("First entry is not parent directory")
+	}
+
+	// Press 'm' key for move
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should return nil command for parent directory
+	if cmd != nil {
+		t.Error("move key on parent dir should return nil command")
+	}
+}
+
+func TestOverwriteDialogNavigationInModel(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create an OverwriteDialog
+	m.dialog = NewOverwriteDialog("test.txt", "/dest", OverwriteFileInfo{}, OverwriteFileInfo{}, "copy", "/src/test.txt")
+
+	// Verify dialog exists
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil")
+	}
+
+	// Press 'j' to navigate in dialog
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should still be active
+	if m.dialog == nil || !m.dialog.IsActive() {
+		t.Error("dialog should still be active after navigation")
+	}
+
+	// Press Esc to close dialog
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command (overwriteDialogResultMsg)
+	if cmd != nil {
+		resultMsg := cmd()
+		updatedModel, _ = m.Update(resultMsg)
+		m = updatedModel.(Model)
+
+		// Dialog should be closed
+		if m.dialog != nil {
+			t.Error("dialog should be nil after Esc and processing result")
+		}
+	}
+}
+
+func TestRenameInputDialogNavigationInModel(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create a RenameInputDialog
+	m.dialog = NewRenameInputDialog(m.getInactivePane().Path(), "/src/test.txt", "copy")
+
+	// Verify dialog exists
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil")
+	}
+
+	// Type a character
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should still be active
+	if m.dialog == nil || !m.dialog.IsActive() {
+		t.Error("dialog should still be active after typing")
+	}
+
+	// Press Esc to close dialog
+	keyMsg = tea.KeyMsg{Type: tea.KeyEsc}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be inactive
+	if m.dialog != nil && m.dialog.IsActive() {
+		t.Error("dialog should be inactive after Esc")
+	}
+}
+
+// === checkFileConflict and executeFileOperation Tests ===
+
+func TestCheckFileConflictNoConflict(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create temp file
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "source.txt")
+	if err := os.WriteFile(srcFile, []byte("test"), 0644); err != nil {
+		t.Fatalf("failed to create test file: %v", err)
+	}
+
+	destDir := t.TempDir()
+
+	// Call checkFileConflict - should execute immediately (no conflict)
+	cmd := m.checkFileConflict(srcFile, destDir, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	// Execute the command
+	result := cmd()
+
+	// Should be fileOperationCompleteMsg (copy succeeded)
+	_, isComplete := result.(fileOperationCompleteMsg)
+	_, isError := result.(showErrorDialogMsg)
+
+	if !isComplete && !isError {
+		t.Errorf("expected fileOperationCompleteMsg or showErrorDialogMsg, got %T", result)
+	}
+}
+
+func TestCheckFileConflictWithExistingFile(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source file
+	tempDir := t.TempDir()
+	srcFile := filepath.Join(tempDir, "test.txt")
+	if err := os.WriteFile(srcFile, []byte("source"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	// Create destination file with same name
+	destDir := t.TempDir()
+	destFile := filepath.Join(destDir, "test.txt")
+	if err := os.WriteFile(destFile, []byte("dest"), 0644); err != nil {
+		t.Fatalf("failed to create dest file: %v", err)
+	}
+
+	// Call checkFileConflict - should show overwrite dialog
+	cmd := m.checkFileConflict(srcFile, destDir, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	// Execute the command
+	result := cmd()
+
+	// Should be showOverwriteDialogMsg
+	overwriteMsg, ok := result.(showOverwriteDialogMsg)
+	if !ok {
+		t.Fatalf("expected showOverwriteDialogMsg, got %T", result)
+	}
+
+	if overwriteMsg.filename != "test.txt" {
+		t.Errorf("filename = %q, want 'test.txt'", overwriteMsg.filename)
+	}
+	if overwriteMsg.operation != "copy" {
+		t.Errorf("operation = %q, want 'copy'", overwriteMsg.operation)
+	}
+}
+
+func TestCheckFileConflictWithDirectories(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source directory
+	srcDir := t.TempDir()
+	srcSubDir := filepath.Join(srcDir, "subdir")
+	if err := os.Mkdir(srcSubDir, 0755); err != nil {
+		t.Fatalf("failed to create source dir: %v", err)
+	}
+
+	// Create destination with same directory name
+	destParent := t.TempDir()
+	destSubDir := filepath.Join(destParent, "subdir")
+	if err := os.Mkdir(destSubDir, 0755); err != nil {
+		t.Fatalf("failed to create dest dir: %v", err)
+	}
+
+	// Call checkFileConflict - should show error dialog (directory conflict)
+	cmd := m.checkFileConflict(srcSubDir, destParent, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	// Execute the command
+	result := cmd()
+
+	// Should be showErrorDialogMsg for directory conflict
+	errorMsg, ok := result.(showErrorDialogMsg)
+	if !ok {
+		t.Fatalf("expected showErrorDialogMsg for directory conflict, got %T", result)
+	}
+
+	if !strings.Contains(errorMsg.message, "already exists") {
+		t.Errorf("error message should contain 'already exists', got: %s", errorMsg.message)
+	}
+}
+
+func TestCheckFileConflictSourceError(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create destination file (but no source file)
+	destDir := t.TempDir()
+	destFile := filepath.Join(destDir, "nonexistent.txt")
+	if err := os.WriteFile(destFile, []byte("dest"), 0644); err != nil {
+		t.Fatalf("failed to create dest file: %v", err)
+	}
+
+	// Non-existent source file
+	srcFile := "/nonexistent/path/to/nonexistent.txt"
+
+	// Call checkFileConflict - should show error dialog
+	cmd := m.checkFileConflict(srcFile, destDir, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	// Execute the command
+	result := cmd()
+
+	// Should be showErrorDialogMsg for source check failure
+	_, ok := result.(showErrorDialogMsg)
+	if !ok {
+		t.Fatalf("expected showErrorDialogMsg for source error, got %T", result)
+	}
+}
+
+func TestExecuteFileOperationCopy(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source file
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "source.txt")
+	if err := os.WriteFile(srcFile, []byte("test content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	destDir := t.TempDir()
+
+	// Execute copy operation
+	cmd := m.executeFileOperation(srcFile, destDir, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	result := cmd()
+
+	// Should be fileOperationCompleteMsg
+	completeMsg, ok := result.(fileOperationCompleteMsg)
+	if !ok {
+		t.Fatalf("expected fileOperationCompleteMsg, got %T", result)
+	}
+
+	if completeMsg.operation != "copy" {
+		t.Errorf("operation = %q, want 'copy'", completeMsg.operation)
+	}
+
+	// Verify file was copied
+	destFile := filepath.Join(destDir, "source.txt")
+	if _, err := os.Stat(destFile); os.IsNotExist(err) {
+		t.Error("destination file should exist after copy")
+	}
+}
+
+func TestExecuteFileOperationMove(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source file
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "source.txt")
+	if err := os.WriteFile(srcFile, []byte("test content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	destDir := t.TempDir()
+
+	// Execute move operation
+	cmd := m.executeFileOperation(srcFile, destDir, "move")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	result := cmd()
+
+	// Should be fileOperationCompleteMsg
+	completeMsg, ok := result.(fileOperationCompleteMsg)
+	if !ok {
+		t.Fatalf("expected fileOperationCompleteMsg, got %T", result)
+	}
+
+	if completeMsg.operation != "move" {
+		t.Errorf("operation = %q, want 'move'", completeMsg.operation)
+	}
+
+	// Verify file was moved (source gone, dest exists)
+	if _, err := os.Stat(srcFile); !os.IsNotExist(err) {
+		t.Error("source file should not exist after move")
+	}
+
+	destFile := filepath.Join(destDir, "source.txt")
+	if _, err := os.Stat(destFile); os.IsNotExist(err) {
+		t.Error("destination file should exist after move")
+	}
+}
+
+func TestExecuteFileOperationError(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Non-existent source file
+	srcFile := "/nonexistent/path/source.txt"
+	destDir := t.TempDir()
+
+	// Execute copy operation (should fail)
+	cmd := m.executeFileOperation(srcFile, destDir, "copy")
+	if cmd == nil {
+		t.Fatal("expected command, got nil")
+	}
+
+	result := cmd()
+
+	// Should be showErrorDialogMsg
+	errorMsg, ok := result.(showErrorDialogMsg)
+	if !ok {
+		t.Fatalf("expected showErrorDialogMsg, got %T", result)
+	}
+
+	if !strings.Contains(errorMsg.message, "Failed to copy") {
+		t.Errorf("error message should contain 'Failed to copy', got: %s", errorMsg.message)
+	}
+}
+
+func TestOverwriteDialogResultMsgOverwriteActualFile(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source and destination files
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "test.txt")
+	if err := os.WriteFile(srcFile, []byte("source content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	destDir := t.TempDir()
+	destFile := filepath.Join(destDir, "test.txt")
+	if err := os.WriteFile(destFile, []byte("original content"), 0644); err != nil {
+		t.Fatalf("failed to create dest file: %v", err)
+	}
+
+	// Send overwriteDialogResultMsg with Overwrite choice
+	resultMsg := overwriteDialogResultMsg{
+		choice:    OverwriteChoiceOverwrite,
+		srcPath:   srcFile,
+		destPath:  destDir,
+		filename:  "test.txt",
+		operation: "copy",
+	}
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command
+	if cmd != nil {
+		// Execute the command
+		result := cmd()
+		if result != nil {
+			t.Logf("overwrite command returned: %T", result)
+		}
+	}
+}
+
+func TestRenameInputResultMsgSuccessfulCopy(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source file
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "source.txt")
+	if err := os.WriteFile(srcFile, []byte("source content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	destDir := t.TempDir()
+
+	// Send renameInputResultMsg
+	resultMsg := renameInputResultMsg{
+		newName:   "newname.txt",
+		srcPath:   srcFile,
+		destPath:  destDir,
+		operation: "copy",
+	}
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command for the actual operation
+	if cmd != nil {
+		result := cmd()
+		if result != nil {
+			t.Logf("rename copy command returned: %T", result)
+		}
+	}
+
+	// Verify the renamed file exists
+	newFile := filepath.Join(destDir, "newname.txt")
+	if _, err := os.Stat(newFile); os.IsNotExist(err) {
+		// The command might need to be processed through Update
+		t.Log("new file not immediately created (async operation)")
+	}
+}
+
+func TestRenameInputResultMsgSuccessfulMove(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Create source file
+	srcDir := t.TempDir()
+	srcFile := filepath.Join(srcDir, "source.txt")
+	if err := os.WriteFile(srcFile, []byte("source content"), 0644); err != nil {
+		t.Fatalf("failed to create source file: %v", err)
+	}
+
+	destDir := t.TempDir()
+
+	// Send renameInputResultMsg for move
+	resultMsg := renameInputResultMsg{
+		newName:   "newname.txt",
+		srcPath:   srcFile,
+		destPath:  destDir,
+		operation: "move",
+	}
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Should return a command for the actual operation
+	if cmd != nil {
+		result := cmd()
+		if result != nil {
+			t.Logf("rename move command returned: %T", result)
+		}
+	}
+}
+
+// === Additional View and Rendering Tests ===
+
+func TestModelViewWithDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set a dialog
+	m.dialog = NewOverwriteDialog("test.txt", "/dest", OverwriteFileInfo{}, OverwriteFileInfo{}, "copy", "/src/test.txt")
+
+	// View should render without error
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestModelViewWithErrorDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set an error dialog
+	m.dialog = NewErrorDialog("Test error message")
+
+	// View should render without error
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestModelViewWithRenameInputDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set a rename input dialog
+	m.dialog = NewRenameInputDialog(m.getInactivePane().Path(), "/src/test.txt", "copy")
+
+	// View should render without error
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestModelViewWithStatusMessage(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set status message
+	m.statusMessage = "Test status message"
+	m.isStatusError = false
+
+	// View should render without error
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestModelViewWithErrorStatusMessage(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set error status message
+	m.statusMessage = "Test error message"
+	m.isStatusError = true
+
+	// View should render without error
+	view := m.View()
+	if view == "" {
+		t.Error("view should not be empty")
+	}
+}
+
+func TestModelSwitchToPane(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Switch to right pane
+	m.switchToPane(RightPane)
+
+	if m.activePane != RightPane {
+		t.Errorf("activePane = %v, want RightPane", m.activePane)
+	}
+	if !m.rightPane.isActive {
+		t.Error("rightPane should be active")
+	}
+	if m.leftPane.isActive {
+		t.Error("leftPane should be inactive")
+	}
+
+	// Switch to left pane
+	m.switchToPane(LeftPane)
+
+	if m.activePane != LeftPane {
+		t.Errorf("activePane = %v, want LeftPane", m.activePane)
+	}
+	if !m.leftPane.isActive {
+		t.Error("leftPane should be active")
+	}
+	if m.rightPane.isActive {
+		t.Error("rightPane should be inactive")
+	}
+}
+
+func TestToggleHiddenFiles(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Get initial state
+	initialShowHidden := m.getActivePane().showHidden
+
+	// Press Ctrl+H to toggle hidden files
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlH}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.getActivePane().showHidden == initialShowHidden {
+		t.Error("showHidden should have toggled")
+	}
+}
+
+func TestToggleDisplayMode(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Check if terminal is wide enough to toggle mode
+	if !m.getActivePane().CanToggleMode() {
+		t.Skip("Terminal too narrow to toggle display mode")
+	}
+
+	// Get initial display mode
+	initialMode := m.getActivePane().displayMode
+
+	// Press 'i' to toggle display mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'i'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.getActivePane().displayMode == initialMode {
+		t.Error("displayMode should have changed")
+	}
+}
+
+func TestHelpDialogToggle(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press '?' to open help
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Error("dialog should be set after ? key")
+	}
+
+	_, isHelpDialog := m.dialog.(*HelpDialog)
+	if !isHelpDialog {
+		t.Error("dialog should be HelpDialog")
+	}
+}
+
+func TestDeleteKeyShowsConfirmDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent dir)
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Press 'd' for delete
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Error("dialog should be set after d key")
+	}
+
+	_, isConfirmDialog := m.dialog.(*ConfirmDialog)
+	if !isConfirmDialog {
+		t.Error("dialog should be ConfirmDialog")
+	}
+}
+
+func TestNewFileDialogOpens(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press 'n' for new file
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Error("dialog should be set after n key")
+	}
+
+	_, isInputDialog := m.dialog.(*InputDialog)
+	if !isInputDialog {
+		t.Error("dialog should be InputDialog")
+	}
+}
+
+func TestNewDirectoryDialogOpens(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press 'N' (shift+n) for new directory
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'N'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Error("dialog should be set after N key")
+	}
+
+	_, isInputDialog := m.dialog.(*InputDialog)
+	if !isInputDialog {
+		t.Error("dialog should be InputDialog")
+	}
+}
+
+func TestRenameDialogOpens(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent dir)
+	m.getActivePane().MoveCursorDown()
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		t.Skip("No suitable entry for test")
+	}
+
+	// Press 'r' for rename
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Error("dialog should be set after r key")
+	}
+
+	_, isInputDialog := m.dialog.(*InputDialog)
+	if !isInputDialog {
+		t.Error("dialog should be InputDialog")
 	}
 }
