@@ -142,7 +142,7 @@ func (d *InputDialog) View() string {
 
 	// タイトル
 	titleStyle := lipgloss.NewStyle().
-		Width(width - 4).
+		Width(width-4).
 		Padding(0, 1).
 		Bold(true).
 		Foreground(lipgloss.Color("39"))
@@ -157,7 +157,7 @@ func (d *InputDialog) View() string {
 	// エラーメッセージ（あれば）
 	if d.errorMsg != "" {
 		errorStyle := lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 1).
 			Foreground(lipgloss.Color("196")) // 赤色
 		b.WriteString("\n")
@@ -168,7 +168,7 @@ func (d *InputDialog) View() string {
 
 	// フッター
 	footerStyle := lipgloss.NewStyle().
-		Width(width - 4).
+		Width(width-4).
 		Padding(0, 1).
 		Foreground(lipgloss.Color("240"))
 	b.WriteString(footerStyle.Render("Enter: Confirm  Esc: Cancel"))

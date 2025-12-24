@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -105,6 +106,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
+				// コピー/移動の場合は上書き確認フローを使用
+				if result.actionID == "copy" || result.actionID == "move" {
+					entry := m.getActivePane().SelectedEntry()
+					if entry != nil && !entry.IsParentDir() {
+						srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+						destPath := m.getInactivePane().Path()
+						return m, m.checkFileConflict(srcPath, destPath, result.actionID)
+					}
+					return m, nil
+				}
+
 				// その他のアクションは直接実行
 				if err := result.action(); err != nil {
 					m.dialog = NewErrorDialog(fmt.Sprintf("Operation failed: %v", err))
@@ -115,6 +127,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.getActivePane().LoadDirectory()
 				m.getInactivePane().LoadDirectory()
 			}
+		}
+
+		return m, nil
+	}
+
+	// 上書き確認ダイアログの結果処理
+	if result, ok := msg.(overwriteDialogResultMsg); ok {
+		m.dialog = nil
+
+		switch result.choice {
+		case OverwriteChoiceOverwrite:
+			// 既存ファイルを削除してからコピー/移動
+			destFile := filepath.Join(result.destPath, result.filename)
+			if err := os.RemoveAll(destFile); err != nil {
+				if os.IsPermission(err) {
+					m.dialog = NewErrorDialog("Permission denied: cannot remove existing file")
+				} else {
+					m.dialog = NewErrorDialog(fmt.Sprintf("Failed to remove: %v", err))
+				}
+				return m, nil
+			}
+			return m, m.executeFileOperation(result.srcPath, result.destPath, result.operation)
+
+		case OverwriteChoiceCancel:
+			// キャンセル - 何もしない
+			return m, nil
+
+		case OverwriteChoiceRename:
+			// リネームダイアログを表示（Phase 3で実装）
+			m.dialog = NewRenameInputDialog(result.destPath, result.srcPath, result.operation)
+			return m, nil
 		}
 
 		return m, nil
@@ -246,7 +289,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !targetPane.showHidden {
 				entries = filterHiddenFiles(entries)
 			}
+			// allEntriesとentriesを両方更新し、フィルタをクリア
+			// (LoadDirectory()と同じ動作にする)
+			targetPane.allEntries = entries
 			targetPane.entries = entries
+			targetPane.filterPattern = ""
+			targetPane.filterMode = SearchModeNone
 			targetPane.cursor = 0
 			targetPane.scrollOffset = 0
 			targetPane.pendingPath = ""
@@ -289,6 +337,52 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.moveCursorToFile(msg.input)
 		case "rename":
 			m.moveCursorToFileAfterRename(msg.oldName, msg.input)
+		}
+		return m, nil
+
+	case showErrorDialogMsg:
+		// エラーダイアログを表示
+		m.dialog = NewErrorDialog(msg.message)
+		return m, nil
+
+	case showOverwriteDialogMsg:
+		// 上書き確認ダイアログを表示
+		m.dialog = NewOverwriteDialog(
+			msg.filename,
+			msg.destPath,
+			msg.srcInfo,
+			msg.destInfo,
+			msg.operation,
+			msg.srcPath,
+		)
+		return m, nil
+
+	case fileOperationCompleteMsg:
+		// ファイル操作完了 - 両ペインを再読み込み
+		m.getActivePane().LoadDirectory()
+		m.getInactivePane().LoadDirectory()
+		return m, nil
+
+	case renameInputResultMsg:
+		// リネーム入力ダイアログの結果処理
+		m.dialog = nil
+
+		// Execute the operation with the new name
+		newDestPath := filepath.Join(msg.destPath, msg.newName)
+
+		var err error
+		if msg.operation == "copy" {
+			err = fs.Copy(msg.srcPath, newDestPath)
+		} else {
+			err = fs.MoveFile(msg.srcPath, newDestPath)
+		}
+
+		if err != nil {
+			m.dialog = NewErrorDialog(fmt.Sprintf("Failed to %s: %v", msg.operation, err))
+		} else {
+			// 両ペインを再読み込み
+			m.getActivePane().LoadDirectory()
+			m.getInactivePane().LoadDirectory()
 		}
 		return m, nil
 
@@ -426,14 +520,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry := m.getActivePane().SelectedEntry()
 			if entry != nil && !entry.IsParentDir() {
 				srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
-				dstPath := m.getInactivePane().Path()
-
-				if err := fs.Copy(srcPath, dstPath); err != nil {
-					m.dialog = NewErrorDialog(fmt.Sprintf("Failed to copy: %v", err))
-				} else {
-					// 対象ペインを再読み込み
-					m.getInactivePane().LoadDirectory()
-				}
+				destPath := m.getInactivePane().Path()
+				return m, m.checkFileConflict(srcPath, destPath, "copy")
 			}
 			return m, nil
 
@@ -442,15 +530,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			entry := m.getActivePane().SelectedEntry()
 			if entry != nil && !entry.IsParentDir() {
 				srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
-				dstPath := m.getInactivePane().Path()
-
-				if err := fs.MoveFile(srcPath, dstPath); err != nil {
-					m.dialog = NewErrorDialog(fmt.Sprintf("Failed to move: %v", err))
-				} else {
-					// 両ペインを再読み込み
-					m.getActivePane().LoadDirectory()
-					m.getInactivePane().LoadDirectory()
-				}
+				destPath := m.getInactivePane().Path()
+				return m, m.checkFileConflict(srcPath, destPath, "move")
 			}
 			return m, nil
 
@@ -1067,4 +1148,89 @@ func (m *Model) moveCursorToFileAfterRename(oldName, newName string) {
 
 	// リネームされたファイルを探してカーソルを移動
 	m.moveCursorToFile(newName)
+}
+
+// checkFileConflict checks if destination file exists and returns appropriate action
+func (m *Model) checkFileConflict(srcPath, destDir, operation string) tea.Cmd {
+	filename := filepath.Base(srcPath)
+	destPath := filepath.Join(destDir, filename)
+
+	// Check destination using Lstat to handle symlinks properly
+	destInfo, err := os.Lstat(destPath)
+	if os.IsNotExist(err) {
+		// No conflict - execute immediately
+		return m.executeFileOperation(srcPath, destDir, operation)
+	}
+
+	if err != nil {
+		// Other error
+		return func() tea.Msg {
+			return showErrorDialogMsg{message: fmt.Sprintf("Failed to check destination: %v", err)}
+		}
+	}
+
+	srcInfo, err := os.Lstat(srcPath)
+	if err != nil {
+		return func() tea.Msg {
+			return showErrorDialogMsg{message: fmt.Sprintf("Failed to check source: %v", err)}
+		}
+	}
+
+	// Directory conflict - show error dialog
+	if srcInfo.IsDir() && destInfo.IsDir() {
+		return func() tea.Msg {
+			return showErrorDialogMsg{
+				message: fmt.Sprintf("Directory \"%s\" already exists in\n%s", filename, destDir),
+			}
+		}
+	}
+
+	// File conflict - show overwrite dialog
+	return func() tea.Msg {
+		return showOverwriteDialogMsg{
+			filename:  filename,
+			srcPath:   srcPath,
+			destPath:  destDir,
+			srcInfo:   OverwriteFileInfo{Size: srcInfo.Size(), ModTime: srcInfo.ModTime()},
+			destInfo:  OverwriteFileInfo{Size: destInfo.Size(), ModTime: destInfo.ModTime()},
+			operation: operation,
+		}
+	}
+}
+
+// executeFileOperation executes a copy or move operation
+func (m *Model) executeFileOperation(srcPath, destPath, operation string) tea.Cmd {
+	return func() tea.Msg {
+		var err error
+		if operation == "copy" {
+			err = fs.Copy(srcPath, destPath)
+		} else {
+			err = fs.MoveFile(srcPath, destPath)
+		}
+
+		if err != nil {
+			return showErrorDialogMsg{message: fmt.Sprintf("Failed to %s: %v", operation, err)}
+		}
+		return fileOperationCompleteMsg{operation: operation}
+	}
+}
+
+// showErrorDialogMsg is a message to show an error dialog
+type showErrorDialogMsg struct {
+	message string
+}
+
+// showOverwriteDialogMsg is a message to show the overwrite confirmation dialog
+type showOverwriteDialogMsg struct {
+	filename  string
+	srcPath   string
+	destPath  string
+	srcInfo   OverwriteFileInfo
+	destInfo  OverwriteFileInfo
+	operation string
+}
+
+// fileOperationCompleteMsg is sent when a file operation completes successfully
+type fileOperationCompleteMsg struct {
+	operation string
 }
