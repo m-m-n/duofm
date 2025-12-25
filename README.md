@@ -169,30 +169,6 @@ make clean
 - **Styling**: [Lip Gloss](https://github.com/charmbracelet/lipgloss) - Terminal styling library
 - **Testing**: Go's built-in testing package
 
-## Roadmap
-
-### Phase 1: MVP (✅ Completed)
-- [x] Dual-pane display
-- [x] Basic navigation (hjkl)
-- [x] Enter directories
-- [x] File operations (copy, move, delete)
-- [x] Confirmation dialogs
-- [x] Help dialog
-
-### Phase 2: Enhanced Features (Planned)
-- [ ] File details (size, date, permissions)
-- [ ] Open files with external programs
-- [ ] Multiple file marking (Space)
-- [ ] Sort options
-- [ ] Show/hide hidden files (Ctrl+H)
-
-### Phase 3: Advanced Features (Planned)
-- [ ] Search and filter (/)
-- [ ] Advanced navigation (gg, G, Ctrl+D/U)
-- [ ] Progress indicators for large operations
-- [ ] Configuration file support
-- [ ] Directory history
-
 ## Contributing
 
 Contributions are welcome! Please see [CONTRIBUTING.md](doc/CONTRIBUTING.md) for guidelines.
