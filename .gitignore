@@ -78,3 +78,7 @@ tmp/
 *~
 *.bak
 *.backup
+
+# Debian package build artifacts
+*.deb
+build/dpkg/
