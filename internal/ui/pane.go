@@ -63,6 +63,7 @@ type Pane struct {
 	filterPattern   string          // 現在のフィルタパターン（空の場合はフィルタなし）
 	filterMode      SearchMode      // 現在のフィルタモード
 	markedFiles     map[string]bool // key: filename, value: marked state
+	sortConfig      SortConfig      // ソート設定
 }
 
 // NewPane は新しいペインを作成
@@ -78,6 +79,7 @@ func NewPane(path string, width, height int, isActive bool) (*Pane, error) {
 		loading:         false,
 		loadingProgress: "",
 		markedFiles:     make(map[string]bool),
+		sortConfig:      DefaultSortConfig(), // デフォルトは名前昇順
 	}
 
 	if err := pane.LoadDirectory(); err != nil {
@@ -94,7 +96,7 @@ func (p *Pane) LoadDirectory() error {
 		return err
 	}
 
-	fs.SortEntries(entries)
+	entries = SortEntries(entries, p.sortConfig)
 
 	// 隠しファイルをフィルタリング
 	if !p.showHidden {
@@ -135,7 +137,7 @@ func (p *Pane) StartLoadingDirectory() {
 }
 
 // LoadDirectoryAsync は非同期でディレクトリを読み込む
-func LoadDirectoryAsync(panePath string) tea.Cmd {
+func LoadDirectoryAsync(panePath string, sortConfig SortConfig) tea.Cmd {
 	return func() tea.Msg {
 		entries, err := fs.ReadDirectory(panePath)
 		if err != nil {
@@ -147,7 +149,7 @@ func LoadDirectoryAsync(panePath string) tea.Cmd {
 			}
 		}
 
-		fs.SortEntries(entries)
+		entries = SortEntries(entries, sortConfig)
 		return directoryLoadCompleteMsg{
 			panePath:      panePath,
 			entries:       entries,
@@ -255,7 +257,7 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 	// ローディング状態を開始
 	p.StartLoadingDirectory()
 
-	return LoadDirectoryAsync(newPath)
+	return LoadDirectoryAsync(newPath, p.sortConfig)
 }
 
 // EnterDirectory はディレクトリに入る
@@ -327,7 +329,7 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 	p.pendingPath = newPath
 	p.path = newPath
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(newPath)
+	return LoadDirectoryAsync(newPath, p.sortConfig)
 }
 
 // ChangeDirectory は指定されたパスに移動
@@ -343,7 +345,7 @@ func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(path)
+	return LoadDirectoryAsync(path, p.sortConfig)
 }
 
 // Path は現在のパスを返す
@@ -874,7 +876,7 @@ func (p *Pane) NavigateToHomeAsync() tea.Cmd {
 	p.pendingPath = home
 	p.path = home
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(home)
+	return LoadDirectoryAsync(home, p.sortConfig)
 }
 
 // NavigateToPrevious は直前のディレクトリに移動する（トグル動作）
@@ -901,7 +903,7 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 	p.path = p.previousPath
 	p.previousPath = current
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(p.path)
+	return LoadDirectoryAsync(p.path, p.sortConfig)
 }
 
 // ApplyFilter はフィルタパターンを適用してエントリをフィルタリングする
@@ -1207,4 +1209,50 @@ func (p *Pane) MarkCount() int {
 // HasMarkedFiles returns whether there are any marked files
 func (p *Pane) HasMarkedFiles() bool {
 	return len(p.markedFiles) > 0
+}
+
+// GetSortConfig はソート設定を返す
+func (p *Pane) GetSortConfig() SortConfig {
+	return p.sortConfig
+}
+
+// SetSortConfig はソート設定を設定する
+func (p *Pane) SetSortConfig(config SortConfig) {
+	p.sortConfig = config
+}
+
+// ApplySortAndPreserveCursor はソートを適用しながらカーソル位置を維持する
+func (p *Pane) ApplySortAndPreserveCursor() {
+	// 現在のカーソル位置のファイル名を記憶
+	currentName := ""
+	if p.cursor >= 0 && p.cursor < len(p.entries) {
+		currentName = p.entries[p.cursor].Name
+	}
+
+	// allEntriesをソート
+	p.allEntries = SortEntries(p.allEntries, p.sortConfig)
+
+	// フィルタが適用されている場合は再適用
+	if p.IsFiltered() {
+		p.ApplyFilter(p.filterPattern, p.filterMode)
+	} else {
+		p.entries = p.allEntries
+	}
+
+	// カーソル位置を復元
+	if currentName != "" {
+		for i, e := range p.entries {
+			if e.Name == currentName {
+				p.cursor = i
+				p.adjustScroll()
+				return
+			}
+		}
+	}
+
+	// 見つからない場合は現在のインデックスを維持（範囲内に調整）
+	if p.cursor >= len(p.entries) {
+		p.cursor = max(0, len(p.entries)-1)
+	}
+	p.adjustScroll()
 }

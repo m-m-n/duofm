@@ -47,4 +47,7 @@ const (
 
 	// Multi-file marking
 	KeyMark = " " // Space key for marking files
+
+	// Sort
+	KeySort = "s" // Open sort settings dialog
 )

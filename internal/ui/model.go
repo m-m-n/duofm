@@ -47,6 +47,7 @@ type Model struct {
 	minibuffer         *Minibuffer     // ミニバッファ
 	ctrlCPending       bool            // Ctrl+Cが1回押された状態かどうか
 	batchOp            *BatchOperation // Active batch operation (nil if none)
+	sortDialog         *SortDialog     // ソートダイアログ（nil = 非表示）
 }
 
 // PanePosition はペインの位置を表す
@@ -157,6 +158,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		return m, nil
+	}
+
+	// ソートダイアログの結果処理
+	if result, ok := msg.(sortDialogResultMsg); ok {
+		m.sortDialog = nil
+
+		if result.cancelled {
+			// キャンセル時: 元のソート設定に復元
+			m.getActivePane().SetSortConfig(result.config)
+			m.getActivePane().ApplySortAndPreserveCursor()
+		}
+		// confirmed: 現在の設定をそのまま維持（ライブプレビュー済み）
+		return m, nil
+	}
+
+	// ソートダイアログの設定変更（ライブプレビュー）
+	if result, ok := msg.(sortDialogConfigChangedMsg); ok {
+		if m.sortDialog != nil {
+			m.getActivePane().SetSortConfig(result.config)
+			m.getActivePane().ApplySortAndPreserveCursor()
+		}
 		return m, nil
 	}
 
@@ -456,6 +479,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// ソートダイアログが開いている場合
+		if m.sortDialog != nil && m.sortDialog.IsActive() {
+			var cmd tea.Cmd
+			_, cmd = m.sortDialog.Update(msg)
+			return m, cmd
+		}
+
 		// ダイアログが開いている場合はダイアログに処理を委譲
 		if m.dialog != nil {
 			var cmd tea.Cmd
@@ -741,6 +771,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m.handleRename(pane.Path(), oldName, newName)
 			})
 			return m, nil
+
+		case KeySort:
+			// ソートダイアログを表示
+			m.sortDialog = NewSortDialog(m.getActivePane().GetSortConfig())
+			return m, nil
 		}
 	}
 
@@ -820,6 +855,11 @@ func (m Model) View() string {
 		case DialogDisplayPane:
 			return m.renderDialogPane()
 		}
+	}
+
+	// ソートダイアログがある場合はペインローカル表示
+	if m.sortDialog != nil && m.sortDialog.IsActive() {
+		return m.renderSortDialogPane()
 	}
 
 	return mainView
@@ -905,6 +945,64 @@ func (m Model) renderDialogPane() string {
 
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
 	return lipgloss.JoinVertical(lipgloss.Left, title, panes, statusBar)
+}
+
+// renderSortDialogPane はソートダイアログをペインローカル表示
+func (m Model) renderSortDialogPane() string {
+	paneWidth := m.width / 2
+	paneHeight := m.height - 2
+
+	title := titleStyle.Render("duofm v0.1.0")
+	statusBar := m.renderStatusBar()
+
+	var leftView, rightView string
+
+	if m.activePane == LeftPane {
+		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
+		leftView = m.overlaySortDialogOnPane(dimmedLeft, paneWidth, paneHeight)
+		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+	} else {
+		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
+		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+		rightView = m.overlaySortDialogOnPane(dimmedRight, paneWidth, paneHeight)
+	}
+
+	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
+	return lipgloss.JoinVertical(lipgloss.Left, title, panes, statusBar)
+}
+
+// overlaySortDialogOnPane はdimmedペインの上にソートダイアログをオーバーレイ
+func (m Model) overlaySortDialogOnPane(dimmedPane string, paneWidth, paneHeight int) string {
+	dialogView := lipgloss.Place(
+		paneWidth,
+		paneHeight,
+		lipgloss.Center,
+		lipgloss.Center,
+		m.sortDialog.View(),
+		lipgloss.WithWhitespaceBackground(dimmedBgColor),
+	)
+
+	paneLines := strings.Split(dimmedPane, "\n")
+	dialogLines := strings.Split(dialogView, "\n")
+
+	var result strings.Builder
+	for i := 0; i < len(paneLines) && i < len(dialogLines); i++ {
+		dialogLine := dialogLines[i]
+		paneLine := paneLines[i]
+
+		stripped := ansiRegex.ReplaceAllString(dialogLine, "")
+		trimmed := strings.TrimSpace(stripped)
+		if trimmed == "" {
+			result.WriteString(paneLine)
+		} else {
+			result.WriteString(dialogLine)
+		}
+		if i < len(paneLines)-1 {
+			result.WriteString("\n")
+		}
+	}
+
+	return result.String()
 }
 
 // overlayDialogOnPane はdimmedペインの上にダイアログをオーバーレイする
