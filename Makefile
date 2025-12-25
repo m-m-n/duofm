@@ -5,8 +5,15 @@ BINARY_PATH=./cmd/duofm
 BUILD_DIR=.
 GO=go
 
+# Version: use git tag if available, otherwise dev-<commit>
+GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null)
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION := $(if $(GIT_TAG),$(GIT_TAG),dev-$(GIT_COMMIT))
+
+LDFLAGS = -X main.version=$(VERSION)
+
 build:
-	$(GO) build -o $(BUILD_DIR)/$(BINARY_NAME) $(BINARY_PATH)
+	$(GO) build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) $(BINARY_PATH)
 
 test:
 	$(GO) test -v ./...
