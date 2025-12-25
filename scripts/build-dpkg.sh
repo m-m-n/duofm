@@ -200,28 +200,29 @@ echo "Installed-Size: ${INSTALLED_SIZE}" >> "${BUILD_DIR}/DEBIAN/control"
 echo ""
 echo -e "${BLUE}Building .deb package...${NC}"
 if dpkg-deb --build --root-owner-group "${BUILD_DIR}"; then
-    # Move the package to the root directory
-    mv "build/dpkg/${PACKAGE_NAME}.deb" .
+    # Move the package to build directory
+    mkdir -p build
+    mv "build/dpkg/${PACKAGE_NAME}.deb" build/
 
     echo ""
     echo -e "${GREEN}═══════════════════════════════════════${NC}"
     echo -e "${GREEN}✓ Package created successfully!${NC}"
     echo -e "${GREEN}═══════════════════════════════════════${NC}"
     echo ""
-    echo -e "${BLUE}Package file: ${YELLOW}${PACKAGE_NAME}.deb${NC}"
+    echo -e "${BLUE}Package file: ${YELLOW}build/${PACKAGE_NAME}.deb${NC}"
 
     # Show package info
     echo ""
     echo -e "${BLUE}Package Information:${NC}"
-    dpkg-deb --info "${PACKAGE_NAME}.deb" | head -20
+    dpkg-deb --info "build/${PACKAGE_NAME}.deb" | head -20
 
     echo ""
     echo -e "${BLUE}Package Contents:${NC}"
-    dpkg-deb --contents "${PACKAGE_NAME}.deb"
+    dpkg-deb --contents "build/${PACKAGE_NAME}.deb"
 
     echo ""
     echo -e "${GREEN}Installation Commands:${NC}"
-    echo -e "  ${YELLOW}sudo dpkg -i ${PACKAGE_NAME}.deb${NC}     - Install package"
+    echo -e "  ${YELLOW}sudo dpkg -i build/${PACKAGE_NAME}.deb${NC}     - Install package"
     echo -e "  ${YELLOW}dpkg -L duofm${NC}                        - List installed files"
     echo -e "  ${YELLOW}sudo dpkg -r duofm${NC}                   - Remove package"
     echo -e "  ${YELLOW}sudo dpkg -P duofm${NC}                   - Purge package completely"
