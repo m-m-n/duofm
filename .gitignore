@@ -80,5 +80,4 @@ tmp/
 *.backup
 
 # Debian package build artifacts
-*.deb
-build/dpkg/
+build/

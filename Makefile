@@ -65,7 +65,6 @@ dpkg:
 	@bash scripts/build-dpkg.sh
 
 clean-dpkg:
-	rm -f *.deb
-	rm -rf build/dpkg
+	rm -rf build
 
 .DEFAULT_GOAL := build
