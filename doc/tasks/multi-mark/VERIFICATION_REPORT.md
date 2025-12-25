@@ -209,6 +209,34 @@ ok  	github.com/sakura/duofm/internal/ui	0.020s
 coverage: 78.0% of statements
 ```
 
+### E2Eテスト実行結果 (100% ✅)
+
+```bash
+$ make test-e2e
+========================================
+Test Summary
+========================================
+Total:  89
+Passed: 89
+Failed: 0
+========================================
+```
+
+#### マルチマーク機能E2Eテスト (8テスト)
+
+| テスト名 | 説明 | 結果 |
+|---------|------|------|
+| test_mark_file | Spaceキーでファイルをマーク | ✅ PASS |
+| test_mark_cursor_movement | マーク後にカーソルが下に移動 | ✅ PASS |
+| test_unmark_file | Spaceキーでマーク解除 | ✅ PASS |
+| test_mark_parent_dir_ignored | 親ディレクトリはマーク不可 | ✅ PASS |
+| test_mark_multiple_files | 複数ファイルをマーク | ✅ PASS |
+| test_marks_cleared_on_directory_change | ディレクトリ変更時にマーククリア | ✅ PASS |
+| test_batch_delete_marked_files | マークファイルの一括削除 | ✅ PASS |
+| test_context_menu_mark_count | コンテキストメニューにマーク数表示 | ✅ PASS |
+
+**E2Eテストファイル**: `test/e2e/scripts/run_tests.sh` (Lines 1626-1896)
+
 ### 仕様書のテストシナリオカバレッジ (100% ✅)
 
 | テストシナリオ | 実装状態 |
