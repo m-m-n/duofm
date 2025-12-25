@@ -216,10 +216,6 @@ Contributions are welcome! Please see [CONTRIBUTING.md](doc/CONTRIBUTING.md) for
 - Keep business logic separate from UI logic
 - Document public APIs with comments
 
-## License
-
-MIT License - see LICENSE file for details
-
 ## Acknowledgments
 
 - Inspired by [ranger](https://github.com/ranger/ranger) and [nnn](https://github.com/jarun/nnn)
