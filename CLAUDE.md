@@ -1,4 +1,4 @@
-# duofm - Dual Pane File Manager
+# duofm - Unifies Orthodox File Manipulation
 
 ## Project Overview
 
