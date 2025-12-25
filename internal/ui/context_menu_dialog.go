@@ -4,6 +4,7 @@
 package ui
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -31,6 +32,7 @@ type ContextMenuDialog struct {
 	maxWidth     int         // Maximum dialog width
 	pane         *Pane       // Reference to active pane for symlink navigation
 	paneChanger  PaneChanger // Interface for directory changes (for testing)
+	markedFiles  []string    // List of marked file names (for batch operations)
 }
 
 // MenuItem represents a single menu item with an action closure.
@@ -74,6 +76,11 @@ func NewContextMenuDialog(entry *fs.FileEntry, sourcePath, destPath string) *Con
 //
 // Returns a new ContextMenuDialog instance.
 func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath string, pane *Pane) *ContextMenuDialog {
+	var markedFiles []string
+	if pane != nil {
+		markedFiles = pane.GetMarkedFiles()
+	}
+
 	d := &ContextMenuDialog{
 		cursor:       0,
 		currentPage:  0,
@@ -83,6 +90,7 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 		maxWidth:     60,
 		pane:         pane,
 		paneChanger:  pane, // Pane implements PaneChanger
+		markedFiles:  markedFiles,
 	}
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
@@ -114,11 +122,24 @@ func NewContextMenuDialogWithMockPane(entry *fs.FileEntry, sourcePath, destPath 
 // buildMenuItems generates menu items based on file type
 func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, destPath string) []MenuItem {
 	items := []MenuItem{}
+	markCount := len(d.markedFiles)
+
+	// Determine labels based on mark count
+	var copyLabel, moveLabel, deleteLabel string
+	if markCount > 0 {
+		copyLabel = fmt.Sprintf("Copy %d files to other pane", markCount)
+		moveLabel = fmt.Sprintf("Move %d files to other pane", markCount)
+		deleteLabel = fmt.Sprintf("Delete %d files", markCount)
+	} else {
+		copyLabel = "Copy to other pane"
+		moveLabel = "Move to other pane"
+		deleteLabel = "Delete"
+	}
 
 	// Basic operations available for all file types
 	items = append(items, MenuItem{
 		ID:    "copy",
-		Label: "Copy to other pane",
+		Label: copyLabel,
 		Action: func() error {
 			fullPath := filepath.Join(sourcePath, entry.Name)
 			return fs.Copy(fullPath, destPath)
@@ -128,7 +149,7 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 
 	items = append(items, MenuItem{
 		ID:    "move",
-		Label: "Move to other pane",
+		Label: moveLabel,
 		Action: func() error {
 			fullPath := filepath.Join(sourcePath, entry.Name)
 			return fs.MoveFile(fullPath, destPath)
@@ -138,7 +159,7 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 
 	items = append(items, MenuItem{
 		ID:    "delete",
-		Label: "Delete",
+		Label: deleteLabel,
 		Action: func() error {
 			fullPath := filepath.Join(sourcePath, entry.Name)
 			return fs.Delete(fullPath)

@@ -16,6 +16,16 @@ import (
 // ANSIエスケープシーケンスを除去するための正規表現
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
+// BatchOperation holds state for batch file operations
+type BatchOperation struct {
+	Files      []string // List of source file paths
+	CurrentIdx int      // Current file index
+	DestPath   string   // Destination directory
+	Operation  string   // "copy" or "move"
+	Completed  []string // Successfully completed files
+	Failed     []string // Failed files
+}
+
 // Model はアプリケーション全体の状態を保持
 type Model struct {
 	leftPane           *Pane
@@ -27,15 +37,16 @@ type Model struct {
 	width              int
 	height             int
 	ready              bool
-	lastDiskSpaceCheck time.Time    // 最後のディスク容量チェック時刻
-	leftDiskSpace      uint64       // 左ペインのディスク空き容量
-	rightDiskSpace     uint64       // 右ペインのディスク空き容量
-	pendingAction      func() error // 確認待ちのアクション（コンテキストメニューの削除用）
-	statusMessage      string       // ステータスバーに表示するメッセージ
-	isStatusError      bool         // エラーメッセージかどうか
-	searchState        SearchState  // 検索状態
-	minibuffer         *Minibuffer  // ミニバッファ
-	ctrlCPending       bool         // Ctrl+Cが1回押された状態かどうか
+	lastDiskSpaceCheck time.Time       // 最後のディスク容量チェック時刻
+	leftDiskSpace      uint64          // 左ペインのディスク空き容量
+	rightDiskSpace     uint64          // 右ペインのディスク空き容量
+	pendingAction      func() error    // 確認待ちのアクション（コンテキストメニューの削除用）
+	statusMessage      string          // ステータスバーに表示するメッセージ
+	isStatusError      bool            // エラーメッセージかどうか
+	searchState        SearchState     // 検索状態
+	minibuffer         *Minibuffer     // ミニバッファ
+	ctrlCPending       bool            // Ctrl+Cが1回押された状態かどうか
+	batchOp            *BatchOperation // Active batch operation (nil if none)
 }
 
 // PanePosition はペインの位置を表す
@@ -93,24 +104,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 			if result.action != nil {
+				activePane := m.getActivePane()
+				markedFiles := activePane.GetMarkedFiles()
+
 				// 削除の場合は確認ダイアログを表示
 				if result.actionID == "delete" {
-					entry := m.getActivePane().SelectedEntry()
-					if entry != nil && !entry.IsParentDir() {
-						m.pendingAction = result.action
+					if len(markedFiles) > 0 {
+						// マークファイルの一括削除
 						m.dialog = NewConfirmDialog(
-							"Delete file?",
-							entry.DisplayName(),
+							fmt.Sprintf("Delete %d files?", len(markedFiles)),
+							"This action cannot be undone.",
 						)
+					} else {
+						// 単一ファイル削除
+						entry := activePane.SelectedEntry()
+						if entry != nil && !entry.IsParentDir() {
+							m.pendingAction = result.action
+							m.dialog = NewConfirmDialog(
+								"Delete file?",
+								entry.DisplayName(),
+							)
+						}
 					}
 					return m, nil
 				}
 
-				// コピー/移動の場合は上書き確認フローを使用
+				// コピー/移動の場合
 				if result.actionID == "copy" || result.actionID == "move" {
-					entry := m.getActivePane().SelectedEntry()
+					if len(markedFiles) > 0 {
+						// マークファイルがある場合 → 一括操作
+						return m, m.startBatchOperation(markedFiles, result.actionID)
+					}
+					// 単一ファイル操作
+					entry := activePane.SelectedEntry()
 					if entry != nil && !entry.IsParentDir() {
-						srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+						srcPath := filepath.Join(activePane.Path(), entry.Name)
 						destPath := m.getInactivePane().Path()
 						return m, m.checkFileConflict(srcPath, destPath, result.actionID)
 					}
@@ -124,7 +152,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				// 両ペインを再読み込みして変更を反映
-				m.getActivePane().LoadDirectory()
+				activePane.LoadDirectory()
 				m.getInactivePane().LoadDirectory()
 			}
 		}
@@ -146,12 +174,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.dialog = NewErrorDialog(fmt.Sprintf("Failed to remove: %v", err))
 				}
+				// バッチ操作中はキャンセル
+				if m.batchOp != nil {
+					m.cancelBatchOperation()
+				}
 				return m, nil
 			}
 			return m, m.executeFileOperation(result.srcPath, result.destPath, result.operation)
 
 		case OverwriteChoiceCancel:
-			// キャンセル - 何もしない
+			// キャンセル - バッチ操作中は残りをすべてキャンセル
+			if m.batchOp != nil {
+				m.cancelBatchOperation()
+			}
 			return m, nil
 
 		case OverwriteChoiceRename:
@@ -185,16 +220,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				// 通常の削除（dキーから）
-				entry := m.getActivePane().SelectedEntry()
-				if entry != nil && !entry.IsParentDir() {
-					fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				activePane := m.getActivePane()
+				markedFiles := activePane.GetMarkedFiles()
 
-					if err := fs.Delete(fullPath); err != nil {
-						// エラーダイアログを表示
-						m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
-					} else {
-						// ディレクトリを再読み込み
-						m.getActivePane().LoadDirectory()
+				if len(markedFiles) > 0 {
+					// マークファイルの一括削除
+					var deleteErr error
+					for _, name := range markedFiles {
+						fullPath := filepath.Join(activePane.Path(), name)
+						if err := fs.Delete(fullPath); err != nil {
+							deleteErr = err
+							break
+						}
+					}
+					if deleteErr != nil {
+						m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", deleteErr))
+					}
+					// マークをクリアして再読み込み
+					activePane.ClearMarks()
+					activePane.LoadDirectory()
+				} else {
+					// 単一ファイル削除
+					entry := activePane.SelectedEntry()
+					if entry != nil && !entry.IsParentDir() {
+						fullPath := filepath.Join(activePane.Path(), entry.Name)
+
+						if err := fs.Delete(fullPath); err != nil {
+							// エラーダイアログを表示
+							m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
+						} else {
+							// ディレクトリを再読み込み
+							activePane.LoadDirectory()
+						}
 					}
 				}
 			}
@@ -358,10 +415,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case fileOperationCompleteMsg:
-		// ファイル操作完了 - 両ペインを再読み込み
+		// ファイル操作完了
+		if m.batchOp != nil {
+			// バッチ操作中 → 次のファイルへ進む
+			srcPath := m.batchOp.Files[m.batchOp.CurrentIdx]
+			return m, m.advanceBatchOperation(true, srcPath)
+		}
+		// 単一ファイル操作 → 両ペインを再読み込み
 		m.getActivePane().LoadDirectory()
 		m.getInactivePane().LoadDirectory()
 		return m, nil
+
+	case batchOperationCompleteMsg:
+		// バッチ操作完了
+		m.statusMessage = fmt.Sprintf("%s %d files completed", strings.Title(msg.operation), msg.count)
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
 
 	case renameInputResultMsg:
 		// リネーム入力ダイアログの結果処理
@@ -507,6 +576,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.getActivePane().EnterDirectoryAsync()
 			return m, cmd
 
+		case KeyMark:
+			// マークの切り替え
+			activePane := m.getActivePane()
+			if activePane.ToggleMark() {
+				// マーク成功したらカーソルを下に移動
+				activePane.MoveCursorDown()
+			}
+			return m, nil
+
 		case KeyToggleInfo:
 			// 表示モードを切り替え（端末が十分な幅の場合のみ）
 			activePane := m.getActivePane()
@@ -517,9 +595,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyCopy:
 			// コピー操作
-			entry := m.getActivePane().SelectedEntry()
+			activePane := m.getActivePane()
+			markedFiles := activePane.GetMarkedFiles()
+
+			if len(markedFiles) > 0 {
+				// マークファイルがある場合 → 一括コピー開始
+				return m, m.startBatchOperation(markedFiles, "copy")
+			}
+
+			// マークなし → 既存の単一ファイルコピー
+			entry := activePane.SelectedEntry()
 			if entry != nil && !entry.IsParentDir() {
-				srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				srcPath := filepath.Join(activePane.Path(), entry.Name)
 				destPath := m.getInactivePane().Path()
 				return m, m.checkFileConflict(srcPath, destPath, "copy")
 			}
@@ -527,9 +614,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyMove:
 			// 移動操作
-			entry := m.getActivePane().SelectedEntry()
+			activePane := m.getActivePane()
+			markedFiles := activePane.GetMarkedFiles()
+
+			if len(markedFiles) > 0 {
+				// マークファイルがある場合 → 一括移動開始
+				return m, m.startBatchOperation(markedFiles, "move")
+			}
+
+			// マークなし → 既存の単一ファイル移動
+			entry := activePane.SelectedEntry()
 			if entry != nil && !entry.IsParentDir() {
-				srcPath := filepath.Join(m.getActivePane().Path(), entry.Name)
+				srcPath := filepath.Join(activePane.Path(), entry.Name)
 				destPath := m.getInactivePane().Path()
 				return m, m.checkFileConflict(srcPath, destPath, "move")
 			}
@@ -537,12 +633,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case KeyDelete:
 			// 削除確認ダイアログを表示
-			entry := m.getActivePane().SelectedEntry()
-			if entry != nil && !entry.IsParentDir() {
+			activePane := m.getActivePane()
+			markedFiles := activePane.GetMarkedFiles()
+
+			if len(markedFiles) > 0 {
+				// マークファイルがある場合 → 一括削除
 				m.dialog = NewConfirmDialog(
-					"Delete file?",
-					entry.DisplayName(),
+					fmt.Sprintf("Delete %d files?", len(markedFiles)),
+					"This action cannot be undone.",
 				)
+			} else {
+				// マークなし → 既存の単一ファイル削除
+				entry := activePane.SelectedEntry()
+				if entry != nil && !entry.IsParentDir() {
+					m.dialog = NewConfirmDialog(
+						"Delete file?",
+						entry.DisplayName(),
+					)
+				}
 			}
 			return m, nil
 
@@ -1233,4 +1341,103 @@ type showOverwriteDialogMsg struct {
 // fileOperationCompleteMsg is sent when a file operation completes successfully
 type fileOperationCompleteMsg struct {
 	operation string
+}
+
+// batchFileCompleteMsg is sent when one file in a batch operation completes
+type batchFileCompleteMsg struct {
+	success bool
+	srcPath string
+}
+
+// startBatchOperation initializes a batch copy/move operation
+func (m *Model) startBatchOperation(files []string, operation string) tea.Cmd {
+	srcDir := m.getActivePane().Path()
+	destDir := m.getInactivePane().Path()
+
+	// Build full paths
+	fullPaths := make([]string, len(files))
+	for i, f := range files {
+		fullPaths[i] = filepath.Join(srcDir, f)
+	}
+
+	m.batchOp = &BatchOperation{
+		Files:      fullPaths,
+		CurrentIdx: 0,
+		DestPath:   destDir,
+		Operation:  operation,
+		Completed:  make([]string, 0),
+		Failed:     make([]string, 0),
+	}
+
+	// Process first file
+	return m.processBatchFile()
+}
+
+// processBatchFile processes the current file in the batch operation
+func (m *Model) processBatchFile() tea.Cmd {
+	if m.batchOp == nil || m.batchOp.CurrentIdx >= len(m.batchOp.Files) {
+		return m.completeBatchOperation()
+	}
+
+	srcPath := m.batchOp.Files[m.batchOp.CurrentIdx]
+	return m.checkFileConflict(srcPath, m.batchOp.DestPath, m.batchOp.Operation)
+}
+
+// advanceBatchOperation moves to the next file in the batch
+func (m *Model) advanceBatchOperation(success bool, srcPath string) tea.Cmd {
+	if m.batchOp == nil {
+		return nil
+	}
+
+	if success {
+		m.batchOp.Completed = append(m.batchOp.Completed, srcPath)
+	} else {
+		m.batchOp.Failed = append(m.batchOp.Failed, srcPath)
+	}
+
+	m.batchOp.CurrentIdx++
+	return m.processBatchFile()
+}
+
+// completeBatchOperation finishes the batch operation
+func (m *Model) completeBatchOperation() tea.Cmd {
+	if m.batchOp == nil {
+		return nil
+	}
+
+	operation := m.batchOp.Operation
+	completed := len(m.batchOp.Completed)
+	m.batchOp = nil
+
+	// Clear marks
+	m.getActivePane().ClearMarks()
+
+	// Reload both panes
+	m.getActivePane().LoadDirectory()
+	m.getInactivePane().LoadDirectory()
+
+	return func() tea.Msg {
+		return batchOperationCompleteMsg{operation: operation, count: completed}
+	}
+}
+
+// cancelBatchOperation cancels the remaining batch operation
+func (m *Model) cancelBatchOperation() {
+	if m.batchOp == nil {
+		return
+	}
+
+	// Clear marks and batch state
+	m.getActivePane().ClearMarks()
+	m.batchOp = nil
+
+	// Reload both panes
+	m.getActivePane().LoadDirectory()
+	m.getInactivePane().LoadDirectory()
+}
+
+// batchOperationCompleteMsg is sent when a batch operation finishes
+type batchOperationCompleteMsg struct {
+	operation string
+	count     int
 }

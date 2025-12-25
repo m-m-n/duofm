@@ -44,4 +44,7 @@ const (
 	KeyNewFile      = "n" // Create new file
 	KeyNewDirectory = "N" // Create new directory (Shift+n)
 	KeyRename       = "r" // Rename file/directory
+
+	// Multi-file marking
+	KeyMark = " " // Space key for marking files
 )
