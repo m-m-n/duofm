@@ -3,6 +3,8 @@ package fs
 import (
 	"io/fs"
 	"time"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // FileEntry はファイル/ディレクトリの情報を保持
@@ -43,7 +45,7 @@ func (e FileEntry) DisplayName() string {
 // DisplayNameWithLimit は指定された最大幅に収まるように表示用の名前を返す
 func (e FileEntry) DisplayNameWithLimit(maxWidth int) string {
 	fullName := e.DisplayName()
-	if len(fullName) <= maxWidth {
+	if runewidth.StringWidth(fullName) <= maxWidth {
 		return fullName
 	}
 
@@ -51,14 +53,15 @@ func (e FileEntry) DisplayNameWithLimit(maxWidth int) string {
 	if e.IsSymlink && e.LinkTarget != "" {
 		// "name -> ..." の形式で省略
 		prefix := e.Name + " -> "
-		if len(prefix)+3 < maxWidth {
+		prefixWidth := runewidth.StringWidth(prefix)
+		if prefixWidth+3 <= maxWidth {
 			return prefix + "..."
 		}
 	}
 
 	// 通常のファイル名の省略
 	if maxWidth > 3 {
-		return fullName[:maxWidth-3] + "..."
+		return runewidth.Truncate(fullName, maxWidth-3, "") + "..."
 	}
-	return fullName[:maxWidth]
+	return runewidth.Truncate(fullName, maxWidth, "")
 }
