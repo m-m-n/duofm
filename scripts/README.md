@@ -184,7 +184,3 @@ MAINTAINER="Your Name <your.email@example.com>"
 - [dpkg-deb Manual](https://man7.org/linux/man-pages/man1/dpkg-deb.1.html)
 - [Debian Policy Manual](https://www.debian.org/doc/debian-policy/)
 - [Semantic Versioning](https://semver.org/)
-
-## ライセンス
-
-このスクリプトはduofmプロジェクトの一部として、同じライセンス（MIT）の下で提供されます。
