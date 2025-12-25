@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/fs"
 )
 
@@ -1064,8 +1065,8 @@ func (m Model) renderStatusBar() string {
 		// メッセージを幅に合わせて切り詰め
 		msg := m.statusMessage
 		maxLen := m.width - 2 // パディング分を引く
-		if len(msg) > maxLen {
-			msg = msg[:maxLen-3] + "..."
+		if runewidth.StringWidth(msg) > maxLen {
+			msg = runewidth.Truncate(msg, maxLen-3, "") + "..."
 		}
 
 		return style.Render(msg)
@@ -1083,7 +1084,7 @@ func (m Model) renderStatusBar() string {
 	}
 
 	// スペースで埋める
-	padding := m.width - len(posInfo) - len(hints) - 4
+	padding := m.width - runewidth.StringWidth(posInfo) - runewidth.StringWidth(hints) - 4
 	if padding < 0 {
 		padding = 0
 	}

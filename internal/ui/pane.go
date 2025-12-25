@@ -7,6 +7,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/fs"
 )
 
@@ -554,8 +555,8 @@ func (p *Pane) renderHeaderLine2(diskSpace uint64) string {
 
 	// レイアウト: 左にマーク情報、右に空き容量
 	availableWidth := p.width - 4 // パディングを考慮
-	markedLen := len(markedInfo)
-	freeLen := len(freeInfo)
+	markedLen := runewidth.StringWidth(markedInfo)
+	freeLen := runewidth.StringWidth(freeInfo)
 	padding := availableWidth - markedLen - freeLen
 	if padding < 1 {
 		padding = 1
@@ -661,7 +662,7 @@ func (p *Pane) formatBasicEntry(entry fs.FileEntry, nameWidth int) string {
 
 	// カラムを組み立て
 	// 名前幅を確保（nameWidthまで）
-	namePadding := nameWidth - len(name)
+	namePadding := nameWidth - runewidth.StringWidth(name)
 	if namePadding < 0 {
 		namePadding = 0
 	}
@@ -693,7 +694,7 @@ func (p *Pane) formatDetailEntry(entry fs.FileEntry, nameWidth int) string {
 
 	// カラムを組み立て
 	// 名前幅を確保（nameWidthまで）
-	namePadding := nameWidth - len(name)
+	namePadding := nameWidth - runewidth.StringWidth(name)
 	if namePadding < 0 {
 		namePadding = 0
 	}
