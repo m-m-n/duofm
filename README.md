@@ -1,4 +1,4 @@
-# duofm - Dual Pane File Manager
+# duofm - Unifies Orthodox File Manipulation
 
 A terminal-based dual-pane file manager written in Go, inspired by classic file managers with vim-style keybindings.
 
