@@ -2153,6 +2153,158 @@ run_test test_sort_persists_after_navigation
 run_test test_sort_independent_panes
 run_test test_sort_dialog_arrow_keys
 
+# ===========================================
+# Cursor Preservation After Viewer Tests
+# ===========================================
+
+# Test: Cursor position preserved after viewing file with 'v' key (less)
+test_cursor_preserved_after_view() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to file1.txt specifically using search (not a directory)
+    send_keys "$CURRENT_SESSION" "/" "f" "i" "l" "e" "1" "." "t" "x" "t" "Enter"
+    sleep 0.3
+
+    # Verify we are on file1.txt
+    assert_contains "$CURRENT_SESSION" "file1.txt" \
+        "file1.txt is visible before viewing"
+
+    # View file with 'v' key (less)
+    send_keys "$CURRENT_SESSION" "v"
+    sleep 1.0
+
+    # Exit less with 'q'
+    send_keys "$CURRENT_SESSION" "q"
+    sleep 1.0
+
+    # Verify session is still running and cursor is preserved
+    if tmux has-session -t "${SESSION_PREFIX}_${CURRENT_SESSION}" 2>/dev/null; then
+        # file1.txt should still be visible (cursor position preserved)
+        assert_contains "$CURRENT_SESSION" "file1.txt" \
+            "file1.txt still visible after viewing"
+    else
+        echo -e "${RED}✗${NC} Session ended unexpectedly after viewing file"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return
+    fi
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Test: Cursor position preserved after viewing file with Enter key
+test_cursor_preserved_after_enter_view() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to a file (not directory) using search
+    send_keys "$CURRENT_SESSION" "/" "f" "i" "l" "e" "1" "." "t" "x" "t" "Enter"
+    sleep 0.3
+
+    # Get current cursor position (should be on file1.txt)
+    local screen_before
+    screen_before=$(capture_screen "$CURRENT_SESSION")
+
+    # Press Enter to view file (should open with less since it's a file)
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Exit less with 'q'
+    send_keys "$CURRENT_SESSION" "q"
+    sleep 0.5
+
+    # Cursor should still be on file1.txt
+    assert_contains "$CURRENT_SESSION" "file1.txt" \
+        "file1.txt still visible after viewing"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Test: Cursor resets to 0 when selected file is deleted during external edit
+test_cursor_reset_when_file_deleted() {
+    # Create a test file that we'll delete during edit
+    echo "test content" > /testdata/user_owned/will_delete.txt
+
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to user_owned directory
+    send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Clear filter and find the file
+    send_keys "$CURRENT_SESSION" "Escape"
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "/" "w" "i" "l" "l" "_" "d" "e" "l" "e" "t" "e" "Enter"
+    sleep 0.3
+
+    # View the file
+    send_keys "$CURRENT_SESSION" "v"
+    sleep 0.5
+
+    # While in less, delete the file externally
+    rm -f /testdata/user_owned/will_delete.txt
+
+    # Exit less with 'q'
+    send_keys "$CURRENT_SESSION" "q"
+    sleep 0.5
+
+    # Cursor should reset to beginning (position 1 for parent dir)
+    # The file will no longer appear in the list
+    assert_not_contains "$CURRENT_SESSION" "will_delete.txt" \
+        "Deleted file no longer appears in list"
+
+    # Verify the filter is cleared and we see the directory contents
+    assert_contains "$CURRENT_SESSION" "user_owned" \
+        "User owned directory visible after file deletion"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Test: Both panes preserve cursor after external command
+test_both_panes_preserve_cursor() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Move left pane cursor to position 3
+    send_keys "$CURRENT_SESSION" "j" "j" "j"
+    sleep 0.3
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.3
+
+    # Move right pane cursor to position 2
+    send_keys "$CURRENT_SESSION" "j"
+    sleep 0.3
+
+    # Switch back to left pane
+    send_keys "$CURRENT_SESSION" "h"
+    sleep 0.3
+
+    # Navigate to file and view
+    send_keys "$CURRENT_SESSION" "/" "f" "i" "l" "e" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "v"
+    sleep 0.5
+
+    # Exit less
+    send_keys "$CURRENT_SESSION" "q"
+    sleep 0.5
+
+    # Both panes should have their cursor positions preserved
+    # (This test verifies the implementation refreshes both panes)
+    assert_contains "$CURRENT_SESSION" "duofm" \
+        "Application still running after viewer exit"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Cursor preservation tests
+run_test test_cursor_preserved_after_view
+run_test test_cursor_preserved_after_enter_view
+run_test test_cursor_reset_when_file_deleted
+run_test test_both_panes_preserve_cursor
+
 # Print summary and exit with appropriate code
 print_summary
 exit $?

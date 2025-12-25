@@ -386,9 +386,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case execFinishedMsg:
 		// 外部コマンド完了
-		// 両ペインを再読み込みして変更を反映
-		m.getActivePane().LoadDirectory()
-		m.getInactivePane().LoadDirectory()
+		// 両ペインを再読み込みして変更を反映（カーソル位置を維持）
+		m.getActivePane().RefreshDirectoryPreserveCursor()
+		m.getInactivePane().RefreshDirectoryPreserveCursor()
 
 		if msg.err != nil {
 			m.statusMessage = fmt.Sprintf("Command failed: %v", msg.err)

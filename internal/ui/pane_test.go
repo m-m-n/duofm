@@ -1796,3 +1796,166 @@ func TestPaneSyncToSettingsPreservation(t *testing.T) {
 		}
 	})
 }
+
+// === RefreshDirectoryPreserveCursor のテスト ===
+
+func TestRefreshDirectoryPreserveCursor(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// テストファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("preserves cursor on same file", func(t *testing.T) {
+		// bbb.txtにカーソルを移動
+		for i, entry := range pane.entries {
+			if entry.Name == "bbb.txt" {
+				pane.cursor = i
+				break
+			}
+		}
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// カーソルがbbb.txtに留まっているか確認
+		entry := pane.SelectedEntry()
+		if entry == nil || entry.Name != "bbb.txt" {
+			t.Errorf("Expected cursor on bbb.txt, got %v", entry)
+		}
+	})
+
+	t.Run("resets cursor to 0 when file deleted", func(t *testing.T) {
+		// ccc.txtにカーソルを移動
+		for i, entry := range pane.entries {
+			if entry.Name == "ccc.txt" {
+				pane.cursor = i
+				break
+			}
+		}
+
+		// ccc.txtを削除
+		os.Remove(filepath.Join(tmpDir, "ccc.txt"))
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// カーソルが0になっているか確認
+		if pane.cursor != 0 {
+			t.Errorf("Expected cursor at 0, got %d", pane.cursor)
+		}
+	})
+}
+
+func TestRefreshDirectoryPreserveCursorWithEmpty(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// ファイルを1つだけ作成
+	os.WriteFile(filepath.Join(tmpDir, "only.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("handles directory becoming empty", func(t *testing.T) {
+		// only.txtを選択
+		for i, entry := range pane.entries {
+			if entry.Name == "only.txt" {
+				pane.cursor = i
+				break
+			}
+		}
+
+		// ファイルを削除
+		os.Remove(filepath.Join(tmpDir, "only.txt"))
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// カーソルが0になっているか確認（親ディレクトリのみ残る）
+		if pane.cursor != 0 {
+			t.Errorf("Expected cursor at 0, got %d", pane.cursor)
+		}
+	})
+}
+
+func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("clears filter pattern", func(t *testing.T) {
+		// フィルタを適用
+		pane.ApplyFilter("go", SearchModeIncremental)
+
+		if !pane.IsFiltered() {
+			t.Fatal("Filter should be applied")
+		}
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// フィルタがクリアされているか確認
+		if pane.IsFiltered() {
+			t.Error("RefreshDirectoryPreserveCursor() should clear filter")
+		}
+	})
+}
+
+func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	t.Run("clears marks on refresh", func(t *testing.T) {
+		// ファイルをマーク
+		for i, entry := range pane.entries {
+			if entry.Name == "file1.txt" {
+				pane.cursor = i
+				pane.ToggleMark()
+				break
+			}
+		}
+
+		if !pane.HasMarkedFiles() {
+			t.Fatal("File should be marked")
+		}
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// マークがクリアされているか確認
+		if pane.HasMarkedFiles() {
+			t.Error("RefreshDirectoryPreserveCursor() should clear marks")
+		}
+	})
+}
