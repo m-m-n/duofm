@@ -117,6 +117,53 @@ func (p *Pane) LoadDirectory() error {
 	return nil
 }
 
+// RefreshDirectoryPreserveCursor reloads directory contents while preserving cursor position.
+// If the previously selected file no longer exists, cursor resets to the beginning.
+func (p *Pane) RefreshDirectoryPreserveCursor() error {
+	// Store current selected file name
+	var selectedName string
+	if entry := p.SelectedEntry(); entry != nil {
+		selectedName = entry.Name
+	}
+
+	// Reload directory entries
+	entries, err := fs.ReadDirectory(p.path)
+	if err != nil {
+		return err
+	}
+
+	entries = SortEntries(entries, p.sortConfig)
+
+	// Filter hidden files
+	if !p.showHidden {
+		entries = filterHiddenFiles(entries)
+	}
+
+	p.allEntries = entries
+	p.entries = entries
+	p.filterPattern = ""
+	p.filterMode = SearchModeNone
+
+	// Find the previously selected file in new entries
+	newCursor := 0 // Default to beginning if file not found
+	if selectedName != "" {
+		for i, e := range entries {
+			if e.Name == selectedName {
+				newCursor = i
+				break
+			}
+		}
+	}
+
+	p.cursor = newCursor
+	p.adjustScroll()
+
+	// Clear marks on refresh (same as LoadDirectory)
+	p.markedFiles = make(map[string]bool)
+
+	return nil
+}
+
 // filterHiddenFiles は隠しファイル（.で始まるファイル）を除外する
 // ただし親ディレクトリ（..）は常に表示する
 func filterHiddenFiles(entries []fs.FileEntry) []fs.FileEntry {
