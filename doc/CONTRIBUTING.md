@@ -69,17 +69,29 @@ The overall specification document describes the project-wide architecture and d
 
 ### Feature Specifications: `doc/tasks/FEATURE_NAME/SPEC.md`
 
-Feature specifications describe individual features in detail.
+Feature specifications describe individual features in detail. **The specification is the Single Source of Truth (SSOT)** - all implementation plans and code are derivatives.
 
-**Contents should include:**
-- Feature overview and objectives
-- User stories or use cases
-- Technical requirements
-- Implementation approach
-- API or interface design
-- Test scenarios
-- Success criteria
-- Dependencies and assumptions
+**SSOT Principles:**
+- Specification describes WHAT and WHY, not HOW
+- No implementation code or architecture decisions (those belong in IMPLEMENTATION.md)
+- Changes flow: Specification → Implementation Plan → Code
+
+**Contents should include (in priority order):**
+1. Feature overview and objectives
+2. Domain rules and business constraints (highest priority)
+3. User stories or use cases
+4. Functional requirements (numbered: FR1.1, FR1.2, ...)
+5. Non-functional requirements (numbered: NFR1.1, NFR1.2, ...)
+6. Interface contracts (input/output, preconditions/postconditions)
+7. Test scenarios
+8. Success criteria
+9. Dependencies and constraints
+
+**DO NOT include:**
+- Implementation code or code snippets
+- File/directory structure
+- Architecture decisions
+- Library-specific API calls
 
 **When to create:**
 - Before starting implementation of a significant feature
@@ -99,6 +111,11 @@ Feature specifications describe individual features in detail.
 ## Overview
 [Brief description of the feature]
 
+## Domain Rules
+[Business rules and constraints - CRITICAL: highest priority]
+- [Invariant 1]
+- [Constraint 1]
+
 ## Objectives
 - [Objective 1]
 - [Objective 2]
@@ -106,20 +123,29 @@ Feature specifications describe individual features in detail.
 ## User Stories
 - As a [user type], I want to [action], so that [benefit]
 
-## Technical Requirements
-- [Requirement 1]
-- [Requirement 2]
+## Functional Requirements
+- FR1.1: [Requirement - describe behavior, not implementation]
+- FR1.2: [Requirement]
 
-## Implementation Approach
+## Non-Functional Requirements
+- NFR1.1: [Performance/security/usability constraint]
 
-### Architecture
-[Component design, data flow]
+## Interface Contract
 
-### API Design
-[Public interfaces, function signatures]
+### Input/Output Specification
+[Data types, formats, valid ranges]
 
-### Dependencies
-[External libraries, other features]
+### Preconditions/Postconditions
+[State requirements before and after operations]
+
+### State Transitions
+[Use Mermaid diagrams for state machines]
+
+### Error Conditions
+[Expected error behaviors - describe at behavioral level]
+
+## Dependencies
+[External requirements, prerequisites]
 
 ## Test Scenarios
 - [ ] Scenario 1: [description]
@@ -129,6 +155,9 @@ Feature specifications describe individual features in detail.
 - [ ] Criteria 1
 - [ ] Criteria 2
 
+## Constraints
+[Technical/business limitations]
+
 ## Open Questions
 - [ ] Question 1
 - [ ] Question 2
@@ -136,24 +165,34 @@ Feature specifications describe individual features in detail.
 
 ## Development Workflow
 
-### 1. Planning Phase
+**SSOT Change Flow:** Specification → Implementation Plan → Code
+
+Changes MUST flow from specification to implementation, never the reverse. If implementation reveals issues, update the specification FIRST, then update the plan and code.
+
+### 1. Specification Phase (SSOT)
 1. Create or update `doc/specification/SPEC.md` for architectural changes
 2. Create `doc/tasks/FEATURE_NAME/SPEC.md` for new features
 3. Review specifications with team (or self-review for solo projects)
+4. **Specification is approved before proceeding**
 
-### 2. Implementation Phase
+### 2. Planning Phase
+1. Create `doc/tasks/FEATURE_NAME/IMPLEMENTATION.md` based on specification
+2. Verify plan covers all specification requirements
+3. Plan includes file structure, architecture, and implementation steps
+
+### 3. Implementation Phase
 1. Create feature branch: `git checkout -b feature/FEATURE_NAME`
-2. Implement according to specification
+2. Implement according to plan (which derives from specification)
 3. Write tests alongside code
-4. Update documentation as needed
+4. If issues found: **Update specification FIRST**, then plan, then code
 
-### 3. Review Phase
+### 4. Review Phase
 1. Self-review changes
 2. Run all tests and linting
-3. Update SPEC.md if implementation differs from plan
+3. Verify implementation matches specification
 4. Commit with descriptive messages
 
-### 4. Integration Phase
+### 5. Integration Phase
 1. Merge feature branch to main
 2. Archive or update task specification
 3. Update overall specification if needed
