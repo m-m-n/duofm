@@ -650,7 +650,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.isStatusError = true
 					return m, statusMessageClearCmd(5 * time.Second)
 				}
-				return m, openWithViewer(fullPath)
+				return m, openWithViewer(fullPath, m.getActivePane().Path())
 			}
 			// ディレクトリまたは親ディレクトリ: 既存の動作（非同期版）
 			cmd := m.getActivePane().EnterDirectoryAsync()
@@ -774,7 +774,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.isStatusError = true
 					return m, statusMessageClearCmd(5 * time.Second)
 				}
-				return m, openWithViewer(fullPath)
+				return m, openWithViewer(fullPath, m.getActivePane().Path())
 			}
 			return m, nil
 
@@ -788,7 +788,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.isStatusError = true
 					return m, statusMessageClearCmd(5 * time.Second)
 				}
-				return m, openWithEditor(fullPath)
+				return m, openWithEditor(fullPath, m.getActivePane().Path())
 			}
 			return m, nil
 
