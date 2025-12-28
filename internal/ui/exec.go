@@ -37,3 +37,17 @@ func checkReadPermission(path string) error {
 	f.Close()
 	return nil
 }
+
+// shellCommandFinishedMsg is sent when shell command completes
+type shellCommandFinishedMsg struct {
+	err error
+}
+
+// executeShellCommand executes a shell command in the specified directory
+func executeShellCommand(command, workDir string) tea.Cmd {
+	shellCmd := exec.Command("/bin/sh", "-c", command+"; echo; echo 'Press Enter to continue...'; read _")
+	shellCmd.Dir = workDir
+	return tea.ExecProcess(shellCmd, func(err error) tea.Msg {
+		return shellCommandFinishedMsg{err: err}
+	})
+}

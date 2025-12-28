@@ -79,6 +79,7 @@ func (d *HelpDialog) View() string {
 		"  c        : copy to opposite pane",
 		"  m        : move to opposite pane",
 		"  d        : delete (with confirmation)",
+		"  !        : execute shell command",
 		"",
 		"Display",
 		"  i        : toggle info mode (when terminal is wide enough)",

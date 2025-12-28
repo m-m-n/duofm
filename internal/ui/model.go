@@ -49,6 +49,7 @@ type Model struct {
 	ctrlCPending       bool            // Ctrl+Cが1回押された状態かどうか
 	batchOp            *BatchOperation // Active batch operation (nil if none)
 	sortDialog         *SortDialog     // ソートダイアログ（nil = 非表示）
+	shellCommandMode   bool            // シェルコマンドモードかどうか
 }
 
 // PanePosition はペインの位置を表す
@@ -398,6 +399,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case shellCommandFinishedMsg:
+		// シェルコマンド完了
+		// 両ペインを再読み込みして変更を反映（カーソル位置を維持）
+		m.getActivePane().RefreshDirectoryPreserveCursor()
+		m.getInactivePane().RefreshDirectoryPreserveCursor()
+
+		if msg.err != nil {
+			m.statusMessage = fmt.Sprintf("Shell command failed: %v", msg.err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+		return m, nil
+
 	case inputDialogResultMsg:
 		// 入力ダイアログの結果処理
 		m.dialog = nil
@@ -518,6 +532,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		// シェルコマンドモードの入力処理
+		if m.shellCommandMode {
+			switch msg.Type {
+			case tea.KeyEnter:
+				command := m.minibuffer.Input()
+				if command == "" {
+					// 空コマンド → モードを終了
+					m.shellCommandMode = false
+					m.minibuffer.Hide()
+					return m, nil
+				}
+				// コマンド実行
+				workDir := m.getActivePane().Path()
+				m.shellCommandMode = false
+				m.minibuffer.Hide()
+				return m, executeShellCommand(command, workDir)
+
+			case tea.KeyEsc, tea.KeyCtrlC:
+				// キャンセル
+				m.shellCommandMode = false
+				m.minibuffer.Hide()
+				return m, nil
+
+			default:
+				// ミニバッファにキー入力を渡す
+				m.minibuffer.HandleKey(msg)
+				return m, nil
+			}
+		}
+
 		// Ctrl+Cのダブルプレス処理（他のキー処理より先に実行）
 		if msg.String() == "ctrl+c" {
 			if m.ctrlCPending {
@@ -563,6 +607,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case KeyRegexSearch:
 			// 正規表現検索を開始
 			m.startSearch(SearchModeRegex)
+			return m, nil
+
+		case KeyShellCommand:
+			// シェルコマンドモードを開始
+			m.startShellCommandMode()
 			return m, nil
 
 		case KeyMoveDown, KeyArrowDown:
@@ -821,9 +870,9 @@ func (m Model) View() string {
 	title := titleStyle.Render("duofm v0.1.0")
 
 	// 2つのペインを横に並べる（ディスク容量情報付き）
-	// 検索モードの場合はアクティブペインにミニバッファを渡す
+	// 検索モードまたはシェルコマンドモードの場合はアクティブペインにミニバッファを渡す
 	var leftView, rightView string
-	if m.searchState.IsActive {
+	if m.searchState.IsActive || m.shellCommandMode {
 		if m.activePane == LeftPane {
 			leftView = m.leftPane.ViewWithMinibuffer(m.leftDiskSpace, m.minibuffer)
 			rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
@@ -1118,6 +1167,15 @@ func (m *Model) updateDiskSpace() {
 	}
 
 	m.lastDiskSpaceCheck = time.Now()
+}
+
+// startShellCommandMode はシェルコマンドモードを開始する
+func (m *Model) startShellCommandMode() {
+	m.shellCommandMode = true
+	m.minibuffer.SetPrompt("!: ")
+	m.minibuffer.Clear()
+	m.minibuffer.SetWidth(m.getActivePane().width)
+	m.minibuffer.Show()
 }
 
 // startSearch は検索モードを開始する

@@ -91,3 +91,66 @@ func TestOpenWithEditorReturnsCmd(t *testing.T) {
 		t.Error("openWithEditor() returned nil command")
 	}
 }
+
+func TestShellCommandFinishedMsg(t *testing.T) {
+	tests := []struct {
+		name    string
+		err     error
+		wantErr bool
+	}{
+		{
+			name:    "success case - nil error",
+			err:     nil,
+			wantErr: false,
+		},
+		{
+			name:    "error case - command error",
+			err:     os.ErrNotExist,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := shellCommandFinishedMsg{err: tt.err}
+			if (msg.err != nil) != tt.wantErr {
+				t.Errorf("shellCommandFinishedMsg.err = %v, wantErr %v", msg.err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestExecuteShellCommandReturnsCmd(t *testing.T) {
+	// Create a temporary directory to use as working directory
+	tmpDir, err := os.MkdirTemp("", "test_shell")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name    string
+		command string
+		workDir string
+	}{
+		{
+			name:    "simple command",
+			command: "echo hello",
+			workDir: tmpDir,
+		},
+		{
+			name:    "command with pipe",
+			command: "ls -la | head -5",
+			workDir: tmpDir,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := executeShellCommand(tt.command, tt.workDir)
+			if cmd == nil {
+				t.Error("executeShellCommand() returned nil command")
+			}
+		})
+	}
+}

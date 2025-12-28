@@ -318,3 +318,13 @@ func TestInputDialog_InactiveDoesNotProcess(t *testing.T) {
 		t.Error("Inactive dialog should not process input")
 	}
 }
+
+func TestInputDialog_SetWidth(t *testing.T) {
+	dialog := NewInputDialog("Test:", nil)
+
+	dialog.SetWidth(80)
+
+	if dialog.width != 80 {
+		t.Errorf("SetWidth(80) width = %d, want 80", dialog.width)
+	}
+}

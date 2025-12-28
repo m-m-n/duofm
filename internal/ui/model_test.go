@@ -2842,3 +2842,366 @@ func TestRenameDialogOpens(t *testing.T) {
 		t.Error("dialog should be InputDialog")
 	}
 }
+
+func TestNewModelShellCommandModeInitialization(t *testing.T) {
+	// Test that shellCommandMode initializes to false
+	model := NewModel()
+
+	if model.shellCommandMode {
+		t.Error("NewModel() shellCommandMode should be false initially")
+	}
+}
+
+func TestShellCommandModeActivation(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press '!' to enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if !m.shellCommandMode {
+		t.Error("shellCommandMode should be true after pressing '!'")
+	}
+
+	if !m.minibuffer.IsVisible() {
+		t.Error("minibuffer should be visible in shell command mode")
+	}
+}
+
+func TestShellCommandModeEscapeCancels(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Escape to cancel
+	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	updatedModel, _ = m.Update(escMsg)
+	m = updatedModel.(Model)
+
+	if m.shellCommandMode {
+		t.Error("shellCommandMode should be false after pressing Escape")
+	}
+
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should be hidden after pressing Escape")
+	}
+}
+
+func TestShellCommandModeEmptyEnterExits(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Press Enter with empty input - should exit without executing
+	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, cmd := m.Update(enterMsg)
+	m = updatedModel.(Model)
+
+	if m.shellCommandMode {
+		t.Error("shellCommandMode should be false after pressing Enter with empty input")
+	}
+
+	if cmd != nil {
+		t.Error("no command should be executed for empty input")
+	}
+}
+
+func TestShellCommandModeIgnoredWhenDialogActive(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Open help dialog
+	m.dialog = NewHelpDialog()
+
+	// Try to enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.shellCommandMode {
+		t.Error("shellCommandMode should not be activated when dialog is active")
+	}
+}
+
+func TestShellCommandModeIgnoredWhenSearchActive(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Start search mode
+	searchMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(searchMsg)
+	m = updatedModel.(Model)
+
+	// Try to press '!' in search mode - it should be passed to minibuffer, not activate shell mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should still be in search mode, not shell command mode
+	if m.shellCommandMode {
+		t.Error("shellCommandMode should not be activated when search mode is active")
+	}
+}
+
+func TestShellCommandModeCharacterInput(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Type some characters
+	for _, r := range "ls -la" {
+		charMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}}
+		updatedModel, _ = m.Update(charMsg)
+		m = updatedModel.(Model)
+	}
+
+	if m.minibuffer.Input() != "ls -la" {
+		t.Errorf("minibuffer input = %q, want %q", m.minibuffer.Input(), "ls -la")
+	}
+}
+
+func TestShellCommandModeViewRendering(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Enter shell command mode
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// View should render minibuffer with "!:" prompt
+	view := m.View()
+
+	if !strings.Contains(view, "!:") {
+		t.Error("View should contain minibuffer with '!:' prompt in shell command mode")
+	}
+}
+
+func TestModelSortDialogResultConfirmed(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set sort dialog active
+	m.sortDialog = NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+
+	// Send confirmed result
+	resultMsg := sortDialogResultMsg{
+		config:    SortConfig{Field: SortBySize, Order: SortDesc},
+		confirmed: true,
+		cancelled: false,
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Sort dialog should be closed
+	if m.sortDialog != nil {
+		t.Error("Sort dialog should be nil after confirmed")
+	}
+}
+
+func TestModelSortDialogResultCancelled(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set sort dialog active
+	originalConfig := SortConfig{Field: SortByName, Order: SortAsc}
+	m.sortDialog = NewSortDialog(originalConfig)
+
+	// Send cancelled result with original config
+	resultMsg := sortDialogResultMsg{
+		config:    originalConfig,
+		confirmed: false,
+		cancelled: true,
+	}
+	updatedModel, _ = m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Sort dialog should be closed
+	if m.sortDialog != nil {
+		t.Error("Sort dialog should be nil after cancelled")
+	}
+
+	// Active pane should have original config
+	if m.getActivePane().GetSortConfig().Field != SortByName {
+		t.Error("Sort config should be restored to original")
+	}
+}
+
+func TestModelSortDialogConfigChanged(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set sort dialog active
+	m.sortDialog = NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+
+	// Send config changed message
+	configMsg := sortDialogConfigChangedMsg{
+		config: SortConfig{Field: SortByDate, Order: SortDesc},
+	}
+	updatedModel, _ = m.Update(configMsg)
+	m = updatedModel.(Model)
+
+	// Active pane should have new config (live preview)
+	if m.getActivePane().GetSortConfig().Field != SortByDate {
+		t.Error("Sort config should be updated for live preview")
+	}
+}
+
+func TestModelSortDialogConfigChangedWithoutDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// sortDialog is nil
+
+	// Send config changed message (should be ignored)
+	configMsg := sortDialogConfigChangedMsg{
+		config: SortConfig{Field: SortByDate, Order: SortDesc},
+	}
+	updatedModel, _ = m.Update(configMsg)
+	m = updatedModel.(Model)
+
+	// Should not crash, config should remain default
+	if m.getActivePane().GetSortConfig().Field != SortByName {
+		t.Error("Sort config should remain unchanged when dialog is nil")
+	}
+}
+
+func TestModelViewWithSortDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Activate sort dialog
+	m.sortDialog = NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+	m.sortDialog.width = 30
+
+	// Render view
+	view := m.View()
+
+	// View should contain sort dialog content
+	if view == "" {
+		t.Error("View should not be empty when sort dialog is active")
+	}
+	if !strings.Contains(view, "Sort") {
+		t.Error("View should contain 'Sort' when sort dialog is active")
+	}
+}
+
+func TestModelSortKeyOpensDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press 's' to open sort dialog
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Sort dialog should be active
+	if m.sortDialog == nil {
+		t.Error("Sort dialog should be active after pressing 's'")
+	}
+}

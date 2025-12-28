@@ -1,6 +1,10 @@
 package ui
 
-import "testing"
+import (
+	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func TestNewSortDialog(t *testing.T) {
 	current := SortConfig{Field: SortBySize, Order: SortDesc}
@@ -220,5 +224,114 @@ func TestSortDialog_View(t *testing.T) {
 	// 基本的な内容が含まれることを確認
 	if view == "" {
 		t.Error("View should not be empty")
+	}
+}
+
+func TestSortDialog_DisplayType(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+
+	if dialog.DisplayType() != DialogDisplayPane {
+		t.Errorf("DisplayType() = %v, want DialogDisplayPane", dialog.DisplayType())
+	}
+}
+
+func TestSortDialog_Update_Enter(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	_, cmd := dialog.Update(keyMsg)
+
+	if cmd == nil {
+		t.Error("Update with Enter should return a command")
+	}
+
+	// コマンドを実行して結果を取得
+	msg := cmd()
+	result, ok := msg.(sortDialogResultMsg)
+	if !ok {
+		t.Fatalf("Expected sortDialogResultMsg, got %T", msg)
+	}
+
+	if !result.confirmed {
+		t.Error("Expected confirmed = true")
+	}
+	if result.cancelled {
+		t.Error("Expected cancelled = false")
+	}
+	if result.config.Field != SortBySize {
+		t.Errorf("config.Field = %v, want SortBySize", result.config.Field)
+	}
+}
+
+func TestSortDialog_Update_Escape(t *testing.T) {
+	original := SortConfig{Field: SortByName, Order: SortAsc}
+	dialog := NewSortDialog(original)
+	dialog.config.Field = SortByDate // 変更
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	_, cmd := dialog.Update(keyMsg)
+
+	if cmd == nil {
+		t.Error("Update with Escape should return a command")
+	}
+
+	// コマンドを実行して結果を取得
+	msg := cmd()
+	result, ok := msg.(sortDialogResultMsg)
+	if !ok {
+		t.Fatalf("Expected sortDialogResultMsg, got %T", msg)
+	}
+
+	if result.confirmed {
+		t.Error("Expected confirmed = false")
+	}
+	if !result.cancelled {
+		t.Error("Expected cancelled = true")
+	}
+	// originalConfigが返される
+	if result.config.Field != SortByName {
+		t.Errorf("config.Field = %v, want SortByName", result.config.Field)
+	}
+}
+
+func TestSortDialog_Update_Navigation(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+
+	// jキーで下に移動
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	_, cmd := dialog.Update(keyMsg)
+
+	if cmd == nil {
+		t.Error("Update with j should return a command for live preview")
+	}
+
+	// コマンドを実行して結果を取得
+	msg := cmd()
+	_, ok := msg.(sortDialogConfigChangedMsg)
+	if !ok {
+		t.Fatalf("Expected sortDialogConfigChangedMsg, got %T", msg)
+	}
+}
+
+func TestSortDialog_Update_Inactive(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+	dialog.active = false
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	_, cmd := dialog.Update(keyMsg)
+
+	if cmd != nil {
+		t.Error("Update on inactive dialog should return nil command")
+	}
+}
+
+func TestSortDialog_Update_NonKeyMsg(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+
+	// 非KeyMsgを送信
+	_, cmd := dialog.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
+
+	if cmd != nil {
+		t.Error("Update with non-key message should return nil command")
 	}
 }

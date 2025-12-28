@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sakura/duofm/internal/fs"
 )
 
 func TestNewPane(t *testing.T) {
@@ -1958,4 +1960,191 @@ func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
 			t.Error("RefreshDirectoryPreserveCursor() should clear marks")
 		}
 	})
+}
+
+func TestPaneEnsureCursorVisible(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// 多数のファイルを作成
+	for i := 0; i < 30; i++ {
+		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
+	}
+
+	pane, err := NewPane(tmpDir, 40, 10, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// カーソルを最後に移動
+	pane.cursor = len(pane.entries) - 1
+
+	// EnsureCursorVisible を呼び出し
+	pane.EnsureCursorVisible()
+
+	// View を呼び出してパニックしないことを確認
+	// (scrollの調整が行われていることを間接的に確認)
+	view := pane.View()
+	if view == "" {
+		t.Error("View should not be empty after EnsureCursorVisible")
+	}
+}
+
+func TestPaneFormatDetailEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// テストファイルを作成
+	testFile := filepath.Join(tmpDir, "testfile.txt")
+	os.WriteFile(testFile, []byte("content"), 0644)
+
+	pane, err := NewPane(tmpDir, 80, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// テストファイルを見つける
+	var entry *fs.FileEntry
+	for i := range pane.entries {
+		if pane.entries[i].Name == "testfile.txt" {
+			entry = &pane.entries[i]
+			break
+		}
+	}
+
+	if entry == nil {
+		t.Fatal("Test file not found in entries")
+	}
+
+	result := pane.formatDetailEntry(*entry, 30)
+
+	// ファイル名が含まれている
+	if !strings.Contains(result, "testfile.txt") {
+		t.Error("formatDetailEntry should contain file name")
+	}
+}
+
+func TestPaneFormatFilterIndicator(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// テストファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// フィルタなし
+	result := pane.formatFilterIndicator()
+	if result != "" {
+		t.Errorf("formatFilterIndicator with no filter = %q, want empty", result)
+	}
+
+	// インクリメンタル検索フィルタを適用
+	pane.ApplyFilter("test", SearchModeIncremental)
+	result = pane.formatFilterIndicator()
+	if !strings.Contains(result, "/test") {
+		t.Errorf("formatFilterIndicator = %q, should contain /test", result)
+	}
+
+	// 正規表現フィルタを適用
+	pane.ApplyFilter(".*\\.txt", SearchModeRegex)
+	result = pane.formatFilterIndicator()
+	if !strings.Contains(result, "re/") {
+		t.Errorf("formatFilterIndicator = %q, should contain re/", result)
+	}
+
+	// 長いパターンの切り詰め
+	pane.ApplyFilter("verylongpatternname", SearchModeIncremental)
+	result = pane.formatFilterIndicator()
+	if !strings.Contains(result, "..") {
+		t.Errorf("formatFilterIndicator = %q, should truncate long pattern", result)
+	}
+}
+
+func TestPaneGetSetSortConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// デフォルト値を確認
+	defaultConfig := pane.GetSortConfig()
+	if defaultConfig.Field != SortByName {
+		t.Errorf("Default sort field = %v, want SortByName", defaultConfig.Field)
+	}
+
+	// 新しい設定を適用
+	newConfig := SortConfig{Field: SortBySize, Order: SortDesc}
+	pane.SetSortConfig(newConfig)
+
+	// 確認
+	got := pane.GetSortConfig()
+	if got.Field != SortBySize {
+		t.Errorf("GetSortConfig().Field = %v, want SortBySize", got.Field)
+	}
+	if got.Order != SortDesc {
+		t.Errorf("GetSortConfig().Order = %v, want SortDesc", got.Order)
+	}
+}
+
+func TestPaneApplySortAndPreserveCursor(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// サイズの異なるファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte("ccc"), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// カーソルを特定のファイルに合わせる
+	var targetIdx int
+	for i, entry := range pane.entries {
+		if entry.Name == "bbb.txt" {
+			targetIdx = i
+			break
+		}
+	}
+	pane.cursor = targetIdx
+
+	// サイズでソート
+	pane.SetSortConfig(SortConfig{Field: SortBySize, Order: SortDesc})
+	pane.ApplySortAndPreserveCursor()
+
+	// カーソルが同じファイルを指していることを確認
+	selected := pane.SelectedEntry()
+	if selected == nil || selected.Name != "bbb.txt" {
+		t.Errorf("Cursor should still point to bbb.txt, got %v", selected)
+	}
+}
+
+func TestPaneApplySortAndPreserveCursorWithFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// ファイルを作成
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.log"), []byte("ccc"), 0644)
+
+	pane, err := NewPane(tmpDir, 40, 20, true)
+	if err != nil {
+		t.Fatalf("NewPane() failed: %v", err)
+	}
+
+	// フィルタを適用
+	pane.ApplyFilter("txt", SearchModeIncremental)
+
+	// ソートを適用
+	pane.SetSortConfig(SortConfig{Field: SortBySize, Order: SortDesc})
+	pane.ApplySortAndPreserveCursor()
+
+	// フィルタが維持されていることを確認
+	if !pane.IsFiltered() {
+		t.Error("Filter should be maintained after sort")
+	}
 }
