@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/fs"
 )
 
 func TestConfirmDialog(t *testing.T) {
@@ -310,5 +311,38 @@ func TestHelpDialogCtrlCCloses(t *testing.T) {
 				t.Error("Result should be cancelled")
 			}
 		}
+	}
+}
+
+// === DisplayType のテスト ===
+
+func TestConfirmDialogDisplayType(t *testing.T) {
+	dialog := NewConfirmDialog("Test", "Message")
+
+	displayType := dialog.DisplayType()
+	if displayType != DialogDisplayPane {
+		t.Errorf("ConfirmDialog.DisplayType() = %v, want DialogDisplayPane", displayType)
+	}
+}
+
+func TestHelpDialogDisplayType(t *testing.T) {
+	dialog := NewHelpDialog()
+
+	displayType := dialog.DisplayType()
+	if displayType != DialogDisplayScreen {
+		t.Errorf("HelpDialog.DisplayType() = %v, want DialogDisplayScreen", displayType)
+	}
+}
+
+func TestContextMenuDialogDisplayType(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	displayType := dialog.DisplayType()
+	if displayType != DialogDisplayPane {
+		t.Errorf("ContextMenuDialog.DisplayType() = %v, want DialogDisplayPane", displayType)
 	}
 }

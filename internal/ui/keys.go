@@ -50,4 +50,7 @@ const (
 
 	// Sort
 	KeySort = "s" // Open sort settings dialog
+
+	// Shell command
+	KeyShellCommand = "!" // Execute shell command
 )
