@@ -12,17 +12,37 @@ type execFinishedMsg struct {
 	err error
 }
 
-// openWithViewer opens the file with less
-func openWithViewer(path string) tea.Cmd {
-	c := exec.Command("less", path)
+// getEditor returns the editor command from $EDITOR or "vim" as fallback
+func getEditor() string {
+	editor := os.Getenv("EDITOR")
+	if editor == "" {
+		return "vim"
+	}
+	return editor
+}
+
+// getPager returns the pager command from $PAGER or "less" as fallback
+func getPager() string {
+	pager := os.Getenv("PAGER")
+	if pager == "" {
+		return "less"
+	}
+	return pager
+}
+
+// openWithViewer opens the file with pager ($PAGER or less)
+func openWithViewer(path, workDir string) tea.Cmd {
+	c := exec.Command(getPager(), path)
+	c.Dir = workDir
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return execFinishedMsg{err: err}
 	})
 }
 
-// openWithEditor opens the file with vim
-func openWithEditor(path string) tea.Cmd {
-	c := exec.Command("vim", path)
+// openWithEditor opens the file with editor ($EDITOR or vim)
+func openWithEditor(path, workDir string) tea.Cmd {
+	c := exec.Command(getEditor(), path)
+	c.Dir = workDir
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return execFinishedMsg{err: err}
 	})
