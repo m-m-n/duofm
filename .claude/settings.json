@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git:*)"
+      "SlashCommand",
+      "Skill",
+      "Bash(git:*)",
+      "Bash(mkdir:*)",
+      "Bash(grep:*)"
     ],
     "ask": [
       "Bash(git rm:*)"
