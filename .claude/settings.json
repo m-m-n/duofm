@@ -4,6 +4,9 @@
       "SlashCommand",
       "Skill",
       "Bash(git:*)",
+      "Bash(go:*)",
+      "Bash(gofmt:*)",
+      "Bash(goimports:*)",
       "Bash(mkdir:*)",
       "Bash(grep:*)"
     ],
