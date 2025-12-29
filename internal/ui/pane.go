@@ -24,19 +24,11 @@ const (
 )
 
 // ダイアログオーバーレイ用のdimmedスタイル色
+// Note: These are now accessed from the theme in most cases,
+// but kept for backward compatibility with model.go dialog rendering
 var (
 	dimmedBgColor = lipgloss.Color("236") // 濃いグレー背景
 	dimmedFgColor = lipgloss.Color("243") // 暗いテキスト
-)
-
-// Mark background colors
-var (
-	markBgColorActive   = lipgloss.Color("136") // Yellow for active pane
-	markBgColorInactive = lipgloss.Color("94")  // Dark yellow for inactive pane
-
-	// Cursor + Mark combined colors
-	cursorMarkBgColorActive   = lipgloss.Color("30") // Cyan for active pane
-	cursorMarkBgColorInactive = lipgloss.Color("23") // Dark cyan for inactive pane
 )
 
 // MarkInfo holds mark statistics
@@ -65,10 +57,14 @@ type Pane struct {
 	filterMode      SearchMode      // 現在のフィルタモード
 	markedFiles     map[string]bool // key: filename, value: marked state
 	sortConfig      SortConfig      // ソート設定
+	theme           *Theme          // カラーテーマ
 }
 
 // NewPane は新しいペインを作成
-func NewPane(path string, width, height int, isActive bool) (*Pane, error) {
+func NewPane(path string, width, height int, isActive bool, theme *Theme) (*Pane, error) {
+	if theme == nil {
+		theme = DefaultTheme()
+	}
 	pane := &Pane{
 		path:            path,
 		width:           width,
@@ -81,6 +77,7 @@ func NewPane(path string, width, height int, isActive bool) (*Pane, error) {
 		loadingProgress: "",
 		markedFiles:     make(map[string]bool),
 		sortConfig:      DefaultSortConfig(), // デフォルトは名前昇順
+		theme:           theme,
 	}
 
 	if err := pane.LoadDirectory(); err != nil {
@@ -437,9 +434,9 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 		Bold(true)
 
 	if p.isActive {
-		pathStyle = pathStyle.Foreground(lipgloss.Color("39"))
+		pathStyle = pathStyle.Foreground(p.theme.PathFg)
 	} else {
-		pathStyle = pathStyle.Foreground(lipgloss.Color("240"))
+		pathStyle = pathStyle.Foreground(p.theme.PathFgInactive)
 	}
 
 	b.WriteString(pathStyle.Render(displayPath))
@@ -451,16 +448,17 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 		Width(p.width-2).
 		Padding(0, 1)
 	if p.isActive {
-		headerStyle = headerStyle.Foreground(lipgloss.Color("245"))
+		headerStyle = headerStyle.Foreground(p.theme.HeaderFg)
 	} else {
-		headerStyle = headerStyle.Foreground(lipgloss.Color("240"))
+		headerStyle = headerStyle.Foreground(p.theme.HeaderFgInactive)
 	}
 	b.WriteString(headerStyle.Render(headerLine2))
 	b.WriteString("\n")
 
 	// 区切り線
 	border := strings.Repeat("─", p.width-2)
-	b.WriteString(lipgloss.NewStyle().Padding(0, 1).Render(border))
+	borderStyle := lipgloss.NewStyle().Padding(0, 1).Foreground(p.theme.BorderFg)
+	b.WriteString(borderStyle.Render(border))
 	b.WriteString("\n")
 
 	// ファイルリスト（ミニバッファ表示時は1行少なく）
@@ -475,7 +473,7 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 		noMatchStyle := lipgloss.NewStyle().
 			Width(p.width-2).
 			Padding(0, 1).
-			Foreground(lipgloss.Color("243")).
+			Foreground(p.theme.DimmedFg).
 			Italic(true)
 		b.WriteString(noMatchStyle.Render("(No matches)"))
 		b.WriteString("\n")
@@ -597,40 +595,40 @@ func (p *Pane) formatEntry(entry fs.FileEntry, isCursor bool) string {
 	if isCursor && isMarked {
 		// Cursor + Mark combined
 		if p.isActive {
-			style = style.Background(cursorMarkBgColorActive).
-				Foreground(lipgloss.Color("15"))
+			style = style.Background(p.theme.CursorMarkBg).
+				Foreground(p.theme.CursorMarkFg)
 		} else {
-			style = style.Background(cursorMarkBgColorInactive).
-				Foreground(lipgloss.Color("15"))
+			style = style.Background(p.theme.CursorMarkBgInactive).
+				Foreground(p.theme.CursorMarkFg)
 		}
 	} else if isCursor {
 		// Cursor only
 		if p.isActive {
-			style = style.Background(lipgloss.Color("39")).
-				Foreground(lipgloss.Color("15"))
+			style = style.Background(p.theme.CursorBg).
+				Foreground(p.theme.CursorFg)
 		} else {
-			style = style.Background(lipgloss.Color("240")).
-				Foreground(lipgloss.Color("15"))
+			style = style.Background(p.theme.CursorBgInactive).
+				Foreground(p.theme.CursorFg)
 		}
 	} else if isMarked {
 		// Marked only
 		if p.isActive {
-			style = style.Background(markBgColorActive).
-				Foreground(lipgloss.Color("0"))
+			style = style.Background(p.theme.MarkBg).
+				Foreground(p.theme.MarkFg)
 		} else {
-			style = style.Background(markBgColorInactive).
-				Foreground(lipgloss.Color("15"))
+			style = style.Background(p.theme.MarkBgInactive).
+				Foreground(p.theme.MarkFgInactive)
 		}
 	} else {
 		// Normal - ファイルタイプによる色付け
 		if entry.IsSymlink {
 			if entry.LinkBroken {
-				style = style.Foreground(lipgloss.Color("9")) // 赤色
+				style = style.Foreground(p.theme.ExecutableFg) // 赤色（壊れたリンク）
 			} else {
-				style = style.Foreground(lipgloss.Color("14")) // シアン色
+				style = style.Foreground(p.theme.SymlinkFg) // シアン色
 			}
 		} else if entry.IsDir {
-			style = style.Foreground(lipgloss.Color("39")) // 青色
+			style = style.Foreground(p.theme.DirectoryFg) // 青色
 		}
 	}
 
@@ -767,8 +765,8 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 		Width(p.width-2).
 		Padding(0, 1).
 		Bold(true).
-		Background(dimmedBgColor).
-		Foreground(dimmedFgColor)
+		Background(p.theme.DimmedBg).
+		Foreground(p.theme.DimmedFg)
 
 	b.WriteString(pathStyle.Render(displayPath))
 	b.WriteString("\n")
@@ -778,8 +776,8 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	headerStyle := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
-		Background(dimmedBgColor).
-		Foreground(dimmedFgColor)
+		Background(p.theme.DimmedBg).
+		Foreground(p.theme.DimmedFg)
 	b.WriteString(headerStyle.Render(headerLine2))
 	b.WriteString("\n")
 
@@ -787,8 +785,8 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	border := strings.Repeat("─", p.width-2)
 	borderStyle := lipgloss.NewStyle().
 		Padding(0, 1).
-		Background(dimmedBgColor).
-		Foreground(dimmedFgColor)
+		Background(p.theme.DimmedBg).
+		Foreground(p.theme.DimmedFg)
 	b.WriteString(borderStyle.Render(border))
 	b.WriteString("\n")
 
@@ -809,7 +807,7 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	// 空行で埋める（dimmedスタイル）
 	emptyStyle := lipgloss.NewStyle().
 		Width(p.width).
-		Background(dimmedBgColor)
+		Background(p.theme.DimmedBg)
 	for i := endIdx - p.scrollOffset; i < visibleLines; i++ {
 		b.WriteString(emptyStyle.Render(""))
 		b.WriteString("\n")
@@ -838,8 +836,8 @@ func (p *Pane) formatEntryDimmed(entry fs.FileEntry) string {
 	style := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
-		Background(dimmedBgColor).
-		Foreground(dimmedFgColor)
+		Background(p.theme.DimmedBg).
+		Foreground(p.theme.DimmedFg)
 
 	// マークされたファイルは薄いハイライトで表示
 	if p.IsMarked(entry.Name) {

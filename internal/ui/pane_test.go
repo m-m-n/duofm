@@ -49,7 +49,7 @@ func TestNewPane(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pane, err := NewPane(tt.path, tt.width, tt.height, tt.isActive)
+			pane, err := NewPane(tt.path, tt.width, tt.height, tt.isActive, nil)
 
 			if tt.wantErr {
 				if err == nil {
@@ -93,7 +93,7 @@ func TestPaneMoveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestPaneSelectedEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -176,7 +176,7 @@ func TestPaneEnterDirectory(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -231,7 +231,7 @@ func TestPaneChangeDirectory(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -253,7 +253,7 @@ func TestPaneMoveToParent(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true)
+	pane, err := NewPane(subDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -291,7 +291,7 @@ func TestPaneMoveToParent(t *testing.T) {
 
 func TestPaneSetSize(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, _ := NewPane(tmpDir, 40, 20, true)
+	pane, _ := NewPane(tmpDir, 40, 20, true, nil)
 
 	newWidth := 80
 	newHeight := 40
@@ -309,7 +309,7 @@ func TestPaneSetSize(t *testing.T) {
 
 func TestPaneSetActive(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, _ := NewPane(tmpDir, 40, 20, false)
+	pane, _ := NewPane(tmpDir, 40, 20, false, nil)
 
 	if pane.isActive {
 		t.Error("Pane should be inactive initially")
@@ -330,7 +330,7 @@ func TestPaneView(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -353,7 +353,7 @@ func TestPaneLoadDirectory(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -394,7 +394,7 @@ func TestFilterHiddenFiles(t *testing.T) {
 	os.Mkdir(filepath.Join(tmpDir, ".hiddendir"), 0755)
 	os.Mkdir(filepath.Join(tmpDir, "visibledir"), 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -432,7 +432,7 @@ func TestToggleHidden(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "visible.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, ".hidden"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -495,7 +495,7 @@ func TestNavigateToHome(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true)
+	pane, err := NewPane(subDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -542,7 +542,7 @@ func TestNavigateToPrevious(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -607,7 +607,7 @@ func TestPreviousPathTracking(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -637,7 +637,7 @@ func TestPreviousPathTracking(t *testing.T) {
 
 func TestIsShowingHidden(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -659,7 +659,7 @@ func TestRestorePreviousPath(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -698,7 +698,7 @@ func TestRestorePreviousPath(t *testing.T) {
 
 func TestPendingPathField(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -732,7 +732,7 @@ func TestEnterDirectoryAsync(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -791,7 +791,7 @@ func TestEnterDirectoryAsyncParentDir(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true)
+	pane, err := NewPane(subDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -826,7 +826,7 @@ func TestEnterDirectoryNoPathExtension(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -870,7 +870,7 @@ func TestMoveToParentAsync(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 
 	t.Run("親ディレクトリへの移動コマンドを返す", func(t *testing.T) {
-		pane, err := NewPane(subDir, 40, 20, true)
+		pane, err := NewPane(subDir, 40, 20, true, nil)
 		if err != nil {
 			t.Fatalf("NewPane() failed: %v", err)
 		}
@@ -889,7 +889,7 @@ func TestMoveToParentAsync(t *testing.T) {
 	})
 
 	t.Run("ルートディレクトリではnilを返す", func(t *testing.T) {
-		pane, _ := NewPane("/", 40, 20, true)
+		pane, _ := NewPane("/", 40, 20, true, nil)
 		cmd := pane.MoveToParentAsync()
 		if cmd != nil {
 			t.Error("MoveToParentAsync() should return nil at root")
@@ -900,7 +900,7 @@ func TestMoveToParentAsync(t *testing.T) {
 func TestNavigateToHomeAsync(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -939,7 +939,7 @@ func TestNavigateToPreviousAsync(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -983,7 +983,7 @@ func TestApplyFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "test.go"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1081,7 +1081,7 @@ func TestClearFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1114,7 +1114,7 @@ func TestResetToFullList(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1150,7 +1150,7 @@ func TestIsFiltered(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1180,7 +1180,7 @@ func TestFilterPattern(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1197,7 +1197,7 @@ func TestFilterMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1217,7 +1217,7 @@ func TestTotalEntryCount(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1239,7 +1239,7 @@ func TestFilteredEntryCount(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1264,7 +1264,7 @@ func TestFilterWithHiddenToggle(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, ".hidden.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1291,7 +1291,7 @@ func TestCursorPositionAfterFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1315,7 +1315,7 @@ func TestLoadDirectoryClearsFilter(t *testing.T) {
 
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1347,7 +1347,7 @@ func TestAllEntriesPopulated(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1371,7 +1371,7 @@ func TestViewWithMinibuffer(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 60, 20, true)
+	pane, err := NewPane(tmpDir, 60, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1418,7 +1418,7 @@ func TestViewWithMinibufferReducesVisibleLines(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(tmpDir, 60, 15, true)
+	pane, err := NewPane(tmpDir, 60, 15, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1450,7 +1450,7 @@ func TestPaneRefresh(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1482,7 +1482,7 @@ func TestPaneRefreshCursorPreservation(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1541,7 +1541,7 @@ func TestPaneRefreshCursorAdjustment(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1575,7 +1575,7 @@ func TestPaneRefreshDeletedDirectory(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(subDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(subDir, 40, 20, true)
+	pane, err := NewPane(subDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1603,7 +1603,7 @@ func TestPaneRefreshFilterPreservation(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1638,7 +1638,7 @@ func TestPaneSyncTo(t *testing.T) {
 	os.WriteFile(filepath.Join(dirA, "fileA.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(dirB, "fileB.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(dirA, 40, 20, true)
+	pane, err := NewPane(dirA, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1670,7 +1670,7 @@ func TestPaneSyncTo(t *testing.T) {
 func TestPaneSyncToSameDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1699,7 +1699,7 @@ func TestPaneSyncToPreviousPathUpdate(t *testing.T) {
 	os.Mkdir(dirA, 0755)
 	os.Mkdir(dirB, 0755)
 
-	pane, err := NewPane(dirA, 40, 20, true)
+	pane, err := NewPane(dirA, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1732,7 +1732,7 @@ func TestPaneSyncToCursorReset(t *testing.T) {
 		os.WriteFile(filepath.Join(dirB, fmt.Sprintf("file%d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(dirA, 40, 20, true)
+	pane, err := NewPane(dirA, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1765,7 +1765,7 @@ func TestPaneSyncToSettingsPreservation(t *testing.T) {
 	os.Mkdir(dirA, 0755)
 	os.Mkdir(dirB, 0755)
 
-	pane, err := NewPane(dirA, 40, 20, true)
+	pane, err := NewPane(dirA, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1809,7 +1809,7 @@ func TestRefreshDirectoryPreserveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1865,7 +1865,7 @@ func TestRefreshDirectoryPreserveCursorWithEmpty(t *testing.T) {
 	// ファイルを1つだけ作成
 	os.WriteFile(filepath.Join(tmpDir, "only.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1900,7 +1900,7 @@ func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1931,7 +1931,7 @@ func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1970,7 +1970,7 @@ func TestPaneEnsureCursorVisible(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(tmpDir, 40, 10, true)
+	pane, err := NewPane(tmpDir, 40, 10, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -1996,7 +1996,7 @@ func TestPaneFormatDetailEntry(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "testfile.txt")
 	os.WriteFile(testFile, []byte("content"), 0644)
 
-	pane, err := NewPane(tmpDir, 80, 20, true)
+	pane, err := NewPane(tmpDir, 80, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -2028,7 +2028,7 @@ func TestPaneFormatFilterIndicator(t *testing.T) {
 	// テストファイルを作成
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -2064,7 +2064,7 @@ func TestPaneFormatFilterIndicator(t *testing.T) {
 func TestPaneGetSetSortConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -2097,7 +2097,7 @@ func TestPaneApplySortAndPreserveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte("ccc"), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}
@@ -2131,7 +2131,7 @@ func TestPaneApplySortAndPreserveCursorWithFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.log"), []byte("ccc"), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true)
+	pane, err := NewPane(tmpDir, 40, 20, true, nil)
 	if err != nil {
 		t.Fatalf("NewPane() failed: %v", err)
 	}

@@ -52,6 +52,7 @@ type Model struct {
 	shellCommandMode   bool            // シェルコマンドモードかどうか
 	keybindingMap      *KeybindingMap  // キーバインドマップ
 	configWarnings     []string        // 設定ファイルの警告
+	theme              *Theme          // カラーテーマ
 }
 
 // PanePosition はペインの位置を表す
@@ -66,11 +67,11 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil)
+	return NewModelWithConfig(nil, nil, nil)
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
-func NewModelWithConfig(keybindingMap *KeybindingMap, warnings []string) Model {
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -87,6 +88,11 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, warnings []string) Model {
 		keybindingMap = DefaultKeybindingMap()
 	}
 
+	// themeがnilの場合はデフォルトを使用
+	if theme == nil {
+		theme = DefaultTheme()
+	}
+
 	return Model{
 		leftPane:       nil, // Updateで初期化
 		rightPane:      nil, // Updateで初期化
@@ -99,6 +105,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, warnings []string) Model {
 		minibuffer:     NewMinibuffer(),
 		keybindingMap:  keybindingMap,
 		configWarnings: warnings,
+		theme:          theme,
 	}
 }
 
@@ -318,13 +325,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			paneHeight := msg.Height - 2 // ステータスバー分を引く
 
 			var err error
-			m.leftPane, err = NewPane(m.leftPath, paneWidth, paneHeight, true)
+			m.leftPane, err = NewPane(m.leftPath, paneWidth, paneHeight, true, m.theme)
 			if err != nil {
 				// エラーハンドリングは Phase 3 で実装
 				return m, tea.Quit
 			}
 
-			m.rightPane, err = NewPane(m.rightPath, paneWidth, paneHeight, false)
+			m.rightPane, err = NewPane(m.rightPath, paneWidth, paneHeight, false, m.theme)
 			if err != nil {
 				return m, tea.Quit
 			}

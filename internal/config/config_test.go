@@ -237,7 +237,7 @@ func TestGenerateDefaultConfig_ValidTOML(t *testing.T) {
 	}
 }
 
-func TestGenerateDefaultConfig_Under100Lines(t *testing.T) {
+func TestGenerateDefaultConfig_Under150Lines(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")
 
@@ -262,8 +262,9 @@ func TestGenerateDefaultConfig_Under100Lines(t *testing.T) {
 		lines++
 	}
 
-	if lines > 100 {
-		t.Errorf("Generated config has %d lines, want <= 100", lines)
+	// Limit increased from 100 to 150 to accommodate [colors] section
+	if lines > 150 {
+		t.Errorf("Generated config has %d lines, want <= 150", lines)
 	}
 }
 
@@ -292,6 +293,16 @@ func TestGenerateDefaultConfig_HasComments(t *testing.T) {
 	}
 	if !contains(contentStr, "[keybindings]") {
 		t.Error("Generated config missing [keybindings] section")
+	}
+	// Check for [colors] section
+	if !contains(contentStr, "[colors]") {
+		t.Error("Generated config missing [colors] section")
+	}
+	if !contains(contentStr, "# Color Theme Configuration") {
+		t.Error("Generated config missing Color Theme Configuration comment")
+	}
+	if !contains(contentStr, "cursor_fg") {
+		t.Error("Generated config missing cursor_fg color example")
 	}
 }
 
