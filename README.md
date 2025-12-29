@@ -4,12 +4,33 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 
 ## Features
 
+### Core
 - **Dual-pane interface**: Navigate two directories side-by-side
 - **Vim-style keybindings**: Familiar hjkl navigation
-- **File operations**: Copy, move, and delete files and directories
-- **Modal dialogs**: Confirmation dialogs for destructive operations
-- **Built-in help**: Press `?` to see all available keybindings
-- **Cross-platform**: Works on Linux, macOS, and Windows
+- **File operations**: Copy, move, delete, rename files and directories
+- **Multi-file marking**: Select multiple files with Space for batch operations
+- **Symbolic link support**: Display targets, detect broken links
+
+### Navigation
+- **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search
+- **Hidden files**: Toggle visibility with `Ctrl+H`
+- **Quick navigation**: Home (`~`), previous directory (`-`), sync panes (`=`)
+- **Sort options**: By name, size, or date (ascending/descending)
+
+### Display
+- **Three display modes**: Minimal, Basic (size+date), Detail (permissions+owner)
+- **Context menu**: Press `@` for visual action selection
+- **Help system**: Press `?` for scrollable keybinding reference
+
+### Integration
+- **External viewer**: Open files with $PAGER (`v` key)
+- **External editor**: Edit files with $EDITOR (`e` key)
+- **Shell commands**: Execute commands with `!` key
+
+### Customization
+- **Configuration file**: `~/.config/duofm/config.toml`
+- **Custom keybindings**: Remap any key in config
+- **Color theme**: Full 256-color customization
 
 ## Screenshots
 
