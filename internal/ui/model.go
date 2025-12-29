@@ -50,6 +50,8 @@ type Model struct {
 	batchOp            *BatchOperation // Active batch operation (nil if none)
 	sortDialog         *SortDialog     // ソートダイアログ（nil = 非表示）
 	shellCommandMode   bool            // シェルコマンドモードかどうか
+	keybindingMap      *KeybindingMap  // キーバインドマップ
+	configWarnings     []string        // 設定ファイルの警告
 }
 
 // PanePosition はペインの位置を表す
@@ -62,8 +64,13 @@ const (
 	RightPane
 )
 
-// NewModel は初期モデルを作成
+// NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
+	return NewModelWithConfig(nil, nil)
+}
+
+// NewModelWithConfig は設定付きの初期モデルを作成
+func NewModelWithConfig(keybindingMap *KeybindingMap, warnings []string) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -75,21 +82,33 @@ func NewModel() Model {
 		home = "/"
 	}
 
+	// keybindingMapがnilの場合はデフォルトを使用
+	if keybindingMap == nil {
+		keybindingMap = DefaultKeybindingMap()
+	}
+
 	return Model{
-		leftPane:    nil, // Updateで初期化
-		rightPane:   nil, // Updateで初期化
-		leftPath:    cwd,
-		rightPath:   home,
-		activePane:  LeftPane,
-		dialog:      nil,
-		ready:       false,
-		searchState: SearchState{Mode: SearchModeNone},
-		minibuffer:  NewMinibuffer(),
+		leftPane:       nil, // Updateで初期化
+		rightPane:      nil, // Updateで初期化
+		leftPath:       cwd,
+		rightPath:      home,
+		activePane:     LeftPane,
+		dialog:         nil,
+		ready:          false,
+		searchState:    SearchState{Mode: SearchModeNone},
+		minibuffer:     NewMinibuffer(),
+		keybindingMap:  keybindingMap,
+		configWarnings: warnings,
 	}
 }
 
 // Init はBubble Teaの初期化
 func (m Model) Init() tea.Cmd {
+	// 設定ファイルの警告があれば最初の警告をステータスバーに表示
+	if len(m.configWarnings) > 0 {
+		m.statusMessage = m.configWarnings[0]
+		m.isStatusError = false
+	}
 	return nil
 }
 
@@ -582,45 +601,47 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ctrlCPending = false
 		}
 
-		switch msg.String() {
+		// keybindingMapを使ってアクションを決定
+		action := m.keybindingMap.GetAction(msg.String())
+		switch action {
 
-		case KeyRefresh, KeyRefreshAlt:
+		case ActionRefresh:
 			return m, m.RefreshBothPanes()
 
-		case KeySyncPane:
+		case ActionSyncPane:
 			m.SyncOppositePane()
 			return m, nil
 
-		case KeyQuit:
+		case ActionQuit:
 			return m, tea.Quit
 
-		case KeyHelp:
+		case ActionHelp:
 			// ヘルプダイアログを表示
 			m.dialog = NewHelpDialog()
 			return m, nil
 
-		case KeySearch:
+		case ActionSearch:
 			// インクリメンタル検索を開始
 			m.startSearch(SearchModeIncremental)
 			return m, nil
 
-		case KeyRegexSearch:
+		case ActionRegexSearch:
 			// 正規表現検索を開始
 			m.startSearch(SearchModeRegex)
 			return m, nil
 
-		case KeyShellCommand:
+		case ActionShellCommand:
 			// シェルコマンドモードを開始
 			m.startShellCommandMode()
 			return m, nil
 
-		case KeyMoveDown, KeyArrowDown:
+		case ActionMoveDown:
 			m.getActivePane().MoveCursorDown()
 
-		case KeyMoveUp, KeyArrowUp:
+		case ActionMoveUp:
 			m.getActivePane().MoveCursorUp()
 
-		case KeyMoveLeft, KeyArrowLeft:
+		case ActionMoveLeft:
 			if m.activePane == LeftPane {
 				// 左ペインで h/← -> 親ディレクトリへ（非同期版）
 				cmd := m.leftPane.MoveToParentAsync()
@@ -630,7 +651,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.switchToPane(LeftPane)
 			}
 
-		case KeyMoveRight, KeyArrowRight:
+		case ActionMoveRight:
 			if m.activePane == RightPane {
 				// 右ペインで l/→ -> 親ディレクトリへ（非同期版）
 				cmd := m.rightPane.MoveToParentAsync()
@@ -640,7 +661,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.switchToPane(RightPane)
 			}
 
-		case KeyEnter:
+		case ActionEnter:
 			entry := m.getActivePane().SelectedEntry()
 			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
 				// ファイル選択時: ビューアー(less)で開く（vキーと同じ）
@@ -656,7 +677,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			cmd := m.getActivePane().EnterDirectoryAsync()
 			return m, cmd
 
-		case KeyMark:
+		case ActionMark:
 			// マークの切り替え
 			activePane := m.getActivePane()
 			if activePane.ToggleMark() {
@@ -665,7 +686,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyToggleInfo:
+		case ActionToggleInfo:
 			// 表示モードを切り替え（端末が十分な幅の場合のみ）
 			activePane := m.getActivePane()
 			if activePane.CanToggleMode() {
@@ -673,7 +694,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyCopy:
+		case ActionCopy:
 			// コピー操作
 			activePane := m.getActivePane()
 			markedFiles := activePane.GetMarkedFiles()
@@ -692,7 +713,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyMove:
+		case ActionMove:
 			// 移動操作
 			activePane := m.getActivePane()
 			markedFiles := activePane.GetMarkedFiles()
@@ -711,7 +732,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyDelete:
+		case ActionDelete:
 			// 削除確認ダイアログを表示
 			activePane := m.getActivePane()
 			markedFiles := activePane.GetMarkedFiles()
@@ -734,7 +755,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyContextMenu:
+		case ActionContextMenu:
 			// コンテキストメニューを表示
 			activePane := m.getActivePane()
 			entry := activePane.SelectedEntry()
@@ -749,22 +770,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyToggleHidden:
+		case ActionToggleHidden:
 			// 隠しファイル表示をトグル
 			m.getActivePane().ToggleHidden()
 			return m, nil
 
-		case KeyHome:
+		case ActionHome:
 			// ホームディレクトリへ移動（非同期版）
 			cmd := m.getActivePane().NavigateToHomeAsync()
 			return m, cmd
 
-		case KeyPrevDir:
+		case ActionPrevDir:
 			// 直前のディレクトリへ移動（非同期版）
 			cmd := m.getActivePane().NavigateToPreviousAsync()
 			return m, cmd
 
-		case KeyView:
+		case ActionView:
 			// ファイルをビューアー(less)で開く
 			entry := m.getActivePane().SelectedEntry()
 			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
@@ -778,7 +799,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyEdit:
+		case ActionEdit:
 			// ファイルをエディタ(vim)で開く
 			entry := m.getActivePane().SelectedEntry()
 			if entry != nil && !entry.IsParentDir() && !entry.IsDir {
@@ -792,7 +813,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case KeyNewFile:
+		case ActionNewFile:
 			// 新規ファイル作成ダイアログを表示
 			pane := m.getActivePane()
 			m.dialog = NewInputDialog("New file:", func(filename string) tea.Cmd {
@@ -800,7 +821,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			return m, nil
 
-		case KeyNewDirectory:
+		case ActionNewDirectory:
 			// 新規ディレクトリ作成ダイアログを表示
 			pane := m.getActivePane()
 			m.dialog = NewInputDialog("New directory:", func(dirname string) tea.Cmd {
@@ -808,7 +829,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			return m, nil
 
-		case KeyRename:
+		case ActionRename:
 			// リネームダイアログを表示
 			entry := m.getActivePane().SelectedEntry()
 			if entry == nil || entry.IsParentDir() {
@@ -822,7 +843,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 			return m, nil
 
-		case KeySort:
+		case ActionSort:
 			// ソートダイアログを表示
 			m.sortDialog = NewSortDialog(m.getActivePane().GetSortConfig())
 			return m, nil

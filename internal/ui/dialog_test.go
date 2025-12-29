@@ -206,8 +206,8 @@ func TestHelpDialog(t *testing.T) {
 			t.Error("View() should contain 'Keybindings'")
 		}
 
-		// キーバインディングの説明が含まれているか確認
-		if !strings.Contains(view, "j/k") {
+		// キーバインディングの説明が含まれているか確認（PascalCase形式）
+		if !strings.Contains(view, "J/K") {
 			t.Error("View() should contain navigation keys")
 		}
 	})
