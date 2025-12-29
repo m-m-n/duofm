@@ -46,7 +46,10 @@ func main() {
 		}
 		cfg, warnings = config.LoadConfig(configPath)
 	} else {
-		cfg = &config.Config{Keybindings: config.DefaultKeybindings()}
+		cfg = &config.Config{
+			Keybindings: config.DefaultKeybindings(),
+			Colors:      config.DefaultColors(),
+		}
 	}
 
 	// 重複キーのバリデーション
@@ -56,8 +59,11 @@ func main() {
 	// KeybindingMapを生成
 	keybindingMap := ui.NewKeybindingMap(cfg)
 
+	// Themeを生成
+	theme := ui.NewTheme(cfg.Colors)
+
 	p := tea.NewProgram(
-		ui.NewModelWithConfig(keybindingMap, warnings),
+		ui.NewModelWithConfig(keybindingMap, theme, warnings),
 		tea.WithAltScreen(),       // 代替画面バッファを使用
 		tea.WithMouseCellMotion(), // マウスサポート（将来用）
 	)

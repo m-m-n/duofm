@@ -55,6 +55,69 @@ context_menu = ["@"]
 # Application
 quit = ["Q"]
 escape = ["Esc"]
+
+# Color Theme Configuration
+# Colors are specified as ANSI 256-color codes (0-255)
+# Use ? key in duofm to see the color palette reference
+[colors]
+# Pane - Cursor (current row)
+# cursor_fg = 15              # white
+# cursor_bg = 39              # blue (active pane)
+# cursor_bg_inactive = 240    # gray (inactive pane)
+
+# Pane - Marked rows
+# mark_fg = 0                 # black (active pane)
+# mark_fg_inactive = 15       # white (inactive pane)
+# mark_bg = 136               # dark yellow (active pane)
+# mark_bg_inactive = 94       # darker yellow (inactive pane)
+
+# Pane - Cursor + Marked rows
+# cursor_mark_fg = 15         # white
+# cursor_mark_bg = 30         # cyan (active pane)
+# cursor_mark_bg_inactive = 23 # dark cyan (inactive pane)
+
+# Pane - Path display
+# path_fg = 39                # blue (active pane)
+# path_fg_inactive = 240      # gray (inactive pane)
+
+# Pane - Header (column names)
+# header_fg = 245             # light gray (active pane)
+# header_fg_inactive = 240    # gray (inactive pane)
+
+# Pane - Structure
+# border_fg = 240             # gray
+# dimmed_bg = 236             # dark gray
+# dimmed_fg = 243             # medium gray
+
+# File Types
+# directory_fg = 39           # blue
+# symlink_fg = 14             # cyan
+# executable_fg = 9           # red
+
+# Dialog
+# dialog_title_fg = 39        # blue
+# dialog_border_fg = 39       # blue
+# dialog_selected_fg = 0      # black
+# dialog_selected_bg = 39     # blue
+# dialog_footer_fg = 240      # gray
+
+# Input Fields
+# input_fg = 15               # white
+# input_bg = 236              # dark gray
+# input_border_fg = 240       # gray
+
+# Minibuffer
+# minibuffer_fg = 15          # white
+# minibuffer_bg = 236         # dark gray
+
+# Error and Warning
+# error_fg = 196              # red
+# error_border_fg = 196       # red
+# warning_fg = 240            # gray
+
+# Status Bar
+# status_fg = 15              # white
+# status_bg = 240             # gray
 `
 
 // GenerateDefaultConfig generates a default configuration file at the specified path.
