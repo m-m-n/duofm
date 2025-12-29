@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/mattn/go-runewidth"
+	"github.com/sakura/duofm/internal/config"
 	"github.com/sakura/duofm/internal/ui"
 )
 
@@ -26,8 +27,37 @@ func main() {
 	// TODO: 将来的には設定ファイルで変更可能にする
 	runewidth.DefaultCondition.EastAsianWidth = false
 
+	// 設定ファイルの読み込み
+	configPath, err := config.GetConfigPath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", err)
+	}
+
+	var cfg *config.Config
+	var warnings []string
+
+	if configPath != "" {
+		// 設定ファイルが存在しない場合は自動生成
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			if err := config.GenerateDefaultConfig(configPath); err != nil {
+				// 生成に失敗しても警告のみ
+				warnings = append(warnings, fmt.Sprintf("Warning: could not generate config: %v", err))
+			}
+		}
+		cfg, warnings = config.LoadConfig(configPath)
+	} else {
+		cfg = &config.Config{Keybindings: config.DefaultKeybindings()}
+	}
+
+	// 重複キーのバリデーション
+	validationWarnings := config.ValidateKeybindings(cfg)
+	warnings = append(warnings, validationWarnings...)
+
+	// KeybindingMapを生成
+	keybindingMap := ui.NewKeybindingMap(cfg)
+
 	p := tea.NewProgram(
-		ui.NewModel(),
+		ui.NewModelWithConfig(keybindingMap, warnings),
 		tea.WithAltScreen(),       // 代替画面バッファを使用
 		tea.WithMouseCellMotion(), // マウスサポート（将来用）
 	)
