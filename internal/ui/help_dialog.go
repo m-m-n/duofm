@@ -240,11 +240,11 @@ func (d *HelpDialog) renderStandardColors() []string {
 func (d *HelpDialog) renderColorCube() []string {
 	var lines []string
 
-	// 6x6x6 = 216 colors, displayed in rows
-	for row := 0; row < 36; row++ {
+	// 6x6x6 = 216 colors, displayed 2 per row
+	for row := 0; row < 108; row++ {
 		var line strings.Builder
-		for col := 0; col < 6; col++ {
-			colorNum := 16 + row*6 + col
+		for col := 0; col < 2; col++ {
+			colorNum := 16 + row*2 + col
 			if colorNum > 231 {
 				break
 			}
@@ -264,10 +264,10 @@ func (d *HelpDialog) renderColorCube() []string {
 func (d *HelpDialog) renderGrayscale() []string {
 	var lines []string
 
-	for row := 0; row < 4; row++ {
+	for row := 0; row < 12; row++ {
 		var line strings.Builder
-		for col := 0; col < 6; col++ {
-			colorNum := 232 + row*6 + col
+		for col := 0; col < 2; col++ {
+			colorNum := 232 + row*2 + col
 			if colorNum > 255 {
 				break
 			}
