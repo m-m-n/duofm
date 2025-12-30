@@ -81,6 +81,17 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 		m.cursorPos += len(msg.Runes)
 		return true
 
+	case tea.KeySpace:
+		// Insert space at cursor position
+		runes := []rune(m.input)
+		newRunes := make([]rune, 0, len(runes)+1)
+		newRunes = append(newRunes, runes[:m.cursorPos]...)
+		newRunes = append(newRunes, ' ')
+		newRunes = append(newRunes, runes[m.cursorPos:]...)
+		m.input = string(newRunes)
+		m.cursorPos++
+		return true
+
 	case tea.KeyBackspace:
 		if m.cursorPos > 0 {
 			runes := []rune(m.input)
