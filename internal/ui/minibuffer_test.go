@@ -233,6 +233,43 @@ func TestMinibufferHandleKeyInsertAtMiddle(t *testing.T) {
 	}
 }
 
+func TestMinibufferHandleKeySpace(t *testing.T) {
+	mb := NewMinibuffer()
+	mb.Show()
+
+	// Type "ls" then space then "-la"
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'-'}})
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}})
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+
+	if mb.input != "ls -la" {
+		t.Errorf("input = %q, want %q", mb.input, "ls -la")
+	}
+	if mb.cursorPos != 6 {
+		t.Errorf("cursorPos = %d, want %d", mb.cursorPos, 6)
+	}
+}
+
+func TestMinibufferHandleKeySpaceAtMiddle(t *testing.T) {
+	mb := NewMinibuffer()
+	mb.Show()
+	mb.input = "lsla"
+	mb.cursorPos = 2
+
+	// Insert space in the middle
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeySpace, Runes: []rune{' '}})
+
+	if mb.input != "ls la" {
+		t.Errorf("input = %q, want %q", mb.input, "ls la")
+	}
+	if mb.cursorPos != 3 {
+		t.Errorf("cursorPos = %d, want %d", mb.cursorPos, 3)
+	}
+}
+
 func TestMinibufferView(t *testing.T) {
 	mb := NewMinibuffer()
 	mb.SetPrompt("/: ")

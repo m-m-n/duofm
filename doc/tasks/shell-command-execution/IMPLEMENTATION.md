@@ -143,6 +143,7 @@ On key press:
        │   └─ Command not empty → execute command
        ├─ Escape key → exit mode (cancel)
        └─ Other keys → delegate to minibuffer
+           (Note: minibuffer must handle tea.KeySpace separately from tea.KeyRunes)
 
 On shellCommandFinishedMsg:
     1. Reload both panes (preserve cursor)
@@ -237,7 +238,7 @@ internal/ui/
 ├── keys.go         # Add KeyShellCommand = "!"
 ├── exec.go         # Add executeShellCommand(), shellCommandFinishedMsg
 ├── model.go        # Add shellCommandMode field, key handler, message handler
-├── minibuffer.go   # (no changes - reuse existing)
+├── minibuffer.go   # Add tea.KeySpace handling (Bubble Tea reports space as KeySpace, not KeyRunes)
 └── help_dialog.go  # Add shell command to help text
 ```
 
@@ -247,12 +248,13 @@ internal/ui/
 
 - `internal/ui/exec_test.go`: Test shellCommandFinishedMsg type
 - `internal/ui/model_test.go`: Test shell command mode state transitions
+- `internal/ui/minibuffer_test.go`: Test tea.KeySpace handling for space input
 
 ### Manual Testing Checklist
 
 - [ ] Press `!` to enter shell command mode
 - [ ] Minibuffer shows with "!" prompt
-- [ ] Type a command (e.g., `ls -la`)
+- [ ] Type a command with spaces (e.g., `ls -la`) - space key must work
 - [ ] Press `Enter` - command executes in active pane's directory
 - [ ] "Press Enter to continue..." is displayed
 - [ ] Press `Enter` - returns to duofm

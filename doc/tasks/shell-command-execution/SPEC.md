@@ -29,9 +29,12 @@ Add the ability to execute arbitrary shell commands from within duofm. Users pre
 | Key | Action |
 |-----|--------|
 | Any character | Append to command string |
+| `Space` | Append space to command string (Note: handled separately due to Bubble Tea's `tea.KeySpace` type) |
 | `Backspace` | Delete last character |
 | `Enter` | Execute command (if non-empty) |
 | `Escape` | Cancel and return to file list |
+
+**Note:** In Bubble Tea, the space key is reported as `tea.KeySpace` type, not as `tea.KeyRunes`. This requires explicit handling in the minibuffer's key handler to ensure spaces can be entered in commands (e.g., `ls -la`, `echo hello world`).
 
 ### Command Execution
 
@@ -241,11 +244,12 @@ Normal mode restored
 
 ### Command Input
 
-- [ ] `!` key activates command input mode
-- [ ] Characters typed are displayed in minibuffer
-- [ ] `Backspace` deletes last character
-- [ ] `Escape` cancels input and returns to normal mode
-- [ ] `Enter` on empty command exits input mode without execution
+- [x] `!` key activates command input mode
+- [x] Characters typed are displayed in minibuffer
+- [x] Space key can be entered (handled via `tea.KeySpace`)
+- [x] `Backspace` deletes last character
+- [x] `Escape` cancels input and returns to normal mode
+- [x] `Enter` on empty command exits input mode without execution
 
 ### Command Execution
 
