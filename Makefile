@@ -10,7 +10,7 @@ GIT_TAG := $(shell git describe --tags --exact-match 2>/dev/null)
 GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 VERSION := $(if $(GIT_TAG),$(GIT_TAG),dev-$(GIT_COMMIT))
 
-LDFLAGS = -X main.version=$(VERSION)
+LDFLAGS = -X github.com/sakura/duofm/internal/version.Version=$(VERSION)
 
 build:
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) $(BINARY_PATH)

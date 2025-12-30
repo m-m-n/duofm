@@ -34,7 +34,7 @@ test_view_file_with_v() {
     sleep 0.5
 
     # After less exits, screen should show duofm again
-    assert_contains "$session" "duofm v0.1.0" "duofm title bar should be visible after less exits"
+    assert_contains "$session" "duofm" "duofm title bar should be visible after less exits"
 
     stop_duofm "$session"
 }
@@ -54,7 +54,7 @@ test_view_directory_ignored() {
     sleep 0.3
 
     # Screen should still show duofm (no external app opened)
-    assert_contains "$session" "duofm v0.1.0" "duofm title should remain visible (v on dir ignored)"
+    assert_contains "$session" "duofm" "duofm title should remain visible (v on dir ignored)"
 
     stop_duofm "$session"
 }
@@ -109,7 +109,7 @@ test_view_parent_dir_ignored() {
     sleep 0.3
 
     # Should still show duofm, not less
-    assert_contains "$session" "duofm v0.1.0" "duofm title should remain visible (v on .. ignored)"
+    assert_contains "$session" "duofm" "duofm title should remain visible (v on .. ignored)"
 
     stop_duofm "$session"
 }
@@ -126,7 +126,7 @@ test_edit_parent_dir_ignored() {
     sleep 0.3
 
     # Should still show duofm, not vim
-    assert_contains "$session" "duofm v0.1.0" "duofm title should remain visible (e on .. ignored)"
+    assert_contains "$session" "duofm" "duofm title should remain visible (e on .. ignored)"
 
     stop_duofm "$session"
 }
@@ -146,7 +146,7 @@ test_edit_directory_ignored() {
     sleep 0.3
 
     # Should still show duofm
-    assert_contains "$session" "duofm v0.1.0" "duofm title should remain visible (e on dir ignored)"
+    assert_contains "$session" "duofm" "duofm title should remain visible (e on dir ignored)"
 
     stop_duofm "$session"
 }
@@ -173,7 +173,7 @@ test_edit_file_with_e() {
     sleep 0.5
 
     # After vim exits, duofm should restore
-    assert_contains "$session" "duofm v0.1.0" "duofm title bar should be visible after vim exits"
+    assert_contains "$session" "duofm" "duofm title bar should be visible after vim exits"
 
     stop_duofm "$session"
 }
@@ -200,7 +200,7 @@ test_enter_file_opens_viewer() {
     sleep 0.5
 
     # After less exits, duofm should restore
-    assert_contains "$session" "duofm v0.1.0" "duofm title bar should be visible after Enter on file"
+    assert_contains "$session" "duofm" "duofm title bar should be visible after Enter on file"
 
     stop_duofm "$session"
 }

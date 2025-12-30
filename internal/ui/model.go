@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/fs"
+	"github.com/sakura/duofm/internal/version"
 )
 
 // ANSIエスケープシーケンスを除去するための正規表現
@@ -895,7 +896,7 @@ func (m Model) View() string {
 	}
 
 	// タイトルバー
-	title := titleStyle.Render("duofm v0.1.0")
+	title := titleStyle.Render("duofm " + version.Version)
 
 	// 2つのペインを横に並べる（ディスク容量情報付き）
 	// 検索モードまたはシェルコマンドモードの場合はアクティブペインにミニバッファを渡す
@@ -946,7 +947,7 @@ func (m Model) View() string {
 // renderDialogScreen は画面全体表示ダイアログをレンダリング（両ペインdimmed）
 func (m Model) renderDialogScreen() string {
 	// タイトルバー
-	title := titleStyle.Render("duofm v0.1.0")
+	title := titleStyle.Render("duofm " + version.Version)
 
 	// 両方のペインをdimmedスタイルで描画
 	leftView := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
@@ -1002,7 +1003,7 @@ func (m Model) renderDialogPane() string {
 	paneHeight := m.height - 2 // タイトルバーとステータスバー分を引く
 
 	// タイトルバー
-	title := titleStyle.Render("duofm v0.1.0")
+	title := titleStyle.Render("duofm " + version.Version)
 
 	// ステータスバー
 	statusBar := m.renderStatusBar()
@@ -1030,7 +1031,7 @@ func (m Model) renderSortDialogPane() string {
 	paneWidth := m.width / 2
 	paneHeight := m.height - 2
 
-	title := titleStyle.Render("duofm v0.1.0")
+	title := titleStyle.Render("duofm " + version.Version)
 	statusBar := m.renderStatusBar()
 
 	var leftView, rightView string

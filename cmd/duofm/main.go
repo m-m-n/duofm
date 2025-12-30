@@ -8,17 +8,15 @@ import (
 	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/config"
 	"github.com/sakura/duofm/internal/ui"
+	"github.com/sakura/duofm/internal/version"
 )
-
-// version is set via ldflags at build time
-var version = "dev"
 
 func main() {
 	// Handle version flag
 	if len(os.Args) > 1 {
 		switch os.Args[1] {
 		case "-v", "-version", "--version":
-			fmt.Printf("duofm %s\n", version)
+			fmt.Printf("duofm %s\n", version.Version)
 			return
 		}
 	}
