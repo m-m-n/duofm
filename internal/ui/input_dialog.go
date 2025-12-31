@@ -9,26 +9,33 @@ import (
 
 // InputDialog はテキスト入力ダイアログ
 type InputDialog struct {
-	title     string               // ダイアログタイトル/プロンプト
-	input     string               // 現在の入力テキスト
-	cursorPos int                  // カーソル位置
-	active    bool                 // ダイアログがアクティブ
-	width     int                  // ダイアログの幅
-	onConfirm func(string) tea.Cmd // Enter時のコールバック
-	errorMsg  string               // バリデーションエラーメッセージ
+	title         string               // ダイアログタイトル/プロンプト
+	input         string               // 現在の入力テキスト
+	cursorPos     int                  // カーソル位置
+	active        bool                 // ダイアログがアクティブ
+	width         int                  // ダイアログの幅
+	onConfirm     func(string) tea.Cmd // Enter時のコールバック
+	errorMsg      string               // バリデーションエラーメッセージ
+	emptyErrorMsg string               // 空入力時のエラーメッセージ（カスタマイズ可能）
 }
 
 // NewInputDialog は新しい入力ダイアログを作成
 func NewInputDialog(title string, onConfirm func(string) tea.Cmd) *InputDialog {
 	return &InputDialog{
-		title:     title,
-		input:     "",
-		cursorPos: 0,
-		active:    true,
-		width:     50,
-		onConfirm: onConfirm,
-		errorMsg:  "",
+		title:         title,
+		input:         "",
+		cursorPos:     0,
+		active:        true,
+		width:         50,
+		onConfirm:     onConfirm,
+		errorMsg:      "",
+		emptyErrorMsg: "Input cannot be empty",
 	}
+}
+
+// SetEmptyErrorMsg sets a custom error message for empty input
+func (d *InputDialog) SetEmptyErrorMsg(msg string) {
+	d.emptyErrorMsg = msg
 }
 
 // Update はメッセージを処理
@@ -46,7 +53,7 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		case tea.KeyEnter:
 			// 空文字列チェック
 			if d.input == "" {
-				d.errorMsg = "File name cannot be empty"
+				d.errorMsg = d.emptyErrorMsg
 				return d, nil
 			}
 			d.active = false
