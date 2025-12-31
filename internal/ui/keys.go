@@ -53,4 +53,8 @@ const (
 
 	// Shell command
 	KeyShellCommand = "!" // Execute shell command
+
+	// Bookmarks
+	KeyBookmark    = "b" // Open bookmark manager
+	KeyAddBookmark = "B" // Add current directory to bookmarks (Shift+b)
 )

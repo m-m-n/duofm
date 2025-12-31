@@ -41,6 +41,9 @@ const (
 	// Application
 	ActionQuit
 	ActionEscape
+	// Bookmarks
+	ActionBookmark
+	ActionAddBookmark
 )
 
 // actionNames maps Action values to their string names.
@@ -74,6 +77,8 @@ var actionNames = map[Action]string{
 	ActionContextMenu:  "context_menu",
 	ActionQuit:         "quit",
 	ActionEscape:       "escape",
+	ActionBookmark:     "bookmark",
+	ActionAddBookmark:  "add_bookmark",
 }
 
 // nameToAction maps string names to Action values.
@@ -106,6 +111,8 @@ var nameToAction = map[string]Action{
 	"context_menu":  ActionContextMenu,
 	"quit":          ActionQuit,
 	"escape":        ActionEscape,
+	"bookmark":      ActionBookmark,
+	"add_bookmark":  ActionAddBookmark,
 }
 
 // String returns the string name of the action.
