@@ -20,7 +20,7 @@ func TestDisplayModeConstants(t *testing.T) {
 
 func TestPaneToggleDisplayMode(t *testing.T) {
 	// テスト用のペインを作成
-	pane, err := NewPane("/tmp", 100, 20, true, nil)
+	pane, err := NewPane(LeftPane, "/tmp", 100, 20, true, nil)
 	if err != nil {
 		t.Fatalf("Failed to create pane: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestPaneShouldUseMinimalMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pane, err := NewPane("/tmp", tt.width, 20, true, nil)
+			pane, err := NewPane(LeftPane, "/tmp", tt.width, 20, true, nil)
 			if err != nil {
 				t.Fatalf("Failed to create pane: %v", err)
 			}
@@ -121,7 +121,7 @@ func TestPaneGetEffectiveDisplayMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pane, err := NewPane("/tmp", tt.width, 20, true, nil)
+			pane, err := NewPane(LeftPane, "/tmp", tt.width, 20, true, nil)
 			if err != nil {
 				t.Fatalf("Failed to create pane: %v", err)
 			}
@@ -137,12 +137,12 @@ func TestPaneGetEffectiveDisplayMode(t *testing.T) {
 
 func TestPaneDisplayModeIndependence(t *testing.T) {
 	// 2つのペインを作成
-	leftPane, err := NewPane("/tmp", 100, 20, true, nil)
+	leftPane, err := NewPane(LeftPane, "/tmp", 100, 20, true, nil)
 	if err != nil {
 		t.Fatalf("Failed to create left pane: %v", err)
 	}
 
-	rightPane, err := NewPane("/tmp", 100, 20, false, nil)
+	rightPane, err := NewPane(LeftPane, "/tmp", 100, 20, false, nil)
 	if err != nil {
 		t.Fatalf("Failed to create right pane: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestPaneDisplayModeIndependence(t *testing.T) {
 }
 
 func TestPaneSetSizeWithDisplayMode(t *testing.T) {
-	pane, err := NewPane("/tmp", 100, 20, true, nil)
+	pane, err := NewPane(LeftPane, "/tmp", 100, 20, true, nil)
 	if err != nil {
 		t.Fatalf("Failed to create pane: %v", err)
 	}

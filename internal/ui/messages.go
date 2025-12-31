@@ -34,6 +34,7 @@ type directoryLoadStartMsg struct {
 
 // directoryLoadCompleteMsg はディレクトリ読み込み完了を通知
 type directoryLoadCompleteMsg struct {
+	paneID        PanePosition // どちらのペインの読み込みか
 	panePath      string
 	entries       []fs.FileEntry
 	err           error

@@ -44,7 +44,7 @@ func setupTestPane(t *testing.T) (*Pane, string) {
 		}
 	}
 
-	pane, err := NewPane(tmpDir, 80, 24, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 80, 24, true, nil)
 	if err != nil {
 		os.RemoveAll(tmpDir)
 		t.Fatalf("Failed to create pane: %v", err)

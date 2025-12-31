@@ -326,13 +326,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			paneHeight := msg.Height - 2 // ステータスバー分を引く
 
 			var err error
-			m.leftPane, err = NewPane(m.leftPath, paneWidth, paneHeight, true, m.theme)
+			m.leftPane, err = NewPane(LeftPane, m.leftPath, paneWidth, paneHeight, true, m.theme)
 			if err != nil {
 				// エラーハンドリングは Phase 3 で実装
 				return m, tea.Quit
 			}
 
-			m.rightPane, err = NewPane(m.rightPath, paneWidth, paneHeight, false, m.theme)
+			m.rightPane, err = NewPane(RightPane, m.rightPath, paneWidth, paneHeight, false, m.theme)
 			if err != nil {
 				return m, tea.Quit
 			}
@@ -374,10 +374,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case directoryLoadCompleteMsg:
 		// ディレクトリ読み込み完了
 		var targetPane *Pane
-		// どのペインの読み込みかを判定（pendingPathも確認）
-		if msg.panePath == m.leftPane.Path() || msg.panePath == m.leftPane.pendingPath {
+		// paneIDに基づいて対象ペインを決定（パスではなく明示的な識別子を使用）
+		if msg.paneID == LeftPane {
 			targetPane = m.leftPane
-		} else if msg.panePath == m.rightPane.Path() || msg.panePath == m.rightPane.pendingPath {
+		} else if msg.paneID == RightPane {
 			targetPane = m.rightPane
 		}
 
