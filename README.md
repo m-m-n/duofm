@@ -6,31 +6,37 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 
 ### Core
 - **Dual-pane interface**: Navigate two directories side-by-side
-- **Vim-style keybindings**: Familiar hjkl navigation
+- **Vim-style keybindings**: Familiar hjkl navigation with arrow key support
 - **File operations**: Copy, move, delete, rename files and directories
 - **Multi-file marking**: Select multiple files with Space for batch operations
 - **Symbolic link support**: Display targets, detect broken links
+- **Overwrite handling**: Skip, overwrite, or rename on conflict
 
 ### Navigation
 - **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search
 - **Hidden files**: Toggle visibility with `Ctrl+H`
 - **Quick navigation**: Home (`~`), previous directory (`-`), sync panes (`=`)
-- **Sort options**: By name, size, or date (ascending/descending)
+- **Sort options**: By name, size, or date with live preview
+- **Bookmarks**: Save and jump to frequently used directories (`b`/`B`)
+- **Smart cursor**: Remember position when navigating to parent directory
 
 ### Display
 - **Three display modes**: Minimal, Basic (size+date), Detail (permissions+owner)
+- **Unicode support**: Proper display for Japanese, Chinese, Korean and emoji
 - **Context menu**: Press `@` for visual action selection
-- **Help system**: Press `?` for scrollable keybinding reference
+- **Help system**: Press `?` for scrollable keybinding reference with color palette
 
 ### Integration
 - **External viewer**: Open files with $PAGER (`v` key)
 - **External editor**: Edit files with $EDITOR (`e` key)
 - **Shell commands**: Execute commands with `!` key
+- **Working directory**: External apps open in file's directory
 
 ### Customization
-- **Configuration file**: `~/.config/duofm/config.toml`
-- **Custom keybindings**: Remap any key in config
-- **Color theme**: Full 256-color customization
+- **Configuration file**: `~/.config/duofm/config.toml` (auto-generated)
+- **Custom keybindings**: Remap any key with modifier support (Ctrl, Shift, Alt)
+- **Color theme**: Full 256-color customization for all UI elements
+- **Bookmarks**: Persisted in configuration file
 
 ## Screenshots
 
