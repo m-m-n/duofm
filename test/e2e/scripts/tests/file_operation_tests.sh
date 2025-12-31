@@ -3,7 +3,7 @@
 #
 # Description: Tests for file operations including create, delete, rename,
 #              and their interactions with navigation
-# Tests: 11
+# Tests: 13
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../helpers.sh"
@@ -456,6 +456,108 @@ test_rename_parent_dir_ignored() {
     stop_duofm "$CURRENT_SESSION"
 }
 
+# ===========================================
+# Test: Delete confirmation - Enter key is ignored
+# ===========================================
+test_delete_confirmation_enter_ignored() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to user_owned directory
+    send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Create a test file
+    touch /testdata/user_owned/test_enter_delete.txt
+    send_keys "$CURRENT_SESSION" "F5"
+    sleep 0.5
+
+    # Navigate to the file
+    send_keys "$CURRENT_SESSION" "/" "t" "e" "s" "t" "_" "e" "n" "t" "e" "r" "_" "d" "e" "l" "e" "t" "e" "Enter"
+    sleep 0.3
+
+    # Press d to delete
+    send_keys "$CURRENT_SESSION" "d"
+    sleep 0.3
+
+    # Confirm dialog appears
+    assert_contains "$CURRENT_SESSION" "Delete" \
+        "Delete confirmation dialog appears"
+
+    # Press Enter (should be ignored, dialog stays open)
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # File should still exist and dialog should still be visible
+    assert_contains "$CURRENT_SESSION" "Delete" \
+        "Delete dialog still open after Enter key"
+
+    if [ -f /testdata/user_owned/test_enter_delete.txt ]; then
+        echo -e "${GREEN}✓${NC} Delete confirmation - Enter key is ignored (file still exists)"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Enter key should not delete file"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    # Cancel the dialog with n
+    send_keys "$CURRENT_SESSION" "n"
+    sleep 0.3
+
+    # Cleanup
+    rm -f /testdata/user_owned/test_enter_delete.txt
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Delete confirmation - Y key confirms deletion
+# ===========================================
+test_delete_confirmation_y_key_works() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to user_owned directory
+    send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Create a test file
+    touch /testdata/user_owned/test_y_delete.txt
+    send_keys "$CURRENT_SESSION" "F5"
+    sleep 0.5
+
+    # Navigate to the file
+    send_keys "$CURRENT_SESSION" "/" "t" "e" "s" "t" "_" "y" "_" "d" "e" "l" "e" "t" "e" "Enter"
+    sleep 0.3
+
+    # Press d to delete
+    send_keys "$CURRENT_SESSION" "d"
+    sleep 0.3
+
+    # Confirm deletion with y
+    send_keys "$CURRENT_SESSION" "y"
+    sleep 0.5
+
+    # File should be deleted
+    if [ ! -f /testdata/user_owned/test_y_delete.txt ]; then
+        echo -e "${GREEN}✓${NC} Delete confirmation - Y key confirms deletion (file deleted)"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Y key should delete file"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        # Cleanup
+        rm -f /testdata/user_owned/test_y_delete.txt
+    fi
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
 # Execute tests when run directly
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo "========================================"
@@ -473,6 +575,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     run_test test_navigation_after_dir_creation
     run_test test_navigation_after_rename
     run_test test_rename_parent_dir_ignored
+    run_test test_delete_confirmation_enter_ignored
+    run_test test_delete_confirmation_y_key_works
 
     print_summary
     exit $?

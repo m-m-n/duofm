@@ -51,6 +51,23 @@ func TestConfirmDialog(t *testing.T) {
 		}
 	})
 
+	t.Run("Enterキーは無視される", func(t *testing.T) {
+		dialog := NewConfirmDialog("Test", "Message")
+
+		keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+		updatedDialog, cmd := dialog.Update(keyMsg)
+
+		// Enterキーではダイアログは閉じない
+		if !updatedDialog.IsActive() {
+			t.Error("Dialog should remain active after Enter key")
+		}
+
+		// Enterキーではコマンドは返されない
+		if cmd != nil {
+			t.Error("Dialog should not return command after Enter key")
+		}
+	})
+
 	t.Run("nキーでキャンセル", func(t *testing.T) {
 		dialog := NewConfirmDialog("Test", "Message")
 
@@ -63,6 +80,34 @@ func TestConfirmDialog(t *testing.T) {
 
 		if cmd == nil {
 			t.Error("Dialog should return command after 'n' key")
+		}
+
+		// コマンドを実行して結果を確認
+		if cmd != nil {
+			msg := cmd()
+			if result, ok := msg.(dialogResultMsg); ok {
+				if result.result.Confirmed {
+					t.Error("Result should not be confirmed")
+				}
+				if !result.result.Cancelled {
+					t.Error("Result should be cancelled")
+				}
+			}
+		}
+	})
+
+	t.Run("Escキーでキャンセル", func(t *testing.T) {
+		dialog := NewConfirmDialog("Test", "Message")
+
+		keyMsg := tea.KeyMsg{Type: tea.KeyEsc}
+		updatedDialog, cmd := dialog.Update(keyMsg)
+
+		if updatedDialog.IsActive() {
+			t.Error("Dialog should be inactive after Esc key")
+		}
+
+		if cmd == nil {
+			t.Error("Dialog should return command after Esc key")
 		}
 
 		// コマンドを実行して結果を確認
@@ -94,6 +139,26 @@ func TestConfirmDialog(t *testing.T) {
 
 		if !strings.Contains(view, "Test Message") {
 			t.Error("View() should contain message")
+		}
+	})
+
+	t.Run("ボタンヒントにEnterが含まれない", func(t *testing.T) {
+		dialog := NewConfirmDialog("Delete", "Are you sure?")
+
+		view := dialog.View()
+
+		// [y] Yes と [n] No が含まれることを確認
+		if !strings.Contains(view, "[y] Yes") {
+			t.Error("View() should contain '[y] Yes'")
+		}
+
+		if !strings.Contains(view, "[n] No") {
+			t.Error("View() should contain '[n] No'")
+		}
+
+		// Enterに関する記述が含まれないことを確認
+		if strings.Contains(view, "Enter") {
+			t.Error("View() should NOT contain 'Enter' in button hints")
 		}
 	})
 }
