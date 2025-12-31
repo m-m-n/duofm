@@ -32,7 +32,7 @@ func (d *ConfirmDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "y", "enter":
+		case "y":
 			d.active = false
 			return d, func() tea.Msg {
 				return dialogResultMsg{
