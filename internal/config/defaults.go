@@ -45,6 +45,10 @@ func DefaultKeybindings() map[string][]string {
 		// Application
 		"quit":   {"Q"},
 		"escape": {"Esc"},
+
+		// Bookmarks
+		"bookmark":     {"B"},
+		"add_bookmark": {"Shift+B"},
 	}
 }
 
@@ -79,5 +83,7 @@ func AllActions() []string {
 		"context_menu",
 		"quit",
 		"escape",
+		"bookmark",
+		"add_bookmark",
 	}
 }
