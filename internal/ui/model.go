@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+	"github.com/sakura/duofm/internal/config"
 	"github.com/sakura/duofm/internal/fs"
 	"github.com/sakura/duofm/internal/version"
 )
@@ -39,21 +40,23 @@ type Model struct {
 	width              int
 	height             int
 	ready              bool
-	lastDiskSpaceCheck time.Time       // 最後のディスク容量チェック時刻
-	leftDiskSpace      uint64          // 左ペインのディスク空き容量
-	rightDiskSpace     uint64          // 右ペインのディスク空き容量
-	pendingAction      func() error    // 確認待ちのアクション（コンテキストメニューの削除用）
-	statusMessage      string          // ステータスバーに表示するメッセージ
-	isStatusError      bool            // エラーメッセージかどうか
-	searchState        SearchState     // 検索状態
-	minibuffer         *Minibuffer     // ミニバッファ
-	ctrlCPending       bool            // Ctrl+Cが1回押された状態かどうか
-	batchOp            *BatchOperation // Active batch operation (nil if none)
-	sortDialog         *SortDialog     // ソートダイアログ（nil = 非表示）
-	shellCommandMode   bool            // シェルコマンドモードかどうか
-	keybindingMap      *KeybindingMap  // キーバインドマップ
-	configWarnings     []string        // 設定ファイルの警告
-	theme              *Theme          // カラーテーマ
+	lastDiskSpaceCheck time.Time         // 最後のディスク容量チェック時刻
+	leftDiskSpace      uint64            // 左ペインのディスク空き容量
+	rightDiskSpace     uint64            // 右ペインのディスク空き容量
+	pendingAction      func() error      // 確認待ちのアクション（コンテキストメニューの削除用）
+	statusMessage      string            // ステータスバーに表示するメッセージ
+	isStatusError      bool              // エラーメッセージかどうか
+	searchState        SearchState       // 検索状態
+	minibuffer         *Minibuffer       // ミニバッファ
+	ctrlCPending       bool              // Ctrl+Cが1回押された状態かどうか
+	batchOp            *BatchOperation   // Active batch operation (nil if none)
+	sortDialog         *SortDialog       // ソートダイアログ（nil = 非表示）
+	shellCommandMode   bool              // シェルコマンドモードかどうか
+	keybindingMap      *KeybindingMap    // キーバインドマップ
+	configWarnings     []string          // 設定ファイルの警告
+	theme              *Theme            // カラーテーマ
+	bookmarks          []config.Bookmark // ブックマークリスト
+	bookmarkEditIndex  int               // 編集中のブックマークインデックス
 }
 
 // PanePosition はペインの位置を表す
@@ -94,19 +97,32 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		theme = DefaultTheme()
 	}
 
+	// ブックマークを読み込み
+	var bookmarks []config.Bookmark
+	configPath, configErr := config.GetConfigPath()
+	if configErr != nil {
+		warnings = append(warnings, fmt.Sprintf("Warning: failed to get config path: %v", configErr))
+	} else {
+		var bookmarkWarnings []string
+		bookmarks, bookmarkWarnings = config.LoadBookmarks(configPath)
+		warnings = append(warnings, bookmarkWarnings...)
+	}
+
 	return Model{
-		leftPane:       nil, // Updateで初期化
-		rightPane:      nil, // Updateで初期化
-		leftPath:       cwd,
-		rightPath:      home,
-		activePane:     LeftPane,
-		dialog:         nil,
-		ready:          false,
-		searchState:    SearchState{Mode: SearchModeNone},
-		minibuffer:     NewMinibuffer(),
-		keybindingMap:  keybindingMap,
-		configWarnings: warnings,
-		theme:          theme,
+		leftPane:          nil, // Updateで初期化
+		rightPane:         nil, // Updateで初期化
+		leftPath:          cwd,
+		rightPath:         home,
+		activePane:        LeftPane,
+		dialog:            nil,
+		ready:             false,
+		searchState:       SearchState{Mode: SearchModeNone},
+		minibuffer:        NewMinibuffer(),
+		keybindingMap:     keybindingMap,
+		configWarnings:    warnings,
+		theme:             theme,
+		bookmarks:         bookmarks,
+		bookmarkEditIndex: -1,
 	}
 }
 
@@ -313,6 +329,87 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		return m, nil
+	}
+
+	// ブックマークダイアログの結果処理
+	if result, ok := msg.(bookmarkJumpMsg); ok {
+		m.dialog = nil
+		// アクティブペインをブックマーク先に移動
+		cmd := m.getActivePane().ChangeDirectoryAsync(result.path)
+		return m, cmd
+	}
+
+	if result, ok := msg.(bookmarkDeleteMsg); ok {
+		m.dialog = nil
+		// ブックマークを削除
+		newBookmarks, err := config.RemoveBookmark(m.bookmarks, result.index)
+		if err != nil {
+			m.statusMessage = fmt.Sprintf("Failed to remove bookmark: %v", err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+		// 設定ファイルに保存
+		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
+			m.statusMessage = saveErr.Error()
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+		m.bookmarks = newBookmarks
+		m.statusMessage = "Bookmark removed"
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
+	}
+
+	if result, ok := msg.(bookmarkEditMsg); ok {
+		m.dialog = nil
+		// 編集用のInputDialogを表示
+		m.bookmarkEditIndex = result.index
+		currentBookmarks := m.bookmarks
+		editIndex := result.index
+		dialog := NewInputDialog("Edit bookmark name:", func(newAlias string) tea.Cmd {
+			return m.handleBookmarkEdit(currentBookmarks, editIndex, newAlias)
+		})
+		dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
+		dialog.input = result.bookmark.Name
+		dialog.cursorPos = len(result.bookmark.Name)
+		m.dialog = dialog
+		return m, nil
+	}
+
+	if _, ok := msg.(bookmarkCloseMsg); ok {
+		m.dialog = nil
+		return m, nil
+	}
+
+	// ブックマーク追加完了
+	if result, ok := msg.(bookmarkAddedMsg); ok {
+		m.dialog = nil
+		m.bookmarks = result.bookmarks
+		m.statusMessage = fmt.Sprintf("Bookmarked: %s", result.alias)
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
+	}
+
+	// ブックマーク編集完了
+	if result, ok := msg.(bookmarkEditedMsg); ok {
+		m.dialog = nil
+		m.bookmarks = result.bookmarks
+		m.bookmarkEditIndex = -1
+		m.statusMessage = fmt.Sprintf("Bookmark updated: %s", result.alias)
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
+	}
+
+	// ステータスメッセージ処理
+	if result, ok := msg.(showStatusMsg); ok {
+		m.dialog = nil
+		m.statusMessage = result.message
+		m.isStatusError = result.isError
+		duration := 3 * time.Second
+		if result.isError {
+			duration = 5 * time.Second
+		}
+		return m, statusMessageClearCmd(duration)
 	}
 
 	switch msg := msg.(type) {
@@ -868,6 +965,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case ActionSort:
 			// ソートダイアログを表示
 			m.sortDialog = NewSortDialog(m.getActivePane().GetSortConfig())
+			return m, nil
+
+		case ActionBookmark:
+			// ブックマーク管理ダイアログを表示
+			m.dialog = NewBookmarkDialog(m.bookmarks)
+			return m, nil
+
+		case ActionAddBookmark:
+			// 現在のディレクトリをブックマークに追加
+			currentPath := m.getActivePane().Path()
+
+			// 既にブックマークされているかチェック
+			if config.IsPathBookmarked(m.bookmarks, currentPath) {
+				m.statusMessage = "Already bookmarked"
+				m.isStatusError = false
+				return m, statusMessageClearCmd(3 * time.Second)
+			}
+
+			// デフォルトエイリアスを設定したInputDialogを表示
+			defaultAlias := config.DefaultAliasFromPath(currentPath)
+			currentBookmarks := m.bookmarks
+			dialog := NewInputDialog("Bookmark name:", func(alias string) tea.Cmd {
+				return m.handleAddBookmark(currentBookmarks, currentPath, alias)
+			})
+			dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
+			dialog.input = defaultAlias
+			dialog.cursorPos = len(defaultAlias)
+			m.dialog = dialog
 			return m, nil
 		}
 	}
@@ -1640,4 +1765,82 @@ func (m *Model) cancelBatchOperation() {
 type batchOperationCompleteMsg struct {
 	operation string
 	count     int
+}
+
+// handleAddBookmark はブックマーク追加処理
+func (m *Model) handleAddBookmark(currentBookmarks []config.Bookmark, path, alias string) tea.Cmd {
+	return func() tea.Msg {
+		newBookmarks, err := config.AddBookmark(currentBookmarks, alias, path)
+		if err != nil {
+			if err == config.ErrEmptyAlias {
+				return showStatusMsg{message: "Bookmark name cannot be empty", isError: true}
+			}
+			if err == config.ErrDuplicatePath {
+				return showStatusMsg{message: "Already bookmarked", isError: false}
+			}
+			return showStatusMsg{message: fmt.Sprintf("Failed to add bookmark: %v", err), isError: true}
+		}
+
+		// 設定ファイルに保存
+		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
+			return showStatusMsg{message: saveErr.Error(), isError: true}
+		}
+
+		return bookmarkAddedMsg{bookmarks: newBookmarks, alias: alias}
+	}
+}
+
+// handleBookmarkEdit はブックマーク編集処理
+func (m *Model) handleBookmarkEdit(currentBookmarks []config.Bookmark, index int, newAlias string) tea.Cmd {
+	return func() tea.Msg {
+		if index < 0 || index >= len(currentBookmarks) {
+			return showStatusMsg{message: "Invalid bookmark index", isError: true}
+		}
+
+		newBookmarks, err := config.UpdateBookmarkAlias(currentBookmarks, index, newAlias)
+		if err != nil {
+			if err == config.ErrEmptyAlias {
+				return showStatusMsg{message: "Bookmark name cannot be empty", isError: true}
+			}
+			return showStatusMsg{message: fmt.Sprintf("Failed to edit bookmark: %v", err), isError: true}
+		}
+
+		// 設定ファイルに保存
+		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
+			return showStatusMsg{message: saveErr.Error(), isError: true}
+		}
+
+		return bookmarkEditedMsg{bookmarks: newBookmarks, alias: newAlias}
+	}
+}
+
+// saveBookmarksToConfig saves bookmarks to the configuration file.
+// Returns an error with a user-friendly message if saving fails.
+func saveBookmarksToConfig(bookmarks []config.Bookmark) error {
+	configPath, err := config.GetConfigPath()
+	if err != nil {
+		return fmt.Errorf("failed to get config path: %w", err)
+	}
+	if err := config.SaveBookmarks(configPath, bookmarks); err != nil {
+		return fmt.Errorf("failed to save bookmarks: %w", err)
+	}
+	return nil
+}
+
+// showStatusMsg is a message to show a status message
+type showStatusMsg struct {
+	message string
+	isError bool
+}
+
+// bookmarkAddedMsg is sent when a bookmark is successfully added
+type bookmarkAddedMsg struct {
+	bookmarks []config.Bookmark
+	alias     string
+}
+
+// bookmarkEditedMsg is sent when a bookmark is successfully edited
+type bookmarkEditedMsg struct {
+	bookmarks []config.Bookmark
+	alias     string
 }
