@@ -25,6 +25,7 @@ graph TB
         ConfigLoader[Config Loader]
         Keybindings[Keybindings]
         Colors[Color Theme]
+        Bookmarks[Bookmarks]
     end
 
     Model --> Pane
@@ -36,6 +37,7 @@ graph TB
     Model --> ConfigLoader
     ConfigLoader --> Keybindings
     ConfigLoader --> Colors
+    ConfigLoader --> Bookmarks
 ```
 
 ## Features
@@ -54,28 +56,38 @@ graph TB
 - Arrow key support
 - Enter to open directories
 - Parent directory navigation with `..`
+- Cursor position remembered when navigating to parent directory
 
 #### Path Display
 - Absolute path shown at top of each pane
 - Home directory abbreviated as `~`
 - Symbolic link targets displayed
+- Broken symlinks indicated
 
 ### File Operations
 
 #### Basic Operations
 - **Copy (C)**: Copy selected file(s) to opposite pane
 - **Move (M)**: Move selected file(s) to opposite pane
-- **Delete (D)**: Delete with confirmation dialog
+- **Delete (D)**: Delete with confirmation dialog (requires `y` key to confirm)
 - **Rename (R)**: Rename selected file
+
+#### Overwrite Handling
+- Conflict detection when copying/moving files
+- Options: Skip, Overwrite, Rename
+- Per-file confirmation for batch operations
 
 #### File Creation
 - **New File (N)**: Create new file
 - **New Directory (Shift+N)**: Create new directory
+- Cursor moves to newly created file after creation
 
 #### Multi-file Operations
 - Mark files with Space key
 - Batch copy/move/delete on marked files
 - Header shows marked count and total size
+- Visual highlighting for marked files (different colors for active/inactive panes)
+- Marks cleared on directory change
 
 ### Display Modes
 
@@ -93,6 +105,12 @@ Three display modes toggled with `I` key:
 - Name + Permissions + Owner + Group
 - Unix-style permission display (rwxrwxrwx)
 
+### Unicode Support
+
+- Proper display width calculation for multibyte characters (Japanese, Chinese, Korean, emoji)
+- Correct file name truncation using rune-based slicing
+- East Asian Width configuration for ambiguous characters
+
 ### Search and Filter
 
 #### Incremental Search (/)
@@ -109,17 +127,20 @@ Three display modes toggled with `I` key:
 
 #### File Viewer (V)
 - Opens file with $PAGER (default: less)
-- Screen suspends during viewing
+- Working directory set to file's directory
+- Cursor position preserved after exit
 
 #### File Editor (E)
 - Opens file with $EDITOR (default: vim)
 - Working directory set to file's directory
 - Both panes reload after exit
+- Cursor position preserved after exit
 
 #### Shell Command (!)
 - Execute arbitrary shell commands
 - Working directory: active pane's directory
 - "Press Enter to continue" after execution
+- Both panes reload after exit
 
 ### Configuration
 
@@ -127,16 +148,19 @@ Three display modes toggled with `I` key:
 - Location: `~/.config/duofm/config.toml`
 - Respects `XDG_CONFIG_HOME` environment variable
 - Auto-generated with defaults on first run
+- Changes require application restart
 
 #### Keybindings
 - All keys customizable via `[keybindings]` section
 - Multiple keys per action supported
 - Actions can be disabled with empty array
+- Modifier key support (Ctrl, Shift, Alt)
 
 #### Color Theme
 - ANSI 256-color codes (0-255)
 - All UI elements customizable via `[colors]` section
 - Cursor, marks, file types, dialogs, status bar
+- Help dialog includes color palette reference
 
 ### Navigation Features
 
@@ -153,9 +177,19 @@ Three display modes toggled with `I` key:
 
 #### Pane Synchronization (=)
 - Sync opposite pane to current directory
+- Preserves display settings (hidden files, sort order)
 
 #### Refresh (F5 / Ctrl+R)
 - Reload current directory
+- Preserves cursor position and marks
+
+#### Bookmarks
+- **Add Bookmark (Shift+B)**: Add current directory to bookmarks
+- **Bookmark Manager (B)**: Open bookmark list dialog
+- Jump to bookmarked directories
+- Edit and delete bookmarks
+- Warning indicator for non-existent paths
+- Bookmarks persisted in configuration file
 
 ### Sort Options
 
@@ -170,6 +204,9 @@ Toggle with `S` key:
 - Ascending/Descending order
 - Directories always listed before files
 - Parent directory (..) always at top
+- Live preview while selecting sort options
+- Cursor position preserved after sort change
+- Independent sort settings per pane
 
 ### Context Menu
 
@@ -178,6 +215,7 @@ Press `@` to show context menu with:
 - Move to other pane
 - Delete
 - Symlink-specific options (logical/physical path)
+- Supports marked files for batch operations
 
 ### Help System
 
@@ -185,7 +223,19 @@ Press `?` for help dialog with:
 - Complete keybinding reference
 - Grouped by category
 - Scrollable with j/k, Space/Shift+Space
-- Color palette reference (256 colors)
+- Color palette reference (256 colors with hex values)
+
+### Error Handling
+
+- Permission denied directories display error message
+- Graceful handling of inaccessible directories
+- Error dialogs for operation failures
+- Status bar messages for warnings
+
+### Version Display
+
+- Dynamic version from build-time ldflags
+- Displayed in toolbar and `--version` CLI option
 
 ## Keyboard Shortcuts
 
@@ -212,6 +262,12 @@ Press `?` for help dialog with:
 | N | New file |
 | Shift+N | New directory |
 | Space | Mark/unmark file |
+
+### Bookmarks
+| Key | Action |
+|-----|--------|
+| B | Open bookmark manager |
+| Shift+B | Add current directory to bookmarks |
 
 ### Display
 | Key | Action |
@@ -240,6 +296,7 @@ Press `?` for help dialog with:
 | ? | Show help |
 | Q | Quit |
 | Esc | Cancel / Close dialog |
+| Ctrl+C | Quit / Cancel operation |
 
 ## Configuration Format
 
@@ -253,6 +310,8 @@ copy = ["C"]
 delete = ["D"]
 help = ["?"]
 quit = ["Q"]
+bookmark = ["B"]
+add_bookmark = ["Shift+B"]
 ```
 
 ### Colors Section
@@ -267,6 +326,12 @@ cursor_bg_inactive = 240
 # Marks
 mark_fg = 0
 mark_bg = 136
+mark_bg_inactive = 94
+
+# Cursor + Mark
+cursor_mark_fg = 15
+cursor_mark_bg = 30
+cursor_mark_bg_inactive = 23
 
 # File types
 directory_fg = 39
@@ -276,6 +341,20 @@ executable_fg = 9
 # Dialog
 dialog_title_fg = 39
 dialog_border_fg = 39
+dialog_selected_fg = 0
+dialog_selected_bg = 39
+```
+
+### Bookmarks Section
+
+```toml
+[[bookmarks]]
+name = "Projects"
+path = "/path/to/projects"
+
+[[bookmarks]]
+name = "Downloads"
+path = "/path/to/Downloads"
 ```
 
 ## Technical Requirements
@@ -290,3 +369,4 @@ dialog_border_fg = 39
 - github.com/charmbracelet/bubbletea - TUI framework
 - github.com/charmbracelet/lipgloss - Styling
 - github.com/BurntSushi/toml - Configuration parsing
+- github.com/mattn/go-runewidth - Unicode display width
