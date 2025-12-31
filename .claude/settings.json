@@ -10,6 +10,7 @@
       "Bash(timeout:*)",
       "Bash(docker:*)",
       "Bash(codex exec:*)",
+      "Bash(test:*)",
       "Bash(wc:*)",
       "Bash(make:*)",
       "Bash(mkdir:*)",
