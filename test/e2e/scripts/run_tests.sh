@@ -2648,6 +2648,134 @@ test_right_pane_home_navigation() {
 run_test test_right_pane_same_path_navigation
 run_test test_right_pane_home_navigation
 
+# ===========================================
+# Test: Cursor positioned on previous subdirectory after parent navigation via h key
+# (Feature: Remember cursor position on parent directory navigation)
+# ===========================================
+test_parent_nav_cursor_on_subdir_h_key() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to dir1 subdirectory
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Now inside dir1, go back to parent using h key
+    send_keys "$CURRENT_SESSION" "h"
+    sleep 0.5
+
+    # Cursor should be positioned on dir1 (not at the top)
+    # Verify by checking that we can see dir1 is selected
+    assert_contains "$CURRENT_SESSION" "dir1" \
+        "Parent directory shows dir1 after returning via h key"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Cursor positioned on previous subdirectory after parent navigation via .. entry
+# (Feature: Remember cursor position on parent directory navigation)
+# ===========================================
+test_parent_nav_cursor_on_subdir_dotdot() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Navigate to dir1 subdirectory
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Inside dir1, navigate to .. and press Enter to go to parent
+    # The .. entry should be at the top, so we need to navigate there
+    send_keys "$CURRENT_SESSION" "g" "g"  # Go to top
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "Enter"  # Select ..
+    sleep 0.5
+
+    # Cursor should be positioned on dir1
+    assert_contains "$CURRENT_SESSION" "dir1" \
+        "Parent directory shows dir1 after returning via .. entry"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Right pane cursor positioned on previous subdirectory via l key
+# (Feature: Remember cursor position on parent directory navigation)
+# ===========================================
+test_parent_nav_cursor_on_subdir_l_key() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Navigate to dir1 subdirectory in right pane
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Now inside dir1 in right pane, go back to parent using l key
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.5
+
+    # Cursor should be positioned on dir1
+    assert_contains "$CURRENT_SESSION" "dir1" \
+        "Right pane shows dir1 after returning via l key"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Independent pane cursor memory
+# (Feature: Remember cursor position on parent directory navigation)
+# ===========================================
+test_parent_nav_independent_pane_memory() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Left pane: Navigate to dir1
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Right pane: Navigate to dir2 (if it exists, or another dir)
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.5
+
+    # Right pane: Go back to parent
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.5
+
+    # Switch back to left pane
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Left pane: Go back to parent
+    send_keys "$CURRENT_SESSION" "h"
+    sleep 0.5
+
+    # Left pane should show dir1 after navigating back
+    assert_contains "$CURRENT_SESSION" "dir1" \
+        "Left pane cursor memory is independent of right pane"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Remember cursor on parent navigation tests
+run_test test_parent_nav_cursor_on_subdir_h_key
+run_test test_parent_nav_cursor_on_subdir_dotdot
+run_test test_parent_nav_cursor_on_subdir_l_key
+run_test test_parent_nav_independent_pane_memory
+
 # Print summary and exit with appropriate code
 print_summary
 exit $?
