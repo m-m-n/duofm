@@ -388,6 +388,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.err != nil {
 				// エラー時: パスを復元してステータスバーにメッセージ表示
 				targetPane.restorePreviousPath()
+				targetPane.pendingCursorTarget = "" // エラー時はカーソル記憶をクリア
 				m.statusMessage = formatDirectoryError(msg.err, msg.attemptedPath)
 				m.isStatusError = true
 				return m, statusMessageClearCmd(5 * time.Second)
@@ -404,8 +405,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			targetPane.entries = entries
 			targetPane.filterPattern = ""
 			targetPane.filterMode = SearchModeNone
-			targetPane.cursor = 0
+
+			// 親ディレクトリ遷移時のカーソル位置決定
+			if targetPane.pendingCursorTarget != "" {
+				if index := targetPane.findEntryIndex(targetPane.pendingCursorTarget); index >= 0 {
+					targetPane.cursor = index
+				} else {
+					targetPane.cursor = 0
+				}
+				targetPane.pendingCursorTarget = "" // 使用後にクリア
+			} else {
+				targetPane.cursor = 0
+			}
+
 			targetPane.scrollOffset = 0
+			targetPane.adjustScroll() // カーソルが見える位置にスクロール調整
 			targetPane.pendingPath = ""
 
 			// ディスク容量を更新

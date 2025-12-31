@@ -39,26 +39,27 @@ type MarkInfo struct {
 
 // Pane は1つのファイルリストペインを表現
 type Pane struct {
-	paneID          PanePosition // このペインの識別子（LeftPane or RightPane）
-	path            string
-	entries         []fs.FileEntry // フィルタ適用後の表示用エントリ
-	allEntries      []fs.FileEntry // フィルタ適用前のすべてのエントリ
-	cursor          int
-	scrollOffset    int
-	width           int
-	height          int
-	isActive        bool
-	displayMode     DisplayMode     // ユーザーが選択した表示モード
-	loading         bool            // ローディング中フラグ
-	loadingProgress string          // ローディングメッセージ
-	showHidden      bool            // 隠しファイル表示フラグ（デフォルト: false）
-	previousPath    string          // 直前のディレクトリパス（履歴なしの場合は空文字列）
-	pendingPath     string          // 読み込み中の暫定パス（エラー時に元に戻す）
-	filterPattern   string          // 現在のフィルタパターン（空の場合はフィルタなし）
-	filterMode      SearchMode      // 現在のフィルタモード
-	markedFiles     map[string]bool // key: filename, value: marked state
-	sortConfig      SortConfig      // ソート設定
-	theme           *Theme          // カラーテーマ
+	paneID              PanePosition // このペインの識別子（LeftPane or RightPane）
+	path                string
+	entries             []fs.FileEntry // フィルタ適用後の表示用エントリ
+	allEntries          []fs.FileEntry // フィルタ適用前のすべてのエントリ
+	cursor              int
+	scrollOffset        int
+	width               int
+	height              int
+	isActive            bool
+	displayMode         DisplayMode     // ユーザーが選択した表示モード
+	loading             bool            // ローディング中フラグ
+	loadingProgress     string          // ローディングメッセージ
+	showHidden          bool            // 隠しファイル表示フラグ（デフォルト: false）
+	previousPath        string          // 直前のディレクトリパス（履歴なしの場合は空文字列）
+	pendingPath         string          // 読み込み中の暫定パス（エラー時に元に戻す）
+	filterPattern       string          // 現在のフィルタパターン（空の場合はフィルタなし）
+	filterMode          SearchMode      // 現在のフィルタモード
+	markedFiles         map[string]bool // key: filename, value: marked state
+	sortConfig          SortConfig      // ソート設定
+	theme               *Theme          // カラーテーマ
+	pendingCursorTarget string          // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
 }
 
 // NewPane は新しいペインを作成
@@ -263,6 +264,8 @@ func (p *Pane) restorePreviousPath() {
 }
 
 // EnterDirectoryAsync はディレクトリへの移動を開始し、Cmdを返す
+// 親ディレクトリ(..)に入る場合は、読み込み完了後に直前のサブディレクトリに
+// カーソルを合わせるため、pendingCursorTarget にサブディレクトリ名を保存する
 func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 	entry := p.SelectedEntry()
 	if entry == nil {
@@ -291,10 +294,12 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 
 	var newPath string
 	if entry.IsParentDir() {
-		// 親ディレクトリに移動
+		// 親ディレクトリに移動 - サブディレクトリ名を記憶
+		p.pendingCursorTarget = p.extractSubdirName()
 		newPath = filepath.Dir(p.path)
 	} else {
-		// サブディレクトリに移動（シンボリックリンク含む）
+		// サブディレクトリに移動（シンボリックリンク含む）- カーソル記憶をクリア
+		p.pendingCursorTarget = ""
 		newPath = filepath.Join(p.path, entry.Name)
 	}
 
@@ -310,6 +315,7 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 }
 
 // EnterDirectory はディレクトリに入る
+// 親ディレクトリ(..)に入る場合は、直前にいたサブディレクトリにカーソルを合わせる
 func (p *Pane) EnterDirectory() error {
 	entry := p.SelectedEntry()
 	if entry == nil {
@@ -343,8 +349,11 @@ func (p *Pane) EnterDirectory() error {
 	}
 
 	var newPath string
+	var subdirName string // 親ディレクトリ遷移時のカーソル位置決定用
+
 	if entry.IsParentDir() {
-		// 親ディレクトリに移動
+		// 親ディレクトリに移動 - サブディレクトリ名を記憶
+		subdirName = p.extractSubdirName()
 		newPath = filepath.Dir(p.path)
 	} else {
 		// サブディレクトリに移動
@@ -354,25 +363,60 @@ func (p *Pane) EnterDirectory() error {
 	// 直前のパスを記録
 	p.recordPreviousPath()
 	p.path = newPath
-	return p.LoadDirectory()
+
+	if err := p.LoadDirectory(); err != nil {
+		return err
+	}
+
+	// 親ディレクトリ遷移の場合、直前のサブディレクトリにカーソルを合わせる
+	if subdirName != "" {
+		if index := p.findEntryIndex(subdirName); index >= 0 {
+			p.cursor = index
+			p.adjustScroll()
+		}
+	}
+
+	return nil
 }
 
 // MoveToParent は親ディレクトリに移動
+// 移動後、直前にいたサブディレクトリにカーソルを合わせる
 func (p *Pane) MoveToParent() error {
 	if p.path == "/" {
 		return nil // ルートより上には行けない
 	}
 
+	// 親ディレクトリ遷移前にサブディレクトリ名を記憶
+	subdirName := p.extractSubdirName()
+
 	p.recordPreviousPath()
 	p.path = filepath.Dir(p.path)
-	return p.LoadDirectory()
+
+	if err := p.LoadDirectory(); err != nil {
+		return err
+	}
+
+	// 直前のサブディレクトリにカーソルを合わせる
+	if index := p.findEntryIndex(subdirName); index >= 0 {
+		p.cursor = index
+		p.adjustScroll()
+	}
+	// 見つからない場合は LoadDirectory() で設定された cursor = 0 のまま
+
+	return nil
 }
 
 // MoveToParentAsync は親ディレクトリへの移動を開始
+// 読み込み完了後に直前のサブディレクトリにカーソルを合わせるため、
+// pendingCursorTarget にサブディレクトリ名を保存する
 func (p *Pane) MoveToParentAsync() tea.Cmd {
 	if p.path == "/" {
 		return nil
 	}
+
+	// 親ディレクトリ遷移後のカーソル位置決定用にサブディレクトリ名を記憶
+	p.pendingCursorTarget = p.extractSubdirName()
+
 	newPath := filepath.Dir(p.path)
 	p.recordPreviousPath()
 	p.pendingPath = newPath
@@ -390,6 +434,7 @@ func (p *Pane) ChangeDirectory(path string) error {
 
 // ChangeDirectoryAsync は指定パスへの移動を開始
 func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
+	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
 	p.recordPreviousPath()
 	p.pendingPath = path
 	p.path = path
@@ -922,6 +967,7 @@ func (p *Pane) NavigateToHomeAsync() tea.Cmd {
 	if p.path == home {
 		return nil
 	}
+	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
 	p.recordPreviousPath()
 	p.pendingPath = home
 	p.path = home
@@ -948,6 +994,7 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 	if p.previousPath == "" {
 		return nil
 	}
+	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
 	current := p.path
 	p.pendingPath = p.previousPath
 	p.path = p.previousPath
@@ -1269,6 +1316,28 @@ func (p *Pane) GetSortConfig() SortConfig {
 // SetSortConfig はソート設定を設定する
 func (p *Pane) SetSortConfig(config SortConfig) {
 	p.sortConfig = config
+}
+
+// extractSubdirName extracts the subdirectory name from the current path.
+// This is used to remember which directory we came from when navigating to parent.
+//
+// Example:
+//
+//	Current path: /home/user/documents
+//	Returns: "documents"
+func (p *Pane) extractSubdirName() string {
+	return filepath.Base(p.path)
+}
+
+// findEntryIndex finds the index of an entry by name in the current entries list.
+// Returns -1 if not found.
+func (p *Pane) findEntryIndex(name string) int {
+	for i, entry := range p.entries {
+		if entry.Name == name {
+			return i
+		}
+	}
+	return -1
 }
 
 // ApplySortAndPreserveCursor はソートを適用しながらカーソル位置を維持する
