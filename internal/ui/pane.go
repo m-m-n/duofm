@@ -39,6 +39,7 @@ type MarkInfo struct {
 
 // Pane は1つのファイルリストペインを表現
 type Pane struct {
+	paneID          PanePosition // このペインの識別子（LeftPane or RightPane）
 	path            string
 	entries         []fs.FileEntry // フィルタ適用後の表示用エントリ
 	allEntries      []fs.FileEntry // フィルタ適用前のすべてのエントリ
@@ -61,11 +62,12 @@ type Pane struct {
 }
 
 // NewPane は新しいペインを作成
-func NewPane(path string, width, height int, isActive bool, theme *Theme) (*Pane, error) {
+func NewPane(paneID PanePosition, path string, width, height int, isActive bool, theme *Theme) (*Pane, error) {
 	if theme == nil {
 		theme = DefaultTheme()
 	}
 	pane := &Pane{
+		paneID:          paneID,
 		path:            path,
 		width:           width,
 		height:          height,
@@ -182,11 +184,12 @@ func (p *Pane) StartLoadingDirectory() {
 }
 
 // LoadDirectoryAsync は非同期でディレクトリを読み込む
-func LoadDirectoryAsync(panePath string, sortConfig SortConfig) tea.Cmd {
+func LoadDirectoryAsync(paneID PanePosition, panePath string, sortConfig SortConfig) tea.Cmd {
 	return func() tea.Msg {
 		entries, err := fs.ReadDirectory(panePath)
 		if err != nil {
 			return directoryLoadCompleteMsg{
+				paneID:        paneID,
 				panePath:      panePath,
 				entries:       nil,
 				err:           err,
@@ -196,6 +199,7 @@ func LoadDirectoryAsync(panePath string, sortConfig SortConfig) tea.Cmd {
 
 		entries = SortEntries(entries, sortConfig)
 		return directoryLoadCompleteMsg{
+			paneID:        paneID,
 			panePath:      panePath,
 			entries:       entries,
 			err:           nil,
@@ -302,7 +306,7 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 	// ローディング状態を開始
 	p.StartLoadingDirectory()
 
-	return LoadDirectoryAsync(newPath, p.sortConfig)
+	return LoadDirectoryAsync(p.paneID, newPath, p.sortConfig)
 }
 
 // EnterDirectory はディレクトリに入る
@@ -374,7 +378,7 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 	p.pendingPath = newPath
 	p.path = newPath
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(newPath, p.sortConfig)
+	return LoadDirectoryAsync(p.paneID, newPath, p.sortConfig)
 }
 
 // ChangeDirectory は指定されたパスに移動
@@ -390,7 +394,7 @@ func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(path, p.sortConfig)
+	return LoadDirectoryAsync(p.paneID, path, p.sortConfig)
 }
 
 // Path は現在のパスを返す
@@ -922,7 +926,7 @@ func (p *Pane) NavigateToHomeAsync() tea.Cmd {
 	p.pendingPath = home
 	p.path = home
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(home, p.sortConfig)
+	return LoadDirectoryAsync(p.paneID, home, p.sortConfig)
 }
 
 // NavigateToPrevious は直前のディレクトリに移動する（トグル動作）
@@ -949,7 +953,7 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 	p.path = p.previousPath
 	p.previousPath = current
 	p.StartLoadingDirectory()
-	return LoadDirectoryAsync(p.path, p.sortConfig)
+	return LoadDirectoryAsync(p.paneID, p.path, p.sortConfig)
 }
 
 // ApplyFilter はフィルタパターンを適用してエントリをフィルタリングする

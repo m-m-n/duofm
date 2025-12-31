@@ -2581,6 +2581,73 @@ run_test test_config_has_comments
 run_test test_default_keybindings_without_config
 run_test test_help_shows_pascalcase
 
+# ===========================================
+# Test: Right pane navigation when both panes show same path
+# (Bug fix: async directory load pane identification)
+# ===========================================
+test_right_pane_same_path_navigation() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Sync panes to ensure both are showing the same directory
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.3
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Enter a subdirectory
+    send_keys "$CURRENT_SESSION" "j" "Enter"
+    sleep 0.5
+
+    # Navigate back using "-" (previous directory) - this triggered the bug
+    send_keys "$CURRENT_SESSION" "-"
+    sleep 0.5
+
+    # Check that the right pane successfully completed loading
+    # (Should not show "Loading directory...")
+    assert_not_contains "$CURRENT_SESSION" "Loading directory" \
+        "Right pane completes navigation when returning to same path as left pane"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# ===========================================
+# Test: Right pane home navigation when left pane is at home
+# (Bug fix: async directory load pane identification)
+# ===========================================
+test_right_pane_home_navigation() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Make sure we're starting from home by syncing
+    send_keys "$CURRENT_SESSION" "~"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.3
+
+    # Switch to right pane
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Navigate to parent directory
+    send_keys "$CURRENT_SESSION" "l"
+    sleep 0.5
+
+    # Navigate back to home using "~" - this triggered the bug
+    send_keys "$CURRENT_SESSION" "~"
+    sleep 0.5
+
+    # Check that the right pane successfully completed loading
+    assert_not_contains "$CURRENT_SESSION" "Loading directory" \
+        "Right pane completes home navigation when left pane is at home"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Async directory load pane identification bug fix tests
+run_test test_right_pane_same_path_navigation
+run_test test_right_pane_home_navigation
+
 # Print summary and exit with appropriate code
 print_summary
 exit $?

@@ -49,7 +49,7 @@ func TestNewPane(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pane, err := NewPane(tt.path, tt.width, tt.height, tt.isActive, nil)
+			pane, err := NewPane(LeftPane, tt.path, tt.width, tt.height, tt.isActive, nil)
 
 			if tt.wantErr {
 				if err == nil {
@@ -59,23 +59,23 @@ func TestNewPane(t *testing.T) {
 			}
 
 			if err != nil {
-				t.Fatalf("NewPane() error = %v, wantErr %v", err, tt.wantErr)
+				t.Fatalf("NewPane(LeftPane, ) error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if pane.cursor != 0 {
-				t.Errorf("NewPane() cursor = %d, want 0", pane.cursor)
+				t.Errorf("NewPane(LeftPane, ) cursor = %d, want 0", pane.cursor)
 			}
 
 			if pane.width != tt.width {
-				t.Errorf("NewPane() width = %d, want %d", pane.width, tt.width)
+				t.Errorf("NewPane(LeftPane, ) width = %d, want %d", pane.width, tt.width)
 			}
 
 			if pane.height != tt.height {
-				t.Errorf("NewPane() height = %d, want %d", pane.height, tt.height)
+				t.Errorf("NewPane(LeftPane, ) height = %d, want %d", pane.height, tt.height)
 			}
 
 			if pane.isActive != tt.isActive {
-				t.Errorf("NewPane() isActive = %v, want %v", pane.isActive, tt.isActive)
+				t.Errorf("NewPane(LeftPane, ) isActive = %v, want %v", pane.isActive, tt.isActive)
 			}
 
 			if len(pane.entries) == 0 {
@@ -93,9 +93,9 @@ func TestPaneMoveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	initialCursor := pane.cursor
@@ -141,9 +141,9 @@ func TestPaneSelectedEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("選択中のエントリを取得", func(t *testing.T) {
@@ -176,9 +176,9 @@ func TestPaneEnterDirectory(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ディレクトリに入る", func(t *testing.T) {
@@ -231,9 +231,9 @@ func TestPaneChangeDirectory(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("指定したディレクトリに移動", func(t *testing.T) {
@@ -253,9 +253,9 @@ func TestPaneMoveToParent(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, subDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("親ディレクトリに移動", func(t *testing.T) {
@@ -291,7 +291,7 @@ func TestPaneMoveToParent(t *testing.T) {
 
 func TestPaneSetSize(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, _ := NewPane(tmpDir, 40, 20, true, nil)
+	pane, _ := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 
 	newWidth := 80
 	newHeight := 40
@@ -309,7 +309,7 @@ func TestPaneSetSize(t *testing.T) {
 
 func TestPaneSetActive(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, _ := NewPane(tmpDir, 40, 20, false, nil)
+	pane, _ := NewPane(LeftPane, tmpDir, 40, 20, false, nil)
 
 	if pane.isActive {
 		t.Error("Pane should be inactive initially")
@@ -330,9 +330,9 @@ func TestPaneView(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	view := pane.View()
@@ -353,9 +353,9 @@ func TestPaneLoadDirectory(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	initialEntryCount := len(pane.entries)
@@ -394,9 +394,9 @@ func TestFilterHiddenFiles(t *testing.T) {
 	os.Mkdir(filepath.Join(tmpDir, ".hiddendir"), 0755)
 	os.Mkdir(filepath.Join(tmpDir, "visibledir"), 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("デフォルトで隠しファイルは非表示", func(t *testing.T) {
@@ -432,9 +432,9 @@ func TestToggleHidden(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "visible.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, ".hidden"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("トグルでshowHiddenが切り替わる", func(t *testing.T) {
@@ -495,9 +495,9 @@ func TestNavigateToHome(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, subDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ホームディレクトリに移動", func(t *testing.T) {
@@ -542,9 +542,9 @@ func TestNavigateToPrevious(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("履歴がない場合は何もしない", func(t *testing.T) {
@@ -607,9 +607,9 @@ func TestPreviousPathTracking(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ChangeDirectoryでpreviousPathが更新される", func(t *testing.T) {
@@ -637,9 +637,9 @@ func TestPreviousPathTracking(t *testing.T) {
 
 func TestIsShowingHidden(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	if pane.IsShowingHidden() {
@@ -659,9 +659,9 @@ func TestRestorePreviousPath(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("previousPathが設定されている場合にパスを復元", func(t *testing.T) {
@@ -698,9 +698,9 @@ func TestRestorePreviousPath(t *testing.T) {
 
 func TestPendingPathField(t *testing.T) {
 	tmpDir := t.TempDir()
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("初期状態でpendingPathは空", func(t *testing.T) {
@@ -732,9 +732,9 @@ func TestEnterDirectoryAsync(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ディレクトリ選択時にコマンドを返す", func(t *testing.T) {
@@ -791,9 +791,9 @@ func TestEnterDirectoryAsyncParentDir(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(subDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, subDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("親ディレクトリ(..)選択時にコマンドを返す", func(t *testing.T) {
@@ -826,9 +826,9 @@ func TestEnterDirectoryNoPathExtension(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("エラー後にrestorePreviousPathでパスが復元される", func(t *testing.T) {
@@ -870,9 +870,9 @@ func TestMoveToParentAsync(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 
 	t.Run("親ディレクトリへの移動コマンドを返す", func(t *testing.T) {
-		pane, err := NewPane(subDir, 40, 20, true, nil)
+		pane, err := NewPane(LeftPane, subDir, 40, 20, true, nil)
 		if err != nil {
-			t.Fatalf("NewPane() failed: %v", err)
+			t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 		}
 
 		originalPath := pane.path
@@ -889,7 +889,7 @@ func TestMoveToParentAsync(t *testing.T) {
 	})
 
 	t.Run("ルートディレクトリではnilを返す", func(t *testing.T) {
-		pane, _ := NewPane("/", 40, 20, true, nil)
+		pane, _ := NewPane(LeftPane, "/", 40, 20, true, nil)
 		cmd := pane.MoveToParentAsync()
 		if cmd != nil {
 			t.Error("MoveToParentAsync() should return nil at root")
@@ -900,9 +900,9 @@ func TestMoveToParentAsync(t *testing.T) {
 func TestNavigateToHomeAsync(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ホームディレクトリへの移動コマンドを返す", func(t *testing.T) {
@@ -939,9 +939,9 @@ func TestNavigateToPreviousAsync(t *testing.T) {
 	subDir := filepath.Join(tmpDir, "subdir")
 	os.Mkdir(subDir, 0755)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("履歴がない場合はnilを返す", func(t *testing.T) {
@@ -983,9 +983,9 @@ func TestApplyFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "test.go"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "config.json"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("インクリメンタル検索でフィルタを適用", func(t *testing.T) {
@@ -1081,9 +1081,9 @@ func TestClearFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタをクリアして全エントリを表示", func(t *testing.T) {
@@ -1114,9 +1114,9 @@ func TestResetToFullList(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ResetToFullListでディレクトリを再読み込み", func(t *testing.T) {
@@ -1150,9 +1150,9 @@ func TestIsFiltered(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタ適用前はfalse", func(t *testing.T) {
@@ -1180,9 +1180,9 @@ func TestFilterPattern(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタパターンを取得", func(t *testing.T) {
@@ -1197,9 +1197,9 @@ func TestFilterMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタモードを取得", func(t *testing.T) {
@@ -1217,9 +1217,9 @@ func TestTotalEntryCount(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("親ディレクトリを除いた総エントリ数を返す", func(t *testing.T) {
@@ -1239,9 +1239,9 @@ func TestFilteredEntryCount(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタ後のエントリ数を返す", func(t *testing.T) {
@@ -1264,9 +1264,9 @@ func TestFilterWithHiddenToggle(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, ".hidden.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("隠しファイルトグル時にフィルタがクリアされる", func(t *testing.T) {
@@ -1291,9 +1291,9 @@ func TestCursorPositionAfterFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "other.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("フィルタでカーソルが範囲外になった場合に調整される", func(t *testing.T) {
@@ -1315,9 +1315,9 @@ func TestLoadDirectoryClearsFilter(t *testing.T) {
 
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("LoadDirectoryでフィルタがクリアされる", func(t *testing.T) {
@@ -1347,9 +1347,9 @@ func TestAllEntriesPopulated(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("allEntriesが正しく設定される", func(t *testing.T) {
@@ -1371,9 +1371,9 @@ func TestViewWithMinibuffer(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 60, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 60, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ミニバッファなしでも描画できる", func(t *testing.T) {
@@ -1418,9 +1418,9 @@ func TestViewWithMinibufferReducesVisibleLines(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(tmpDir, 60, 15, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 60, 15, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ミニバッファ表示時はファイルリストが1行少ない", func(t *testing.T) {
@@ -1450,9 +1450,9 @@ func TestPaneRefresh(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("Refreshでディレクトリが再読み込みされる", func(t *testing.T) {
@@ -1482,9 +1482,9 @@ func TestPaneRefreshCursorPreservation(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("Refresh後に同じファイルが選択されている", func(t *testing.T) {
@@ -1541,9 +1541,9 @@ func TestPaneRefreshCursorAdjustment(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("インデックスが範囲外になった場合は調整される", func(t *testing.T) {
@@ -1575,9 +1575,9 @@ func TestPaneRefreshDeletedDirectory(t *testing.T) {
 	os.Mkdir(subDir, 0755)
 	os.WriteFile(filepath.Join(subDir, "file.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(subDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, subDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("ディレクトリが削除された場合は親に移動", func(t *testing.T) {
@@ -1603,9 +1603,9 @@ func TestPaneRefreshFilterPreservation(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("Refreshでフィルタ状態がクリアされる", func(t *testing.T) {
@@ -1638,9 +1638,9 @@ func TestPaneSyncTo(t *testing.T) {
 	os.WriteFile(filepath.Join(dirA, "fileA.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(dirB, "fileB.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(dirA, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, dirA, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("SyncToで指定ディレクトリに移動", func(t *testing.T) {
@@ -1670,9 +1670,9 @@ func TestPaneSyncTo(t *testing.T) {
 func TestPaneSyncToSameDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("同じディレクトリへのSyncToは何もしない", func(t *testing.T) {
@@ -1699,9 +1699,9 @@ func TestPaneSyncToPreviousPathUpdate(t *testing.T) {
 	os.Mkdir(dirA, 0755)
 	os.Mkdir(dirB, 0755)
 
-	pane, err := NewPane(dirA, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, dirA, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("SyncToでpreviousPathが更新される", func(t *testing.T) {
@@ -1732,9 +1732,9 @@ func TestPaneSyncToCursorReset(t *testing.T) {
 		os.WriteFile(filepath.Join(dirB, fmt.Sprintf("file%d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(dirA, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, dirA, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("SyncToでカーソルとスクロールがリセットされる", func(t *testing.T) {
@@ -1765,9 +1765,9 @@ func TestPaneSyncToSettingsPreservation(t *testing.T) {
 	os.Mkdir(dirA, 0755)
 	os.Mkdir(dirB, 0755)
 
-	pane, err := NewPane(dirA, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, dirA, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("SyncToでshowHiddenが維持される", func(t *testing.T) {
@@ -1809,9 +1809,9 @@ func TestRefreshDirectoryPreserveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("preserves cursor on same file", func(t *testing.T) {
@@ -1865,9 +1865,9 @@ func TestRefreshDirectoryPreserveCursorWithEmpty(t *testing.T) {
 	// ファイルを1つだけ作成
 	os.WriteFile(filepath.Join(tmpDir, "only.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("handles directory becoming empty", func(t *testing.T) {
@@ -1900,9 +1900,9 @@ func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.go"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("clears filter pattern", func(t *testing.T) {
@@ -1931,9 +1931,9 @@ func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	t.Run("clears marks on refresh", func(t *testing.T) {
@@ -1970,9 +1970,9 @@ func TestPaneEnsureCursorVisible(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%02d.txt", i)), []byte(""), 0644)
 	}
 
-	pane, err := NewPane(tmpDir, 40, 10, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 10, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// カーソルを最後に移動
@@ -1996,9 +1996,9 @@ func TestPaneFormatDetailEntry(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "testfile.txt")
 	os.WriteFile(testFile, []byte("content"), 0644)
 
-	pane, err := NewPane(tmpDir, 80, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// テストファイルを見つける
@@ -2028,9 +2028,9 @@ func TestPaneFormatFilterIndicator(t *testing.T) {
 	// テストファイルを作成
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// フィルタなし
@@ -2064,9 +2064,9 @@ func TestPaneFormatFilterIndicator(t *testing.T) {
 func TestPaneGetSetSortConfig(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// デフォルト値を確認
@@ -2097,9 +2097,9 @@ func TestPaneApplySortAndPreserveCursor(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte("ccc"), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// カーソルを特定のファイルに合わせる
@@ -2131,9 +2131,9 @@ func TestPaneApplySortAndPreserveCursorWithFilter(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("bb"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "ccc.log"), []byte("ccc"), 0644)
 
-	pane, err := NewPane(tmpDir, 40, 20, true, nil)
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
 	if err != nil {
-		t.Fatalf("NewPane() failed: %v", err)
+		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
 	// フィルタを適用
