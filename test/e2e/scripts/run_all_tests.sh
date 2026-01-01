@@ -11,7 +11,7 @@
 #
 # Available categories:
 #   basic, directory, file-ops, copy-move, cursor, sort,
-#   shell, config, bookmark, mark
+#   shell, config, bookmark, mark, history
 
 set -e
 
@@ -36,6 +36,7 @@ declare -A TEST_FILES=(
     ["config"]="config_tests.sh"
     ["bookmark"]="bookmark_tests.sh"
     ["mark"]="mark_tests.sh"
+    ["history"]="history_tests.sh"
 )
 
 # Show usage
@@ -229,6 +230,18 @@ run_all() {
     run_test test_bookmark_dialog_opens
     run_test test_add_bookmark_dialog
     run_test test_bookmark_empty_state
+
+    # History tests
+    echo ""
+    echo "=== History Navigation Tests ==="
+    run_test test_history_back
+    run_test test_history_forward
+    run_test test_history_multiple_levels
+    run_test test_history_no_history
+    run_test test_history_independent_from_previous
+    run_test test_history_forward_cleared
+    run_test test_history_parent_navigation
+    run_test test_history_home_navigation
 }
 
 # Main entry point

@@ -34,11 +34,13 @@ type directoryLoadStartMsg struct {
 
 // directoryLoadCompleteMsg はディレクトリ読み込み完了を通知
 type directoryLoadCompleteMsg struct {
-	paneID        PanePosition // どちらのペインの読み込みか
-	panePath      string
-	entries       []fs.FileEntry
-	err           error
-	attemptedPath string // エラー時にメッセージに表示するパス
+	paneID                   PanePosition // どちらのペインの読み込みか
+	panePath                 string
+	entries                  []fs.FileEntry
+	err                      error
+	attemptedPath            string // エラー時にメッセージに表示するパス
+	isHistoryNavigation      bool   // 履歴ナビゲーション経由かどうか（履歴ナビゲーション自体は記録しない）
+	historyNavigationForward bool   // true=前進、false=後退（履歴ナビゲーションエラー時の復元用）
 }
 
 // directoryLoadProgressMsg は読み込み進捗を通知（オプション）
