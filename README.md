@@ -9,11 +9,12 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Vim-style keybindings**: Familiar hjkl navigation with arrow key support
 - **File operations**: Copy, move, delete, rename files and directories
 - **Multi-file marking**: Select multiple files with Space for batch operations
-- **Symbolic link support**: Display targets, detect broken links
-- **Overwrite handling**: Skip, overwrite, or rename on conflict
+- **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
+- **Overwrite handling**: Smart conflict resolution with overwrite, skip, or rename options
 
 ### Navigation
-- **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search
+- **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
+- **Directory history**: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
 - **Hidden files**: Toggle visibility with `Ctrl+H`
 - **Quick navigation**: Home (`~`), previous directory (`-`), sync panes (`=`)
 - **Sort options**: By name, size, or date with live preview
@@ -23,20 +24,21 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 ### Display
 - **Three display modes**: Minimal, Basic (size+date), Detail (permissions+owner)
 - **Unicode support**: Proper display for Japanese, Chinese, Korean and emoji
-- **Context menu**: Press `@` for visual action selection
+- **East Asian Width**: Configurable width for ambiguous characters
+- **Context menu**: Press `@` for visual action selection with number key shortcuts
 - **Help system**: Press `?` for scrollable keybinding reference with color palette
 
 ### Integration
-- **External viewer**: Open files with $PAGER (`v` key)
+- **External viewer**: Open files with $PAGER (`v` key or `Enter`)
 - **External editor**: Edit files with $EDITOR (`e` key)
-- **Shell commands**: Execute commands with `!` key
+- **Shell commands**: Execute commands with `!` key in current directory
 - **Working directory**: External apps open in file's directory
 
 ### Customization
 - **Configuration file**: `~/.config/duofm/config.toml` (auto-generated)
 - **Custom keybindings**: Remap any key with modifier support (Ctrl, Shift, Alt)
 - **Color theme**: Full 256-color customization for all UI elements
-- **Bookmarks**: Persisted in configuration file
+- **Bookmarks**: Persisted in configuration file with edit/delete support
 
 ## Screenshots
 
