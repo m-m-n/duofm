@@ -48,18 +48,19 @@ type Pane struct {
 	width               int
 	height              int
 	isActive            bool
-	displayMode         DisplayMode     // ユーザーが選択した表示モード
-	loading             bool            // ローディング中フラグ
-	loadingProgress     string          // ローディングメッセージ
-	showHidden          bool            // 隠しファイル表示フラグ（デフォルト: false）
-	previousPath        string          // 直前のディレクトリパス（履歴なしの場合は空文字列）
-	pendingPath         string          // 読み込み中の暫定パス（エラー時に元に戻す）
-	filterPattern       string          // 現在のフィルタパターン（空の場合はフィルタなし）
-	filterMode          SearchMode      // 現在のフィルタモード
-	markedFiles         map[string]bool // key: filename, value: marked state
-	sortConfig          SortConfig      // ソート設定
-	theme               *Theme          // カラーテーマ
-	pendingCursorTarget string          // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
+	displayMode         DisplayMode      // ユーザーが選択した表示モード
+	loading             bool             // ローディング中フラグ
+	loadingProgress     string           // ローディングメッセージ
+	showHidden          bool             // 隠しファイル表示フラグ（デフォルト: false）
+	previousPath        string           // 直前のディレクトリパス（履歴なしの場合は空文字列）
+	pendingPath         string           // 読み込み中の暫定パス（エラー時に元に戻す）
+	filterPattern       string           // 現在のフィルタパターン（空の場合はフィルタなし）
+	filterMode          SearchMode       // 現在のフィルタモード
+	markedFiles         map[string]bool  // key: filename, value: marked state
+	sortConfig          SortConfig       // ソート設定
+	theme               *Theme           // カラーテーマ
+	pendingCursorTarget string           // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
+	history             DirectoryHistory // ディレクトリ履歴（ブラウザ風のback/forward）
 }
 
 // NewPane は新しいペインを作成
@@ -81,11 +82,15 @@ func NewPane(paneID PanePosition, path string, width, height int, isActive bool,
 		markedFiles:     make(map[string]bool),
 		sortConfig:      DefaultSortConfig(), // デフォルトは名前昇順
 		theme:           theme,
+		history:         NewDirectoryHistory(),
 	}
 
 	if err := pane.LoadDirectory(); err != nil {
 		return nil, err
 	}
+
+	// 初期ディレクトリを履歴に追加
+	pane.history.AddToHistory(pane.path)
 
 	return pane, nil
 }
@@ -186,25 +191,40 @@ func (p *Pane) StartLoadingDirectory() {
 
 // LoadDirectoryAsync は非同期でディレクトリを読み込む
 func LoadDirectoryAsync(paneID PanePosition, panePath string, sortConfig SortConfig) tea.Cmd {
+	return loadDirectoryAsyncInternal(paneID, panePath, sortConfig, false, false)
+}
+
+// LoadDirectoryAsyncWithHistory は非同期でディレクトリを読み込む（履歴ナビゲーションフラグ付き）
+// isForward: true=前進操作、false=後退操作（エラー時の復元用）
+func LoadDirectoryAsyncWithHistory(paneID PanePosition, panePath string, sortConfig SortConfig, isForward bool) tea.Cmd {
+	return loadDirectoryAsyncInternal(paneID, panePath, sortConfig, true, isForward)
+}
+
+// loadDirectoryAsyncInternal は非同期でディレクトリを読み込む内部関数
+func loadDirectoryAsyncInternal(paneID PanePosition, panePath string, sortConfig SortConfig, isHistoryNavigation bool, isForward bool) tea.Cmd {
 	return func() tea.Msg {
 		entries, err := fs.ReadDirectory(panePath)
 		if err != nil {
 			return directoryLoadCompleteMsg{
-				paneID:        paneID,
-				panePath:      panePath,
-				entries:       nil,
-				err:           err,
-				attemptedPath: panePath,
+				paneID:                   paneID,
+				panePath:                 panePath,
+				entries:                  nil,
+				err:                      err,
+				attemptedPath:            panePath,
+				isHistoryNavigation:      isHistoryNavigation,
+				historyNavigationForward: isForward,
 			}
 		}
 
 		entries = SortEntries(entries, sortConfig)
 		return directoryLoadCompleteMsg{
-			paneID:        paneID,
-			panePath:      panePath,
-			entries:       entries,
-			err:           nil,
-			attemptedPath: panePath,
+			paneID:                   paneID,
+			panePath:                 panePath,
+			entries:                  entries,
+			err:                      nil,
+			attemptedPath:            panePath,
+			isHistoryNavigation:      isHistoryNavigation,
+			historyNavigationForward: isForward,
 		}
 	}
 }
@@ -253,6 +273,12 @@ func (p *Pane) SelectedEntry() *fs.FileEntry {
 // recordPreviousPath はナビゲーション前に現在のパスを記録する
 func (p *Pane) recordPreviousPath() {
 	p.previousPath = p.path
+}
+
+// addToHistory は現在のパスを履歴に追加する
+// 通常のディレクトリ遷移で呼び出され、履歴ナビゲーション自体では呼び出されない
+func (p *Pane) addToHistory() {
+	p.history.AddToHistory(p.path)
 }
 
 // restorePreviousPath は読み込み失敗時に前のパスに復元する
@@ -304,6 +330,7 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 	}
 
 	// 現在のパスを記録（復元用）
+	// 履歴への追加は成功時に directoryLoadCompleteMsg ハンドラで行う
 	p.recordPreviousPath()
 	p.pendingPath = newPath
 	p.path = newPath
@@ -340,7 +367,12 @@ func (p *Pane) EnterDirectory() error {
 		// これにより、..で論理的な親ディレクトリに戻れる
 		p.recordPreviousPath()
 		p.path = filepath.Join(p.path, entry.Name)
-		return p.LoadDirectory()
+		if err := p.LoadDirectory(); err != nil {
+			return err
+		}
+		// 成功時に履歴に追加
+		p.addToHistory()
+		return nil
 	}
 
 	// 通常のディレクトリ処理
@@ -360,13 +392,16 @@ func (p *Pane) EnterDirectory() error {
 		newPath = filepath.Join(p.path, entry.Name)
 	}
 
-	// 直前のパスを記録
+	// 直前のパスを記録（復元用）
 	p.recordPreviousPath()
 	p.path = newPath
 
 	if err := p.LoadDirectory(); err != nil {
 		return err
 	}
+
+	// 成功時に履歴に追加
+	p.addToHistory()
 
 	// 親ディレクトリ遷移の場合、直前のサブディレクトリにカーソルを合わせる
 	if subdirName != "" {
@@ -396,6 +431,9 @@ func (p *Pane) MoveToParent() error {
 		return err
 	}
 
+	// 成功時に履歴に追加
+	p.addToHistory()
+
 	// 直前のサブディレクトリにカーソルを合わせる
 	if index := p.findEntryIndex(subdirName); index >= 0 {
 		p.cursor = index
@@ -419,6 +457,7 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 
 	newPath := filepath.Dir(p.path)
 	p.recordPreviousPath()
+	// 履歴への追加は成功時に directoryLoadCompleteMsg ハンドラで行う
 	p.pendingPath = newPath
 	p.path = newPath
 	p.StartLoadingDirectory()
@@ -429,13 +468,19 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 func (p *Pane) ChangeDirectory(path string) error {
 	p.recordPreviousPath()
 	p.path = path
-	return p.LoadDirectory()
+	if err := p.LoadDirectory(); err != nil {
+		return err
+	}
+	// 成功時に履歴に追加
+	p.addToHistory()
+	return nil
 }
 
 // ChangeDirectoryAsync は指定パスへの移動を開始
 func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
 	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
 	p.recordPreviousPath()
+	// 履歴への追加は成功時に directoryLoadCompleteMsg ハンドラで行う
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
@@ -955,7 +1000,12 @@ func (p *Pane) NavigateToHome() error {
 
 	p.recordPreviousPath()
 	p.path = home
-	return p.LoadDirectory()
+	if err := p.LoadDirectory(); err != nil {
+		return err
+	}
+	// 成功時に履歴に追加
+	p.addToHistory()
+	return nil
 }
 
 // NavigateToHomeAsync はホームディレクトリへの移動を開始
@@ -969,6 +1019,7 @@ func (p *Pane) NavigateToHomeAsync() tea.Cmd {
 	}
 	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
 	p.recordPreviousPath()
+	// 履歴への追加は成功時に directoryLoadCompleteMsg ハンドラで行う
 	p.pendingPath = home
 	p.path = home
 	p.StartLoadingDirectory()
@@ -986,7 +1037,12 @@ func (p *Pane) NavigateToPrevious() error {
 	p.path = p.previousPath
 	p.previousPath = current
 
-	return p.LoadDirectory()
+	if err := p.LoadDirectory(); err != nil {
+		return err
+	}
+	// 成功時に履歴に追加（トグル動作でも記録）
+	p.addToHistory()
+	return nil
 }
 
 // NavigateToPreviousAsync は直前のディレクトリへの移動を開始（トグル動作）
@@ -995,6 +1051,9 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 		return nil
 	}
 	p.pendingCursorTarget = "" // 非親ディレクトリ遷移ではカーソル記憶をクリア
+
+	// 履歴への追加は成功時に directoryLoadCompleteMsg ハンドラで行う（トグル動作でも記録）
+
 	current := p.path
 	p.pendingPath = p.previousPath
 	p.path = p.previousPath
@@ -1231,6 +1290,9 @@ func (p *Pane) SyncTo(path string) error {
 		return err
 	}
 
+	// 成功時に履歴に追加
+	p.addToHistory()
+
 	// Reset cursor and scroll to top
 	p.cursor = 0
 	p.scrollOffset = 0
@@ -1374,4 +1436,92 @@ func (p *Pane) ApplySortAndPreserveCursor() {
 		p.cursor = max(0, len(p.entries)-1)
 	}
 	p.adjustScroll()
+}
+
+// NavigateHistoryBack はディレクトリ履歴を遡って移動する
+// 成功時はディレクトリを読み込んでnilを返す
+// 履歴がない場合や、ディレクトリが存在しない場合はエラーを返す
+func (p *Pane) NavigateHistoryBack() error {
+	path, ok := p.history.NavigateBack()
+	if !ok {
+		return nil // 履歴がない場合は何もしない
+	}
+
+	// 履歴ナビゲーションではpreviousPathを更新しない（独立動作）
+	// また、addToHistoryも呼ばない（履歴ナビゲーション自体は記録しない）
+	oldPath := p.path // エラー時の復元用
+	p.path = path
+
+	// ディレクトリが存在するか確認
+	if err := p.LoadDirectory(); err != nil {
+		// エラーの場合はパスと履歴位置を元に戻す（ナビゲーションをキャンセル）
+		p.path = oldPath
+		p.history.NavigateForward()
+		return err
+	}
+
+	return nil
+}
+
+// NavigateHistoryForward はディレクトリ履歴を進んで移動する
+// 成功時はディレクトリを読み込んでnilを返す
+// 履歴がない場合や、ディレクトリが存在しない場合はエラーを返す
+func (p *Pane) NavigateHistoryForward() error {
+	path, ok := p.history.NavigateForward()
+	if !ok {
+		return nil // 履歴がない場合は何もしない
+	}
+
+	// 履歴ナビゲーションではpreviousPathを更新しない（独立動作）
+	// また、addToHistoryも呼ばない（履歴ナビゲーション自体は記録しない）
+	oldPath := p.path // エラー時の復元用
+	p.path = path
+
+	// ディレクトリが存在するか確認
+	if err := p.LoadDirectory(); err != nil {
+		// エラーの場合はパスと履歴位置を元に戻す（ナビゲーションをキャンセル）
+		p.path = oldPath
+		p.history.NavigateBack()
+		return err
+	}
+
+	return nil
+}
+
+// NavigateHistoryBackAsync はディレクトリ履歴を遡って移動を開始
+func (p *Pane) NavigateHistoryBackAsync() tea.Cmd {
+	path, ok := p.history.NavigateBack()
+	if !ok {
+		return nil // 履歴がない場合は何もしない
+	}
+
+	// 履歴ナビゲーションではカーソル記憶をクリア
+	p.pendingCursorTarget = ""
+
+	// 履歴ナビゲーションでは addToHistory を呼ばない（isHistoryNavigation=trueで識別）
+	// 履歴ナビゲーションでは previousPath を更新しない（- キーとは独立動作）
+	p.pendingPath = path
+	p.path = path
+	p.StartLoadingDirectory()
+	// isForward=false（後退操作）
+	return LoadDirectoryAsyncWithHistory(p.paneID, path, p.sortConfig, false)
+}
+
+// NavigateHistoryForwardAsync はディレクトリ履歴を進んで移動を開始
+func (p *Pane) NavigateHistoryForwardAsync() tea.Cmd {
+	path, ok := p.history.NavigateForward()
+	if !ok {
+		return nil // 履歴がない場合は何もしない
+	}
+
+	// 履歴ナビゲーションではカーソル記憶をクリア
+	p.pendingCursorTarget = ""
+
+	// 履歴ナビゲーションでは addToHistory を呼ばない（isHistoryNavigation=trueで識別）
+	// 履歴ナビゲーションでは previousPath を更新しない（- キーとは独立動作）
+	p.pendingPath = path
+	p.path = path
+	p.StartLoadingDirectory()
+	// isForward=true（前進操作）
+	return LoadDirectoryAsyncWithHistory(p.paneID, path, p.sortConfig, true)
 }

@@ -27,10 +27,12 @@ func DefaultKeybindings() map[string][]string {
 		"help":          {"?"},
 
 		// Navigation extended
-		"home":      {"~"},
-		"prev_dir":  {"-"},
-		"refresh":   {"F5", "Ctrl+R"},
-		"sync_pane": {"="},
+		"home":            {"~"},
+		"prev_dir":        {"-"},
+		"history_back":    {"Alt+Left", "["},
+		"history_forward": {"Alt+Right", "]"},
+		"refresh":         {"F5", "Ctrl+R"},
+		"sync_pane":       {"="},
 
 		// Search
 		"search":       {"/"},
@@ -73,6 +75,8 @@ func AllActions() []string {
 		"help",
 		"home",
 		"prev_dir",
+		"history_back",
+		"history_forward",
 		"refresh",
 		"sync_pane",
 		"search",

@@ -479,6 +479,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if targetPane != nil {
+			// 順序保証: 古いリクエストの結果を無視
+			// ユーザーが高速に連続ナビゲーションした場合、最新のリクエストのみ処理
+			if targetPane.pendingPath != "" && targetPane.pendingPath != msg.panePath {
+				// 現在のpendingPathと異なるパスの結果は無視
+				return m, nil
+			}
+
 			targetPane.loading = false
 			targetPane.loadingProgress = ""
 
@@ -486,6 +493,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// エラー時: パスを復元してステータスバーにメッセージ表示
 				targetPane.restorePreviousPath()
 				targetPane.pendingCursorTarget = "" // エラー時はカーソル記憶をクリア
+
+				// 履歴ナビゲーションでエラーの場合は履歴位置を復元
+				if msg.isHistoryNavigation {
+					// 戻り操作でエラー → 前進して元の位置に戻す
+					// 前進操作でエラー → 戻って元の位置に戻す
+					if msg.historyNavigationForward {
+						// 前進操作でエラー → 戻って元の位置に戻す
+						targetPane.history.NavigateBack()
+					} else {
+						// 戻り操作でエラー → 前進して元の位置に戻す
+						targetPane.history.NavigateForward()
+					}
+				}
+
 				m.statusMessage = formatDirectoryError(msg.err, msg.attemptedPath)
 				m.isStatusError = true
 				return m, statusMessageClearCmd(5 * time.Second)
@@ -518,6 +539,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			targetPane.scrollOffset = 0
 			targetPane.adjustScroll() // カーソルが見える位置にスクロール調整
 			targetPane.pendingPath = ""
+
+			// 成功時に履歴に追加（履歴ナビゲーション以外）
+			if !msg.isHistoryNavigation {
+				targetPane.addToHistory()
+			}
 
 			// ディスク容量を更新
 			m.updateDiskSpace()
@@ -902,6 +928,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case ActionPrevDir:
 			// 直前のディレクトリへ移動（非同期版）
 			cmd := m.getActivePane().NavigateToPreviousAsync()
+			return m, cmd
+
+		case ActionHistoryBack:
+			// ディレクトリ履歴を遡る（非同期版）
+			cmd := m.getActivePane().NavigateHistoryBackAsync()
+			return m, cmd
+
+		case ActionHistoryForward:
+			// ディレクトリ履歴を進む（非同期版）
+			cmd := m.getActivePane().NavigateHistoryForwardAsync()
 			return m, cmd
 
 		case ActionView:
