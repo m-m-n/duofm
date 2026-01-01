@@ -53,16 +53,25 @@ graph TB
 
 #### Keyboard Navigation
 - Vim-style navigation (h/j/k/l)
-- Arrow key support
-- Enter to open directories
+- Arrow key support (↑↓←→)
+- Enter to open directories or view files
 - Parent directory navigation with `..`
 - Cursor position remembered when navigating to parent directory
+- Browser-like directory history with forward/back navigation (Alt+←/Alt+→ or [/])
+
+#### Directory History
+- Independent history stack for each pane (up to 100 entries)
+- Navigate backward with `Alt+←` or `[`
+- Navigate forward with `Alt+→` or `]`
+- Session-only history (cleared on exit)
+- History records all directory transitions except history navigation itself
 
 #### Path Display
 - Absolute path shown at top of each pane
 - Home directory abbreviated as `~`
 - Symbolic link targets displayed
 - Broken symlinks indicated
+- Async directory loading with pane identification
 
 ### File Operations
 
@@ -74,13 +83,16 @@ graph TB
 
 #### Overwrite Handling
 - Conflict detection when copying/moving files
-- Options: Skip, Overwrite, Rename
+- Three options: Skip, Overwrite, Rename
+- File metadata displayed (size, date) for informed decisions
 - Per-file confirmation for batch operations
+- Directory-to-directory conflicts show error (no merge)
 
 #### File Creation
 - **New File (N)**: Create new file
 - **New Directory (Shift+N)**: Create new directory
 - Cursor moves to newly created file after creation
+- Hidden files handled correctly (cursor behavior varies)
 
 #### Multi-file Operations
 - Mark files with Space key
@@ -110,6 +122,7 @@ Three display modes toggled with `I` key:
 - Proper display width calculation for multibyte characters (Japanese, Chinese, Korean, emoji)
 - Correct file name truncation using rune-based slicing
 - East Asian Width configuration for ambiguous characters
+- Configurable ambiguous character width (1 or 2 cells)
 
 ### Search and Filter
 
@@ -122,6 +135,18 @@ Three display modes toggled with `I` key:
 - Full Go regex syntax
 - Filter applied on Enter
 - Smart case sensitivity
+- Advanced pattern matching capabilities
+
+### Sorting
+
+- Toggle with `S` key
+- Sort by: Name, Size, Date
+- Order: Ascending/Descending
+- Live preview while selecting sort options
+- Cursor position preserved after sort change
+- Independent sort settings per pane
+- Directories always listed before files
+- Parent directory (..) always at top
 
 ### External Integration
 
@@ -129,6 +154,7 @@ Three display modes toggled with `I` key:
 - Opens file with $PAGER (default: less)
 - Working directory set to file's directory
 - Cursor position preserved after exit
+- `Enter` on file also opens viewer
 
 #### File Editor (E)
 - Opens file with $EDITOR (default: vim)
@@ -141,6 +167,16 @@ Three display modes toggled with `I` key:
 - Working directory: active pane's directory
 - "Press Enter to continue" after execution
 - Both panes reload after exit
+
+### Context Menu
+
+Press `@` to show context menu with:
+- Copy to other pane
+- Move to other pane
+- Delete
+- Symlink-specific options (logical/physical path)
+- Supports marked files for batch operations
+- Number keys 1-9 for direct selection
 
 ### Configuration
 
@@ -155,12 +191,20 @@ Three display modes toggled with `I` key:
 - Multiple keys per action supported
 - Actions can be disabled with empty array
 - Modifier key support (Ctrl, Shift, Alt)
+- Key format: Uppercase letters, symbols as-is, PascalCase for special keys
 
 #### Color Theme
 - ANSI 256-color codes (0-255)
 - All UI elements customizable via `[colors]` section
 - Cursor, marks, file types, dialogs, status bar
-- Help dialog includes color palette reference
+- Help dialog includes color palette reference with hex values
+
+#### Bookmarks
+- Add current directory with `Shift+B`
+- Open bookmark manager with `B`
+- Jump to, edit, and delete bookmarks
+- Warning indicator for non-existent paths
+- Bookmarks persisted in configuration file
 
 ### Navigation Features
 
@@ -183,40 +227,6 @@ Three display modes toggled with `I` key:
 - Reload current directory
 - Preserves cursor position and marks
 
-#### Bookmarks
-- **Add Bookmark (Shift+B)**: Add current directory to bookmarks
-- **Bookmark Manager (B)**: Open bookmark list dialog
-- Jump to bookmarked directories
-- Edit and delete bookmarks
-- Warning indicator for non-existent paths
-- Bookmarks persisted in configuration file
-
-### Sort Options
-
-Toggle with `S` key:
-
-| Field | Description |
-|-------|-------------|
-| Name | Alphabetical by filename |
-| Size | By file size in bytes |
-| Date | By modification time |
-
-- Ascending/Descending order
-- Directories always listed before files
-- Parent directory (..) always at top
-- Live preview while selecting sort options
-- Cursor position preserved after sort change
-- Independent sort settings per pane
-
-### Context Menu
-
-Press `@` to show context menu with:
-- Copy to other pane
-- Move to other pane
-- Delete
-- Symlink-specific options (logical/physical path)
-- Supports marked files for batch operations
-
 ### Help System
 
 Press `?` for help dialog with:
@@ -224,6 +234,15 @@ Press `?` for help dialog with:
 - Grouped by category
 - Scrollable with j/k, Space/Shift+Space
 - Color palette reference (256 colors with hex values)
+- Page indicator for scroll position
+
+### Symlink Support
+
+- Display symlink targets with arrow (→)
+- Detect and indicate broken links
+- Navigate to target with logical path (Enter)
+- Open target's parent directory (physical path via context menu)
+- Symlink-specific context menu options
 
 ### Error Handling
 
@@ -231,6 +250,49 @@ Press `?` for help dialog with:
 - Graceful handling of inaccessible directories
 - Error dialogs for operation failures
 - Status bar messages for warnings
+- Directory permission errors shown with navigation preserved
+
+### Dialog System
+
+All dialogs follow consistent UI patterns:
+
+#### Confirm Dialog
+- Yes/No confirmation for destructive operations
+- Delete requires explicit `y` key (Enter ignored for safety)
+
+#### Error Dialog
+- Red border and error message
+- Press any key to dismiss
+
+#### Input Dialog
+- Single-line text input
+- Basic editing (backspace, delete, cursor movement)
+- Used for file creation, renaming, shell commands
+
+#### Overwrite Dialog
+- Three options: Overwrite, Cancel, Rename
+- File metadata comparison (size, date)
+- Validation for rename conflicts
+
+#### Help Dialog
+- Scrollable keybinding reference
+- Color palette with hex values
+- Page indicators
+
+#### Sort Dialog
+- Two-row selection interface
+- Field (Name/Size/Date) and Order (Asc/Desc)
+- Live preview of sort changes
+
+#### Context Menu Dialog
+- List of available actions
+- Number keys for direct selection
+- Symlink-specific options
+
+#### Bookmark Manager Dialog
+- Two-line format (name + path)
+- Add, edit, delete bookmarks
+- Warning indicators for non-existent paths
 
 ### Version Display
 
@@ -246,9 +308,11 @@ Press `?` for help dialog with:
 | K / Up | Move cursor up |
 | H / Left | Left pane / Parent directory |
 | L / Right | Right pane / Parent directory |
-| Enter | Enter directory / Open file |
+| Enter | Enter directory / View file |
 | ~ | Go to home directory |
 | - | Go to previous directory |
+| Alt+← / [ | Navigate backward in history |
+| Alt+→ / ] | Navigate forward in history |
 | F5 / Ctrl+R | Refresh |
 | = | Sync panes |
 
@@ -312,6 +376,8 @@ help = ["?"]
 quit = ["Q"]
 bookmark = ["B"]
 add_bookmark = ["Shift+B"]
+history_back = ["Alt+Left", "["]
+history_forward = ["Alt+Right", "]"]
 ```
 
 ### Colors Section
@@ -357,6 +423,15 @@ name = "Downloads"
 path = "/path/to/Downloads"
 ```
 
+### East Asian Width Section
+
+```toml
+[display]
+# Ambiguous character width: 1 or 2
+# Controls display width for ambiguous East Asian characters
+east_asian_ambiguous_width = 1
+```
+
 ## Technical Requirements
 
 - Go 1.21 or later
@@ -370,3 +445,40 @@ path = "/path/to/Downloads"
 - github.com/charmbracelet/lipgloss - Styling
 - github.com/BurntSushi/toml - Configuration parsing
 - github.com/mattn/go-runewidth - Unicode display width
+
+## Performance Characteristics
+
+- Async directory loading for responsive UI
+- Independent pane operations
+- Marks preserved during filter/refresh
+- Efficient sorting with directory-first ordering
+- History limited to 100 entries per pane
+- No performance degradation with 1000+ files
+
+## Security Considerations
+
+- File paths constructed with filepath.Join to prevent traversal
+- Read permission checked before external app execution
+- Shell commands executed via /bin/sh -c
+- No input sanitization for shell commands (user explicitly enters)
+- Configuration file permissions follow XDG spec
+
+## Testing Strategy
+
+- Unit tests for core logic (sorting, filtering, file operations)
+- Integration tests for component interaction
+- E2E tests for user workflows
+- Table-driven tests for common patterns
+- Test coverage target: 80%+
+
+## Future Extensibility
+
+The architecture supports future additions:
+
+- Plugin system for custom menu items
+- Additional sort fields
+- Custom themes
+- Search history
+- Persistent directory history
+- Tabs/multiple panes
+- Archive support
