@@ -25,7 +25,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  3, // copy, move, delete
+			wantItems:  4, // copy, move, delete, compress
 		},
 		{
 			name: "directory",
@@ -35,7 +35,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  3, // copy, move, delete
+			wantItems:  4, // copy, move, delete, compress
 		},
 		{
 			name: "symlink directory",
@@ -48,7 +48,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  5, // copy, move, delete, enter_logical, enter_physical
+			wantItems:  6, // copy, move, delete, compress, enter_logical, enter_physical
 		},
 		{
 			name: "broken symlink",
@@ -61,7 +61,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  3, // copy, move, delete (no enter_physical for broken symlink)
+			wantItems:  4, // copy, move, delete, compress (no enter_physical for broken symlink)
 		},
 	}
 
@@ -101,12 +101,12 @@ func TestBuildMenuItems_RegularFile(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 3 {
-		t.Fatalf("expected 3 items, got %d", len(dialog.items))
+	if len(dialog.items) != 4 {
+		t.Fatalf("expected 4 items, got %d", len(dialog.items))
 	}
 
 	// Check item IDs
-	expectedIDs := []string{"copy", "move", "delete"}
+	expectedIDs := []string{"copy", "move", "delete", "compress"}
 	for i, expectedID := range expectedIDs {
 		if dialog.items[i].ID != expectedID {
 			t.Errorf("item[%d].ID = %s, want %s", i, dialog.items[i].ID, expectedID)
@@ -129,8 +129,8 @@ func TestBuildMenuItems_Symlink(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 5 {
-		t.Fatalf("expected 5 items, got %d", len(dialog.items))
+	if len(dialog.items) != 6 {
+		t.Fatalf("expected 6 items, got %d", len(dialog.items))
 	}
 
 	// Check that symlink-specific items exist
@@ -268,8 +268,8 @@ func TestGetCurrentPageItems(t *testing.T) {
 
 	items := dialog.getCurrentPageItems()
 
-	if len(items) != 3 {
-		t.Errorf("getCurrentPageItems returned %d items, want 3", len(items))
+	if len(items) != 4 {
+		t.Errorf("getCurrentPageItems returned %d items, want 4", len(items))
 	}
 
 	// All items should be on first page
@@ -374,6 +374,14 @@ func TestUpdate_NavigationJK(t *testing.T) {
 		t.Errorf("after second 'j', cursor = %d, want 2", dialog.cursor)
 	}
 
+	// Press 'j' again to reach item 3
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.cursor != 3 {
+		t.Errorf("after third 'j', cursor = %d, want 3", dialog.cursor)
+	}
+
 	// Press 'j' at last item - should wrap to 0
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
@@ -386,16 +394,24 @@ func TestUpdate_NavigationJK(t *testing.T) {
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 2 {
-		t.Errorf("after 'k' at first item, cursor = %d, want 2 (wrap)", dialog.cursor)
+	if dialog.cursor != 3 {
+		t.Errorf("after 'k' at first item, cursor = %d, want 3 (wrap)", dialog.cursor)
 	}
 
 	// Press 'k' to move up
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
+	if dialog.cursor != 2 {
+		t.Errorf("after 'k', cursor = %d, want 2", dialog.cursor)
+	}
+
+	// Press 'k' again
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
 	if dialog.cursor != 1 {
-		t.Errorf("after 'k', cursor = %d, want 1", dialog.cursor)
+		t.Errorf("after second 'k', cursor = %d, want 1", dialog.cursor)
 	}
 }
 
@@ -413,8 +429,9 @@ func TestUpdate_NavigationNumeric(t *testing.T) {
 		{"1", true},  // Valid item
 		{"2", true},  // Valid item
 		{"3", true},  // Valid item
-		{"4", false}, // Invalid (only 3 items)
-		{"9", false}, // Invalid (only 3 items)
+		{"4", true},  // Valid item (now includes compress)
+		{"5", false}, // Invalid (only 4 items)
+		{"9", false}, // Invalid (only 4 items)
 	}
 
 	for _, tt := range tests {

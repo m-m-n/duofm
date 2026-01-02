@@ -2505,3 +2505,344 @@ func TestPendingCursorTargetClearedOnOtherNavigation(t *testing.T) {
 		}
 	})
 }
+
+func TestPane_NavigateHistoryBack(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir1 := filepath.Join(tmpDir, "sub1")
+	subDir2 := filepath.Join(tmpDir, "sub2")
+	os.Mkdir(subDir1, 0755)
+	os.Mkdir(subDir2, 0755)
+
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("returns nil when no history", func(t *testing.T) {
+		// Fresh pane has no backward history
+		err := pane.NavigateHistoryBack()
+		if err != nil {
+			t.Errorf("NavigateHistoryBack() error = %v, want nil", err)
+		}
+		// Path should remain unchanged
+		if pane.path != tmpDir {
+			t.Errorf("path = %s, want %s", pane.path, tmpDir)
+		}
+	})
+
+	t.Run("navigates back after history entries", func(t *testing.T) {
+		// Add history entries by navigating
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir1)
+		pane.history.AddToHistory(subDir2)
+		pane.path = subDir2
+
+		err := pane.NavigateHistoryBack()
+		if err != nil {
+			t.Errorf("NavigateHistoryBack() error = %v, want nil", err)
+		}
+		if pane.path != subDir1 {
+			t.Errorf("after back, path = %s, want %s", pane.path, subDir1)
+		}
+	})
+}
+
+func TestPane_NavigateHistoryForward(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir1 := filepath.Join(tmpDir, "sub1")
+	subDir2 := filepath.Join(tmpDir, "sub2")
+	os.Mkdir(subDir1, 0755)
+	os.Mkdir(subDir2, 0755)
+
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("returns nil when no forward history", func(t *testing.T) {
+		err := pane.NavigateHistoryForward()
+		if err != nil {
+			t.Errorf("NavigateHistoryForward() error = %v, want nil", err)
+		}
+	})
+
+	t.Run("navigates forward after going back", func(t *testing.T) {
+		// Build history
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir1)
+		pane.history.AddToHistory(subDir2)
+		pane.path = subDir2
+
+		// Go back
+		pane.NavigateHistoryBack()
+		if pane.path != subDir1 {
+			t.Errorf("after back, path = %s, want %s", pane.path, subDir1)
+		}
+
+		// Go forward
+		err := pane.NavigateHistoryForward()
+		if err != nil {
+			t.Errorf("NavigateHistoryForward() error = %v, want nil", err)
+		}
+		if pane.path != subDir2 {
+			t.Errorf("after forward, path = %s, want %s", pane.path, subDir2)
+		}
+	})
+}
+
+func TestPane_NavigateHistoryBackAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("returns nil when no history", func(t *testing.T) {
+		cmd := pane.NavigateHistoryBackAsync()
+		if cmd != nil {
+			t.Error("NavigateHistoryBackAsync() should return nil when no history")
+		}
+	})
+
+	t.Run("returns command when history exists", func(t *testing.T) {
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir)
+		pane.path = subDir
+
+		cmd := pane.NavigateHistoryBackAsync()
+		if cmd == nil {
+			t.Error("NavigateHistoryBackAsync() should return a command when history exists")
+		}
+	})
+
+	t.Run("clears pendingCursorTarget", func(t *testing.T) {
+		pane.history = NewDirectoryHistory() // Reset history
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir)
+		pane.path = subDir
+		pane.pendingCursorTarget = "something"
+
+		pane.NavigateHistoryBackAsync()
+
+		if pane.pendingCursorTarget != "" {
+			t.Errorf("pendingCursorTarget = %s, should be empty", pane.pendingCursorTarget)
+		}
+	})
+}
+
+func TestPane_NavigateHistoryForwardAsync(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	os.Mkdir(subDir, 0755)
+
+	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("returns nil when no forward history", func(t *testing.T) {
+		cmd := pane.NavigateHistoryForwardAsync()
+		if cmd != nil {
+			t.Error("NavigateHistoryForwardAsync() should return nil when no forward history")
+		}
+	})
+
+	t.Run("returns command after going back", func(t *testing.T) {
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir)
+		pane.path = subDir
+
+		// Go back first
+		pane.NavigateHistoryBackAsync()
+
+		// Now forward should work
+		cmd := pane.NavigateHistoryForwardAsync()
+		if cmd == nil {
+			t.Error("NavigateHistoryForwardAsync() should return a command after going back")
+		}
+	})
+
+	t.Run("clears pendingCursorTarget", func(t *testing.T) {
+		pane.history = NewDirectoryHistory()
+		pane.history.AddToHistory(tmpDir)
+		pane.history.AddToHistory(subDir)
+		pane.path = subDir
+
+		// Go back first
+		pane.NavigateHistoryBackAsync()
+		pane.pendingCursorTarget = "something"
+
+		pane.NavigateHistoryForwardAsync()
+
+		if pane.pendingCursorTarget != "" {
+			t.Errorf("pendingCursorTarget = %s, should be empty", pane.pendingCursorTarget)
+		}
+	})
+}
+
+func TestLoadDirectoryAsyncWithHistory(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a test file in the directory
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("content"), 0644)
+
+	t.Run("returns command for valid directory", func(t *testing.T) {
+		cmd := LoadDirectoryAsyncWithHistory(LeftPane, tmpDir, SortConfig{}, false)
+		if cmd == nil {
+			t.Error("LoadDirectoryAsyncWithHistory() should return a command")
+		}
+	})
+
+	t.Run("command returns directoryLoadCompleteMsg", func(t *testing.T) {
+		cmd := LoadDirectoryAsyncWithHistory(LeftPane, tmpDir, SortConfig{}, true)
+		if cmd == nil {
+			t.Fatal("LoadDirectoryAsyncWithHistory() should return a command")
+		}
+
+		msg := cmd()
+		result, ok := msg.(directoryLoadCompleteMsg)
+		if !ok {
+			t.Errorf("cmd() should return directoryLoadCompleteMsg, got %T", msg)
+		}
+		if result.paneID != LeftPane {
+			t.Errorf("result.paneID = %v, want %v", result.paneID, LeftPane)
+		}
+		if result.panePath != tmpDir {
+			t.Errorf("result.panePath = %s, want %s", result.panePath, tmpDir)
+		}
+		if !result.isHistoryNavigation {
+			t.Error("result.isHistoryNavigation should be true")
+		}
+		if !result.historyNavigationForward {
+			t.Error("result.historyNavigationForward should be true")
+		}
+	})
+
+	t.Run("returns error for nonexistent directory", func(t *testing.T) {
+		cmd := LoadDirectoryAsyncWithHistory(LeftPane, "/nonexistent/path", SortConfig{}, false)
+		if cmd == nil {
+			t.Fatal("LoadDirectoryAsyncWithHistory() should return a command")
+		}
+
+		msg := cmd()
+		result, ok := msg.(directoryLoadCompleteMsg)
+		if !ok {
+			t.Errorf("cmd() should return directoryLoadCompleteMsg, got %T", msg)
+		}
+		if result.err == nil {
+			t.Error("result.err should not be nil for nonexistent directory")
+		}
+	})
+}
+
+func TestPane_ViewWithDisplayModes(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test content"), 0644)
+
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("minimal display mode", func(t *testing.T) {
+		pane.displayMode = DisplayMinimal
+		view := pane.View()
+		if view == "" {
+			t.Error("View should not be empty for minimal mode")
+		}
+	})
+
+	t.Run("basic display mode", func(t *testing.T) {
+		pane.displayMode = DisplayBasic
+		view := pane.View()
+		if view == "" {
+			t.Error("View should not be empty for basic mode")
+		}
+	})
+
+	t.Run("detail display mode", func(t *testing.T) {
+		pane.displayMode = DisplayDetail
+		view := pane.View()
+		if view == "" {
+			t.Error("View should not be empty for detail mode")
+		}
+	})
+}
+
+func TestPane_ViewWithMarkedFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("content"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("content"), 0644)
+
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	// Mark a file using ToggleMark (marks at cursor position)
+	if len(pane.entries) > 0 {
+		pane.cursor = 0
+		pane.ToggleMark()
+	}
+
+	view := pane.View()
+	if view == "" {
+		t.Error("View should not be empty with marked files")
+	}
+}
+
+func TestPane_FormatEntryWithMarkedCursor(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("content"), 0644)
+
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	if len(pane.entries) == 0 {
+		t.Skip("No entries in directory")
+	}
+
+	entry := pane.entries[0]
+
+	// Test cursor on marked file
+	pane.cursor = 0
+	pane.ToggleMark() // Mark the file at cursor
+	result := pane.formatEntry(entry, true)
+	if result == "" {
+		t.Error("formatEntry should return non-empty for marked cursor")
+	}
+
+	// Test cursor on unmarked file
+	pane.ToggleMark() // Unmark
+	result = pane.formatEntry(entry, true)
+	if result == "" {
+		t.Error("formatEntry should return non-empty for unmarked cursor")
+	}
+
+	// Test non-cursor marked file
+	pane.ToggleMark() // Mark again
+	result = pane.formatEntry(entry, false)
+	if result == "" {
+		t.Error("formatEntry should return non-empty for non-cursor marked")
+	}
+}
+
+func TestPane_InactivePane(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("content"), 0644)
+
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, false, nil) // inactive
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	view := pane.View()
+	if view == "" {
+		t.Error("View should not be empty for inactive pane")
+	}
+}

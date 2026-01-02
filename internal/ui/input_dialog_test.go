@@ -328,3 +328,52 @@ func TestInputDialog_SetWidth(t *testing.T) {
 		t.Errorf("SetWidth(80) width = %d, want 80", dialog.width)
 	}
 }
+
+func TestInputDialog_SetEmptyErrorMsg(t *testing.T) {
+	dialog := NewInputDialog("Test:", nil)
+
+	customMsg := "Custom error message"
+	dialog.SetEmptyErrorMsg(customMsg)
+
+	if dialog.emptyErrorMsg != customMsg {
+		t.Errorf("SetEmptyErrorMsg() did not set message, got %q, want %q", dialog.emptyErrorMsg, customMsg)
+	}
+}
+
+func TestInputDialog_LongInputView(t *testing.T) {
+	dialog := NewInputDialog("Test:", nil)
+
+	// Create a long input string that exceeds typical display width
+	longInput := "this_is_a_very_long_filename_that_exceeds_the_normal_display_width.txt"
+	dialog.input = longInput
+	dialog.cursorPos = len(longInput)
+	dialog.width = 50
+
+	view := dialog.View()
+
+	// View should still contain content
+	if view == "" {
+		t.Error("View should not be empty for long input")
+	}
+
+	// View should still contain the title
+	if !strings.Contains(view, "Test:") {
+		t.Error("View should contain the title")
+	}
+}
+
+func TestInputDialog_CursorAtMiddleOfLongInput(t *testing.T) {
+	dialog := NewInputDialog("Test:", nil)
+
+	// Create a long input string
+	longInput := "this_is_a_very_long_filename_that_exceeds_the_normal_display_width.txt"
+	dialog.input = longInput
+	dialog.cursorPos = len(longInput) / 2
+	dialog.width = 50
+
+	view := dialog.View()
+
+	if view == "" {
+		t.Error("View should not be empty for long input with cursor in middle")
+	}
+}

@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sakura/duofm/internal/archive"
 	"github.com/sakura/duofm/internal/fs"
 )
 
@@ -167,6 +168,36 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 		Enabled: true,
 	})
 
+	// Compress menu item (for all files/directories)
+	compressLabel := "Compress"
+	if markCount > 0 {
+		compressLabel = fmt.Sprintf("Compress %d files", markCount)
+	}
+	items = append(items, MenuItem{
+		ID:      "compress",
+		Label:   compressLabel,
+		Action:  nil, // Will be handled by submenu in Update()
+		Enabled: true,
+	})
+
+	// Extract archive menu item (only for archive files)
+	fullPath := filepath.Join(sourcePath, entry.Name)
+	format, err := archive.DetectFormat(fullPath)
+	if err == nil && format != archive.FormatUnknown && !entry.IsDir {
+		// Check if format is available
+		if archive.IsFormatAvailable(format) {
+			items = append(items, MenuItem{
+				ID:    "extract",
+				Label: "Extract archive",
+				Action: func() error {
+					// Will be handled by Model
+					return nil
+				},
+				Enabled: true,
+			})
+		}
+	}
+
 	// Symlink-specific operations
 	if entry.IsSymlink && entry.IsDir && !entry.LinkBroken {
 		items = append(items, MenuItem{
@@ -266,6 +297,16 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			if d.cursor >= 0 && d.cursor < len(items) {
 				selectedItem := items[d.cursor]
 				if selectedItem.Enabled {
+					// Special handling for "compress" - opens format selection submenu
+					if selectedItem.ID == "compress" {
+						d.active = false
+						return d, func() tea.Msg {
+							return contextMenuResultMsg{
+								actionID: "compress",
+							}
+						}
+					}
+
 					d.active = false
 					return d, func() tea.Msg {
 						return contextMenuResultMsg{
@@ -284,6 +325,16 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			if num >= 0 && num < len(items) {
 				selectedItem := items[num]
 				if selectedItem.Enabled {
+					// Special handling for "compress" - opens format selection submenu
+					if selectedItem.ID == "compress" {
+						d.active = false
+						return d, func() tea.Msg {
+							return contextMenuResultMsg{
+								actionID: "compress",
+							}
+						}
+					}
+
 					d.active = false
 					return d, func() tea.Msg {
 						return contextMenuResultMsg{

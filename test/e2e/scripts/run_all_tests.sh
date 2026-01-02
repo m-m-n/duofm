@@ -37,6 +37,7 @@ declare -A TEST_FILES=(
     ["bookmark"]="bookmark_tests.sh"
     ["mark"]="mark_tests.sh"
     ["history"]="history_tests.sh"
+    ["archive"]="archive_tests.sh"
 )
 
 # Show usage
@@ -242,6 +243,19 @@ run_all() {
     run_test test_history_forward_cleared
     run_test test_history_parent_navigation
     run_test test_history_home_navigation
+
+    # Archive tests
+    echo ""
+    echo "=== Archive Tests ==="
+    run_test test_compress_format_dialog_opens
+    run_test test_compress_format_navigation
+    run_test test_compression_level_dialog
+    run_test test_archive_name_dialog
+    run_test test_archive_conflict_dialog
+    run_test test_compress_cancel_workflow
+    run_test test_compress_complete_workflow
+    run_test test_extract_complete_workflow
+    run_test test_multifile_compress
 }
 
 # Main entry point

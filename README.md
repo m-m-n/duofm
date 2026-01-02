@@ -11,6 +11,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Multi-file marking**: Select multiple files with Space for batch operations
 - **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
 - **Overwrite handling**: Smart conflict resolution with overwrite, skip, or rename options
+- **Archive operations**: Create and extract tar, tar.gz, tar.bz2, tar.xz, zip, and 7z archives
 
 ### Navigation
 - **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
@@ -66,6 +67,29 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 
 - Go 1.21 or later
 
+#### External Dependencies (for archive operations)
+
+Archive operations require the following external tools to be installed:
+
+| Format | Required Tools |
+|--------|----------------|
+| tar | `tar` |
+| tar.gz | `tar`, `gzip` |
+| tar.bz2 | `tar`, `bzip2` |
+| tar.xz | `tar`, `xz` |
+| zip | `zip`, `unzip` |
+| 7z | `7z` (p7zip-full) |
+
+On Debian/Ubuntu:
+```bash
+sudo apt install tar gzip bzip2 xz-utils zip unzip p7zip-full
+```
+
+On macOS:
+```bash
+brew install gnu-tar gzip bzip2 xz zip p7zip
+```
+
 ### Build from source
 
 ```bash
@@ -112,6 +136,7 @@ duofm
 | `c` | Copy to opposite pane               |
 | `m` | Move to opposite pane               |
 | `d` | Delete (with confirmation)          |
+| `o` | Open context menu (includes Compress/Extract) |
 
 ### Other
 

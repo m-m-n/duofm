@@ -252,3 +252,81 @@ func TestBookmarkResultMsg(t *testing.T) {
 		}
 	})
 }
+
+func TestBookmarkDialog_SetWidth(t *testing.T) {
+	bookmarks := []config.Bookmark{
+		{Name: "Test", Path: "/test"},
+	}
+	dialog := NewBookmarkDialog(bookmarks)
+
+	initialWidth := dialog.width
+	newWidth := 100
+
+	dialog.SetWidth(newWidth)
+
+	if dialog.width != newWidth {
+		t.Errorf("SetWidth() did not set width, got %d, want %d", dialog.width, newWidth)
+	}
+
+	if dialog.width == initialWidth && newWidth != initialWidth {
+		t.Error("SetWidth() should change the width")
+	}
+}
+
+func TestBookmarkDialog_WrapPath(t *testing.T) {
+	bookmarks := []config.Bookmark{
+		{Name: "Test", Path: "/test"},
+	}
+	dialog := NewBookmarkDialog(bookmarks)
+
+	t.Run("short path returns unchanged", func(t *testing.T) {
+		path := "/short/path"
+		result := dialog.wrapPath(path, 50)
+		if result != path {
+			t.Errorf("wrapPath() = %q, want %q", result, path)
+		}
+	})
+
+	t.Run("long path gets wrapped", func(t *testing.T) {
+		path := "/very/long/path/that/exceeds/the/maximum/width/allowed"
+		result := dialog.wrapPath(path, 20)
+		if !strings.Contains(result, "\n") {
+			t.Error("wrapPath() should wrap long paths with newlines")
+		}
+	})
+
+	t.Run("path exactly at max width", func(t *testing.T) {
+		path := "/exact"
+		result := dialog.wrapPath(path, 6)
+		if result != path {
+			t.Errorf("wrapPath() = %q, want %q", result, path)
+		}
+	})
+
+	t.Run("empty path", func(t *testing.T) {
+		path := ""
+		result := dialog.wrapPath(path, 50)
+		if result != path {
+			t.Errorf("wrapPath() = %q, want %q", result, path)
+		}
+	})
+}
+
+func TestBookmarkDialogWithVeryLongPath(t *testing.T) {
+	longPath := "/very/long/path/that/exceeds/the/normal/display/width/and/should/be/wrapped"
+	bookmarks := []config.Bookmark{
+		{Name: "LongPath", Path: longPath},
+	}
+	dialog := NewBookmarkDialog(bookmarks)
+	dialog.width = 30
+
+	view := dialog.View()
+
+	if view == "" {
+		t.Error("View should not be empty")
+	}
+
+	if !strings.Contains(view, "LongPath") {
+		t.Error("View should contain bookmark name")
+	}
+}
