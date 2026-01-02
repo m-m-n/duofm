@@ -8,6 +8,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Dual-pane interface**: Navigate two directories side-by-side
 - **Vim-style keybindings**: Familiar hjkl navigation with arrow key support
 - **File operations**: Copy, move, delete, rename files and directories
+- **File creation**: Create new files (N) and directories (Shift+N)
 - **Multi-file marking**: Select multiple files with Space for batch operations
 - **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
 - **Overwrite handling**: Smart conflict resolution with overwrite, skip, or rename options
@@ -21,6 +22,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Sort options**: By name, size, or date with live preview
 - **Bookmarks**: Save and jump to frequently used directories (`b`/`B`)
 - **Smart cursor**: Remember position when navigating to parent directory
+- **Refresh**: Reload directory contents with F5 or Ctrl+R
 
 ### Display
 - **Three display modes**: Minimal, Basic (size+date), Detail (permissions+owner)
@@ -28,6 +30,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **East Asian Width**: Configurable width for ambiguous characters
 - **Context menu**: Press `@` for visual action selection with number key shortcuts
 - **Help system**: Press `?` for scrollable keybinding reference with color palette
+- **Dialog overlays**: Dimmed background keeps file list visible during dialogs
 
 ### Integration
 - **External viewer**: Open files with $PAGER (`v` key or `Enter`)
