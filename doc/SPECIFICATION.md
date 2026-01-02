@@ -28,6 +28,12 @@ graph TB
         Bookmarks[Bookmarks]
     end
 
+    subgraph Archive["internal/archive"]
+        Executor[Command Executor]
+        Detector[Format Detector]
+        Extractor[Smart Extractor]
+    end
+
     Model --> Pane
     Model --> Dialog
     Model --> Minibuffer
@@ -38,6 +44,9 @@ graph TB
     ConfigLoader --> Keybindings
     ConfigLoader --> Colors
     ConfigLoader --> Bookmarks
+    Operations --> Executor
+    Executor --> Detector
+    Executor --> Extractor
 ```
 
 ## Features
@@ -80,6 +89,8 @@ graph TB
 - **Move (M)**: Move selected file(s) to opposite pane
 - **Delete (D)**: Delete with confirmation dialog (requires `y` key to confirm)
 - **Rename (R)**: Rename selected file
+- **New File (N)**: Create new file
+- **New Directory (Shift+N)**: Create new directory
 
 #### Overwrite Handling
 - Conflict detection when copying/moving files
@@ -89,8 +100,8 @@ graph TB
 - Directory-to-directory conflicts show error (no merge)
 
 #### File Creation
-- **New File (N)**: Create new file
-- **New Directory (Shift+N)**: Create new directory
+- New file creation with empty input
+- New directory creation
 - Cursor moves to newly created file after creation
 - Hidden files handled correctly (cursor behavior varies)
 
@@ -100,6 +111,16 @@ graph TB
 - Header shows marked count and total size
 - Visual highlighting for marked files (different colors for active/inactive panes)
 - Marks cleared on directory change
+
+#### Archive Operations
+- **Create archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
+- **Extract archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
+- Smart extraction logic (adapts to archive structure)
+- Compression level selection (0-9 for supported formats)
+- Context menu integration for compress/extract
+- Progress display for long-running operations
+- Security checks (zip bomb detection, disk space validation)
+- Linux-only feature (uses external CLI tools)
 
 ### Display Modes
 
@@ -174,6 +195,11 @@ Press `@` to show context menu with:
 - Copy to other pane
 - Move to other pane
 - Delete
+- Rename
+- New file
+- New directory
+- Compress (with format selection)
+- Extract archive (for archive files)
 - Symlink-specific options (logical/physical path)
 - Supports marked files for batch operations
 - Number keys 1-9 for direct selection
@@ -294,10 +320,29 @@ All dialogs follow consistent UI patterns:
 - Add, edit, delete bookmarks
 - Warning indicators for non-existent paths
 
+#### Archive Progress Dialog
+- Operation type (Compressing/Extracting)
+- Progress bar with percentage
+- Current file being processed
+- File count and elapsed time
+- Cancelable with Esc
+
 ### Version Display
 
 - Dynamic version from build-time ldflags
 - Displayed in toolbar and `--version` CLI option
+
+### Special Features
+
+#### Ctrl+C Handling
+- Ctrl+C cancels all modal states (dialogs, minibuffer)
+- Double Ctrl+C quits application in normal mode
+- 2-second timeout for double-press detection
+
+#### Dialog Overlay Styling
+- File list visible behind dialogs with dimmed appearance
+- Full-screen dialogs dim both panes
+- Pane-local dialogs dim only active pane
 
 ## Keyboard Shortcuts
 
@@ -378,6 +423,7 @@ bookmark = ["B"]
 add_bookmark = ["Shift+B"]
 history_back = ["Alt+Left", "["]
 history_forward = ["Alt+Right", "]"]
+context_menu = ["@"]
 ```
 
 ### Colors Section
@@ -446,6 +492,17 @@ east_asian_ambiguous_width = 1
 - github.com/BurntSushi/toml - Configuration parsing
 - github.com/mattn/go-runewidth - Unicode display width
 
+## Archive Dependencies (Linux only)
+
+| Format | Required Tools |
+|--------|----------------|
+| tar | `tar` |
+| tar.gz | `tar`, `gzip` |
+| tar.bz2 | `tar`, `bzip2` |
+| tar.xz | `tar`, `xz` |
+| zip | `zip`, `unzip` |
+| 7z | `7z` (p7zip-full) |
+
 ## Performance Characteristics
 
 - Async directory loading for responsive UI
@@ -462,6 +519,11 @@ east_asian_ambiguous_width = 1
 - Shell commands executed via /bin/sh -c
 - No input sanitization for shell commands (user explicitly enters)
 - Configuration file permissions follow XDG spec
+- Archive extraction security:
+  - Path traversal prevention
+  - Zip bomb detection (warns at ratio > 1:1000)
+  - Disk space validation
+  - Setuid/setgid bit stripping
 
 ## Testing Strategy
 
@@ -481,4 +543,4 @@ The architecture supports future additions:
 - Search history
 - Persistent directory history
 - Tabs/multiple panes
-- Archive support
+- Additional archive formats (rar, etc.)
