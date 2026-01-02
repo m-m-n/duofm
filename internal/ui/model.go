@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+	"github.com/sakura/duofm/internal/archive"
 	"github.com/sakura/duofm/internal/config"
 	"github.com/sakura/duofm/internal/fs"
 	"github.com/sakura/duofm/internal/version"
@@ -29,6 +30,16 @@ type BatchOperation struct {
 	Failed     []string // Failed files
 }
 
+// ArchiveOperationState holds state for in-progress archive operations
+type ArchiveOperationState struct {
+	Sources     []string              // Source files/directories to archive
+	DestDir     string                // Destination directory
+	Format      archive.ArchiveFormat // Selected archive format
+	Level       int                   // Compression level (0-9)
+	ArchiveName string                // Archive filename
+	TaskID      string                // Task ID for background operation
+}
+
 // Model はアプリケーション全体の状態を保持
 type Model struct {
 	leftPane           *Pane
@@ -40,23 +51,25 @@ type Model struct {
 	width              int
 	height             int
 	ready              bool
-	lastDiskSpaceCheck time.Time         // 最後のディスク容量チェック時刻
-	leftDiskSpace      uint64            // 左ペインのディスク空き容量
-	rightDiskSpace     uint64            // 右ペインのディスク空き容量
-	pendingAction      func() error      // 確認待ちのアクション（コンテキストメニューの削除用）
-	statusMessage      string            // ステータスバーに表示するメッセージ
-	isStatusError      bool              // エラーメッセージかどうか
-	searchState        SearchState       // 検索状態
-	minibuffer         *Minibuffer       // ミニバッファ
-	ctrlCPending       bool              // Ctrl+Cが1回押された状態かどうか
-	batchOp            *BatchOperation   // Active batch operation (nil if none)
-	sortDialog         *SortDialog       // ソートダイアログ（nil = 非表示）
-	shellCommandMode   bool              // シェルコマンドモードかどうか
-	keybindingMap      *KeybindingMap    // キーバインドマップ
-	configWarnings     []string          // 設定ファイルの警告
-	theme              *Theme            // カラーテーマ
-	bookmarks          []config.Bookmark // ブックマークリスト
-	bookmarkEditIndex  int               // 編集中のブックマークインデックス
+	lastDiskSpaceCheck time.Time                  // 最後のディスク容量チェック時刻
+	leftDiskSpace      uint64                     // 左ペインのディスク空き容量
+	rightDiskSpace     uint64                     // 右ペインのディスク空き容量
+	pendingAction      func() error               // 確認待ちのアクション（コンテキストメニューの削除用）
+	statusMessage      string                     // ステータスバーに表示するメッセージ
+	isStatusError      bool                       // エラーメッセージかどうか
+	searchState        SearchState                // 検索状態
+	minibuffer         *Minibuffer                // ミニバッファ
+	ctrlCPending       bool                       // Ctrl+Cが1回押された状態かどうか
+	batchOp            *BatchOperation            // Active batch operation (nil if none)
+	sortDialog         *SortDialog                // ソートダイアログ（nil = 非表示）
+	shellCommandMode   bool                       // シェルコマンドモードかどうか
+	keybindingMap      *KeybindingMap             // キーバインドマップ
+	configWarnings     []string                   // 設定ファイルの警告
+	theme              *Theme                     // カラーテーマ
+	bookmarks          []config.Bookmark          // ブックマークリスト
+	bookmarkEditIndex  int                        // 編集中のブックマークインデックス
+	archiveOp          *ArchiveOperationState     // アーカイブ操作の状態
+	archiveController  *archive.ArchiveController // アーカイブコントローラー
 }
 
 // PanePosition はペインの位置を表す
@@ -123,6 +136,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		theme:             theme,
 		bookmarks:         bookmarks,
 		bookmarkEditIndex: -1,
+		archiveController: archive.NewArchiveController(),
 	}
 }
 
@@ -171,6 +185,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 								entry.DisplayName(),
 							)
 						}
+					}
+					return m, nil
+				}
+
+				// 圧縮の場合 - フォーマット選択ダイアログを表示
+				if result.actionID == "compress" {
+					m.dialog = NewCompressFormatDialog()
+					return m, nil
+				}
+
+				// 展開の場合 - セキュリティチェック後に実行
+				if result.actionID == "extract" {
+					entry := activePane.SelectedEntry()
+					if entry != nil && !entry.IsParentDir() {
+						archivePath := filepath.Join(activePane.Path(), entry.Name)
+						destDir := m.getInactivePane().Path()
+						return m, m.checkExtractSecurity(archivePath, destDir)
 					}
 					return m, nil
 				}
@@ -225,6 +256,135 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.getActivePane().SetSortConfig(result.config)
 			m.getActivePane().ApplySortAndPreserveCursor()
 		}
+		return m, nil
+	}
+
+	// 圧縮フォーマット選択の結果処理
+	if result, ok := msg.(compressFormatResultMsg); ok {
+		m.dialog = nil
+
+		if result.cancelled {
+			m.archiveOp = nil
+			return m, nil
+		}
+
+		// Initialize archive operation state
+		activePane := m.getActivePane()
+		markedFiles := activePane.GetMarkedFiles()
+		var sources []string
+
+		if len(markedFiles) > 0 {
+			// Multiple marked files
+			for _, name := range markedFiles {
+				sources = append(sources, filepath.Join(activePane.Path(), name))
+			}
+		} else {
+			// Single selected file/directory
+			entry := activePane.SelectedEntry()
+			if entry != nil && !entry.IsParentDir() {
+				sources = append(sources, filepath.Join(activePane.Path(), entry.Name))
+			}
+		}
+
+		if len(sources) == 0 {
+			m.statusMessage = "No files selected for compression"
+			m.isStatusError = true
+			return m, statusMessageClearCmd(3 * time.Second)
+		}
+
+		m.archiveOp = &ArchiveOperationState{
+			Sources: sources,
+			DestDir: m.getInactivePane().Path(),
+			Format:  result.format,
+			Level:   6, // Default level
+		}
+
+		// tar format doesn't need compression level selection
+		if result.format == archive.FormatTar {
+			// Skip to archive name dialog
+			defaultName := m.generateDefaultArchiveName(sources, result.format)
+			m.dialog = NewArchiveNameDialog(defaultName)
+		} else {
+			// Show compression level dialog
+			m.dialog = NewCompressionLevelDialog()
+		}
+		return m, nil
+	}
+
+	// 圧縮レベル選択の結果処理
+	if result, ok := msg.(compressionLevelResultMsg); ok {
+		m.dialog = nil
+
+		if result.cancelled || m.archiveOp == nil {
+			m.archiveOp = nil
+			return m, nil
+		}
+
+		m.archiveOp.Level = result.level
+
+		// Show archive name dialog
+		defaultName := m.generateDefaultArchiveName(m.archiveOp.Sources, m.archiveOp.Format)
+		m.dialog = NewArchiveNameDialog(defaultName)
+		return m, nil
+	}
+
+	// アーカイブ名入力の結果処理
+	if result, ok := msg.(archiveNameResultMsg); ok {
+		m.dialog = nil
+
+		if result.cancelled || m.archiveOp == nil {
+			m.archiveOp = nil
+			return m, nil
+		}
+
+		m.archiveOp.ArchiveName = result.name
+		archivePath := filepath.Join(m.archiveOp.DestDir, result.name)
+
+		// Check if file already exists
+		if _, err := os.Stat(archivePath); err == nil {
+			// File exists, show conflict dialog
+			m.dialog = NewArchiveConflictDialog(archivePath)
+			return m, nil
+		}
+
+		// No conflict, start compression
+		return m, m.startArchiveCompression(archivePath)
+	}
+
+	// アーカイブ衝突解決の結果処理
+	if result, ok := msg.(archiveConflictResultMsg); ok {
+		m.dialog = nil
+
+		if result.cancelled || m.archiveOp == nil {
+			m.archiveOp = nil
+			return m, nil
+		}
+
+		archivePath := result.archivePath
+
+		switch result.choice {
+		case ArchiveConflictOverwrite:
+			// Delete existing file and proceed
+			if err := os.Remove(archivePath); err != nil {
+				m.statusMessage = fmt.Sprintf("Failed to remove existing file: %v", err)
+				m.isStatusError = true
+				m.archiveOp = nil
+				return m, statusMessageClearCmd(5 * time.Second)
+			}
+			return m, m.startArchiveCompression(archivePath)
+
+		case ArchiveConflictRename:
+			// Generate unique name and show name dialog again
+			newPath := GenerateUniqueArchiveName(archivePath)
+			newName := filepath.Base(newPath)
+			m.dialog = NewArchiveNameDialog(newName)
+			return m, nil
+
+		case ArchiveConflictCancel:
+			m.archiveOp = nil
+			return m, nil
+		}
+
 		return m, nil
 	}
 
@@ -410,6 +570,115 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			duration = 5 * time.Second
 		}
 		return m, statusMessageClearCmd(duration)
+	}
+
+	// アーカイブ操作開始の処理
+	if result, ok := msg.(archiveOperationStartMsg); ok {
+		if m.archiveOp == nil {
+			// archiveOp is nil - operation was cancelled or state is inconsistent
+			return m, nil
+		}
+		m.archiveOp.TaskID = result.taskID
+		// Start polling for progress updates
+		return m, m.pollArchiveProgress(result.taskID)
+	}
+
+	// アーカイブ進捗更新の処理
+	if result, ok := msg.(archiveProgressUpdateMsg); ok {
+		if progressDialog, ok := m.dialog.(*ArchiveProgressDialog); ok {
+			progressDialog.UpdateProgress(&archive.ProgressUpdate{
+				ProcessedFiles: result.processedFiles,
+				TotalFiles:     result.totalFiles,
+				CurrentFile:    result.currentFile,
+				StartTime:      time.Now().Add(-result.elapsedTime),
+			})
+		}
+		// Continue polling
+		return m, m.pollArchiveProgress(result.taskID)
+	}
+
+	// アーカイブ操作完了の処理
+	if result, ok := msg.(archiveOperationCompleteMsg); ok {
+		m.dialog = nil
+		m.archiveOp = nil
+
+		if result.cancelled {
+			m.statusMessage = "Archive operation cancelled"
+			m.isStatusError = false
+		} else if result.success {
+			// Clear marks after successful operation
+			m.getActivePane().ClearMarks()
+			// Refresh both panes
+			m.getActivePane().LoadDirectory()
+			m.getInactivePane().LoadDirectory()
+			m.statusMessage = fmt.Sprintf("Archive created: %s", filepath.Base(result.archivePath))
+			m.isStatusError = false
+		} else {
+			errMsg := "Archive operation failed"
+			if result.err != nil {
+				errMsg = fmt.Sprintf("Archive operation failed: %v", result.err)
+			}
+			m.statusMessage = errMsg
+			m.isStatusError = true
+		}
+		return m, statusMessageClearCmd(5 * time.Second)
+	}
+
+	// アーカイブ操作エラーの処理
+	if result, ok := msg.(archiveOperationErrorMsg); ok {
+		m.dialog = nil
+		m.archiveOp = nil
+		m.statusMessage = result.message
+		m.isStatusError = true
+		return m, statusMessageClearCmd(5 * time.Second)
+	}
+
+	// アーカイブ展開のセキュリティチェック結果の処理
+	if result, ok := msg.(extractSecurityCheckMsg); ok {
+		if result.err != nil {
+			m.statusMessage = fmt.Sprintf("Failed to check archive: %v", result.err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second)
+		}
+
+		// 圧縮爆弾の警告チェック（圧縮率が1:1000を超える場合）
+		if !result.compressionOK {
+			m.dialog = NewCompressionBombWarningDialog(
+				result.archivePath,
+				result.archiveSize,
+				result.extractedSize,
+				result.ratio,
+			)
+			return m, nil
+		}
+
+		// ディスク容量の警告チェック
+		if !result.diskSpaceOK {
+			m.dialog = NewDiskSpaceWarningDialog(
+				result.archivePath,
+				result.extractedSize,
+				result.availableSize,
+			)
+			return m, nil
+		}
+
+		// セキュリティチェックOK - 展開開始
+		return m, m.startArchiveExtraction(result.archivePath, result.destDir)
+	}
+
+	// アーカイブ警告ダイアログの結果処理
+	if result, ok := msg.(archiveWarningResultMsg); ok {
+		m.dialog = nil
+
+		if result.choice == ArchiveWarningCancel {
+			m.statusMessage = "Extraction cancelled"
+			m.isStatusError = false
+			return m, statusMessageClearCmd(3 * time.Second)
+		}
+
+		// ユーザーがContinueを選択 - 展開を続行
+		destDir := m.getInactivePane().Path()
+		return m, m.startArchiveExtraction(result.archivePath, destDir)
 	}
 
 	switch msg := msg.(type) {
@@ -1879,4 +2148,221 @@ type bookmarkAddedMsg struct {
 type bookmarkEditedMsg struct {
 	bookmarks []config.Bookmark
 	alias     string
+}
+
+// generateDefaultArchiveName creates a default archive name based on source files
+func (m *Model) generateDefaultArchiveName(sources []string, format archive.ArchiveFormat) string {
+	if len(sources) == 0 {
+		return "archive" + format.Extension()
+	}
+
+	if len(sources) == 1 {
+		// Use source filename/dirname as base
+		base := filepath.Base(sources[0])
+		// Remove any existing extension for files
+		if !isDirectory(sources[0]) {
+			ext := filepath.Ext(base)
+			if ext != "" {
+				base = strings.TrimSuffix(base, ext)
+			}
+		}
+		return base + format.Extension()
+	}
+
+	// Multiple sources - use parent directory name or "archive"
+	parentDir := filepath.Dir(sources[0])
+	dirName := filepath.Base(parentDir)
+	if dirName == "" || dirName == "." || dirName == "/" {
+		return "archive" + format.Extension()
+	}
+	return dirName + format.Extension()
+}
+
+// isDirectory checks if path is a directory
+func isDirectory(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+// startArchiveCompression starts the background archive compression task
+func (m *Model) startArchiveCompression(archivePath string) tea.Cmd {
+	if m.archiveOp == nil || m.archiveController == nil {
+		return nil
+	}
+
+	sources := m.archiveOp.Sources
+	format := m.archiveOp.Format
+	level := m.archiveOp.Level
+	controller := m.archiveController
+
+	// Show progress dialog
+	progressDialog := NewArchiveProgressDialog("compress", archivePath)
+	progressDialog.SetOnCancel(func() {
+		if m.archiveOp != nil && m.archiveOp.TaskID != "" {
+			controller.CancelTask(m.archiveOp.TaskID)
+		}
+	})
+	m.dialog = progressDialog
+
+	return func() tea.Msg {
+		taskID, err := controller.CreateArchive(sources, archivePath, format, level)
+		if err != nil {
+			return archiveOperationErrorMsg{
+				err:     err,
+				message: fmt.Sprintf("Failed to start compression: %v", err),
+			}
+		}
+		return archiveOperationStartMsg{taskID: taskID}
+	}
+}
+
+// pollArchiveProgress polls for archive operation progress
+func (m *Model) pollArchiveProgress(taskID string) tea.Cmd {
+	if m.archiveController == nil {
+		return nil
+	}
+
+	controller := m.archiveController
+
+	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
+		status := controller.GetTaskStatus(taskID)
+		if status == nil {
+			return archiveOperationCompleteMsg{
+				taskID:  taskID,
+				success: false,
+				err:     fmt.Errorf("task not found"),
+			}
+		}
+
+		switch status.State {
+		case archive.TaskStateRunning:
+			// Return progress update
+			if status.Progress != nil {
+				return archiveProgressUpdateMsg{
+					taskID:          taskID,
+					progress:        float64(status.Progress.Percentage()) / 100.0,
+					processedFiles:  status.Progress.ProcessedFiles,
+					totalFiles:      status.Progress.TotalFiles,
+					currentFile:     status.Progress.CurrentFile,
+					elapsedTime:     status.Progress.ElapsedTime(),
+					estimatedRemain: status.Progress.EstimatedRemaining(),
+				}
+			}
+			return archiveProgressUpdateMsg{taskID: taskID}
+
+		case archive.TaskStateCompleted:
+			archivePath := ""
+			if status.Progress != nil {
+				archivePath = status.Progress.ArchivePath
+			}
+			return archiveOperationCompleteMsg{
+				taskID:      taskID,
+				success:     true,
+				archivePath: archivePath,
+			}
+
+		case archive.TaskStateCancelled:
+			return archiveOperationCompleteMsg{
+				taskID:    taskID,
+				cancelled: true,
+			}
+
+		case archive.TaskStateFailed:
+			return archiveOperationCompleteMsg{
+				taskID:  taskID,
+				success: false,
+				err:     status.Error,
+			}
+
+		default:
+			return archiveProgressUpdateMsg{taskID: taskID}
+		}
+	})
+}
+
+// checkExtractSecurity performs security checks before archive extraction
+func (m *Model) checkExtractSecurity(archivePath, destDir string) tea.Cmd {
+	if m.archiveController == nil {
+		return nil
+	}
+
+	controller := m.archiveController
+
+	return func() tea.Msg {
+		// Get archive metadata
+		metadata, err := controller.GetArchiveMetadata(archivePath)
+		if err != nil {
+			return extractSecurityCheckMsg{
+				archivePath: archivePath,
+				destDir:     destDir,
+				err:         err,
+			}
+		}
+
+		// Check compression ratio (warn if > 1:1000)
+		var ratio float64
+		compressionOK := true
+		if metadata.ArchiveSize > 0 {
+			ratio = float64(metadata.ExtractedSize) / float64(metadata.ArchiveSize)
+			if ratio > 1000.0 {
+				compressionOK = false
+			}
+		}
+
+		// Check available disk space
+		availableSize := archive.GetAvailableDiskSpace(destDir)
+		diskSpaceOK := true
+		if availableSize > 0 && metadata.ExtractedSize > availableSize {
+			diskSpaceOK = false
+		}
+
+		return extractSecurityCheckMsg{
+			archivePath:   archivePath,
+			destDir:       destDir,
+			archiveSize:   metadata.ArchiveSize,
+			extractedSize: metadata.ExtractedSize,
+			availableSize: availableSize,
+			compressionOK: compressionOK,
+			diskSpaceOK:   diskSpaceOK,
+			ratio:         ratio,
+		}
+	}
+}
+
+// startArchiveExtraction starts the background archive extraction task
+func (m *Model) startArchiveExtraction(archivePath, destDir string) tea.Cmd {
+	if m.archiveController == nil {
+		return nil
+	}
+
+	controller := m.archiveController
+
+	// Show progress dialog
+	progressDialog := NewArchiveProgressDialog("extract", archivePath)
+	progressDialog.SetOnCancel(func() {
+		if m.archiveOp != nil && m.archiveOp.TaskID != "" {
+			controller.CancelTask(m.archiveOp.TaskID)
+		}
+	})
+	m.dialog = progressDialog
+
+	// Initialize archiveOp for extraction tracking
+	m.archiveOp = &ArchiveOperationState{
+		Sources: []string{archivePath},
+		DestDir: destDir,
+	}
+
+	return func() tea.Msg {
+		taskID, err := controller.ExtractArchive(archivePath, destDir)
+		if err != nil {
+			return archiveOperationErrorMsg{
+				err:     err,
+				message: fmt.Sprintf("Failed to start extraction: %v", err),
+			}
+		}
+		return archiveOperationStartMsg{taskID: taskID}
+	}
 }

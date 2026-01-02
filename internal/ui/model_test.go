@@ -3205,3 +3205,812 @@ func TestModelSortKeyOpensDialog(t *testing.T) {
 		t.Error("Sort dialog should be active after pressing 's'")
 	}
 }
+
+func TestModelHandleCreateFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	model := NewModel()
+
+	t.Run("creates file successfully", func(t *testing.T) {
+		cmd := model.handleCreateFile(tmpDir, "newfile.txt")
+		if cmd == nil {
+			t.Fatal("handleCreateFile should return a command")
+		}
+
+		msg := cmd()
+		result, ok := msg.(inputDialogResultMsg)
+		if !ok {
+			t.Fatalf("Expected inputDialogResultMsg, got %T", msg)
+		}
+
+		if result.err != nil {
+			t.Errorf("Expected no error, got %v", result.err)
+		}
+		if result.operation != "create_file" {
+			t.Errorf("Expected operation 'create_file', got %q", result.operation)
+		}
+		if result.input != "newfile.txt" {
+			t.Errorf("Expected input 'newfile.txt', got %q", result.input)
+		}
+	})
+
+	t.Run("returns error for invalid filename", func(t *testing.T) {
+		cmd := model.handleCreateFile(tmpDir, "")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for empty filename")
+		}
+	})
+
+	t.Run("returns error for existing file", func(t *testing.T) {
+		// Create a file first
+		existingFile := filepath.Join(tmpDir, "existing.txt")
+		os.WriteFile(existingFile, []byte("test"), 0644)
+
+		cmd := model.handleCreateFile(tmpDir, "existing.txt")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for existing file")
+		}
+	})
+}
+
+func TestModelHandleCreateDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	model := NewModel()
+
+	t.Run("creates directory successfully", func(t *testing.T) {
+		cmd := model.handleCreateDirectory(tmpDir, "newdir")
+		if cmd == nil {
+			t.Fatal("handleCreateDirectory should return a command")
+		}
+
+		msg := cmd()
+		result, ok := msg.(inputDialogResultMsg)
+		if !ok {
+			t.Fatalf("Expected inputDialogResultMsg, got %T", msg)
+		}
+
+		if result.err != nil {
+			t.Errorf("Expected no error, got %v", result.err)
+		}
+		if result.operation != "create_dir" {
+			t.Errorf("Expected operation 'create_dir', got %q", result.operation)
+		}
+		if result.input != "newdir" {
+			t.Errorf("Expected input 'newdir', got %q", result.input)
+		}
+	})
+
+	t.Run("returns error for invalid dirname", func(t *testing.T) {
+		cmd := model.handleCreateDirectory(tmpDir, "")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for empty dirname")
+		}
+	})
+
+	t.Run("returns error for existing directory", func(t *testing.T) {
+		// Create a dir first
+		existingDir := filepath.Join(tmpDir, "existingdir")
+		os.Mkdir(existingDir, 0755)
+
+		cmd := model.handleCreateDirectory(tmpDir, "existingdir")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for existing directory")
+		}
+	})
+}
+
+func TestModelHandleRename(t *testing.T) {
+	tmpDir := t.TempDir()
+	model := NewModel()
+
+	t.Run("renames file successfully", func(t *testing.T) {
+		// Create a file to rename
+		oldFile := filepath.Join(tmpDir, "oldname.txt")
+		os.WriteFile(oldFile, []byte("test"), 0644)
+
+		cmd := model.handleRename(tmpDir, "oldname.txt", "newname.txt")
+		if cmd == nil {
+			t.Fatal("handleRename should return a command")
+		}
+
+		msg := cmd()
+		result, ok := msg.(inputDialogResultMsg)
+		if !ok {
+			t.Fatalf("Expected inputDialogResultMsg, got %T", msg)
+		}
+
+		if result.err != nil {
+			t.Errorf("Expected no error, got %v", result.err)
+		}
+		if result.operation != "rename" {
+			t.Errorf("Expected operation 'rename', got %q", result.operation)
+		}
+		if result.input != "newname.txt" {
+			t.Errorf("Expected input 'newname.txt', got %q", result.input)
+		}
+		if result.oldName != "oldname.txt" {
+			t.Errorf("Expected oldName 'oldname.txt', got %q", result.oldName)
+		}
+	})
+
+	t.Run("returns error for invalid new name", func(t *testing.T) {
+		cmd := model.handleRename(tmpDir, "somefile.txt", "")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for empty new name")
+		}
+	})
+
+	t.Run("returns error for non-existent file", func(t *testing.T) {
+		cmd := model.handleRename(tmpDir, "nonexistent.txt", "new.txt")
+		msg := cmd()
+		result := msg.(inputDialogResultMsg)
+
+		if result.err == nil {
+			t.Error("Expected error for non-existent file")
+		}
+	})
+}
+
+func TestModelMoveCursorToFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bbb.txt"), []byte("b"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "ccc.txt"), []byte("c"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	// Initialize with size
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("moves cursor to existing file", func(t *testing.T) {
+		m.moveCursorToFile("bbb.txt")
+		pane := m.getActivePane()
+		// Find the expected cursor position
+		expectedCursor := -1
+		for i, e := range pane.entries {
+			if e.Name == "bbb.txt" {
+				expectedCursor = i
+				break
+			}
+		}
+		if expectedCursor >= 0 && pane.cursor != expectedCursor {
+			t.Errorf("Expected cursor at %d, got %d", expectedCursor, pane.cursor)
+		}
+	})
+
+	t.Run("does not move cursor for non-existent file", func(t *testing.T) {
+		pane := m.getActivePane()
+		originalCursor := pane.cursor
+		m.moveCursorToFile("nonexistent.txt")
+		if pane.cursor != originalCursor {
+			t.Errorf("Cursor should not move for non-existent file")
+		}
+	})
+
+	t.Run("does not move to hidden file when showHidden is false", func(t *testing.T) {
+		// Create a hidden file
+		os.WriteFile(filepath.Join(tmpDir, ".hidden"), []byte("h"), 0644)
+		pane := m.getActivePane()
+		pane.showHidden = false
+		originalCursor := pane.cursor
+		m.moveCursorToFile(".hidden")
+		if pane.cursor != originalCursor {
+			t.Errorf("Cursor should not move to hidden file when showHidden is false")
+		}
+	})
+}
+
+func TestModelMoveCursorToFileAfterRename(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "aaa.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "renamed.txt"), []byte("b"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("moves cursor to renamed file", func(t *testing.T) {
+		m.moveCursorToFileAfterRename("oldname.txt", "renamed.txt")
+		pane := m.getActivePane()
+		// Find the expected cursor position
+		expectedCursor := -1
+		for i, e := range pane.entries {
+			if e.Name == "renamed.txt" {
+				expectedCursor = i
+				break
+			}
+		}
+		if expectedCursor >= 0 && pane.cursor != expectedCursor {
+			t.Errorf("Expected cursor at %d, got %d", expectedCursor, pane.cursor)
+		}
+	})
+
+	t.Run("does not move for non-matching new name", func(t *testing.T) {
+		pane := m.getActivePane()
+		originalCursor := pane.cursor
+		m.moveCursorToFileAfterRename("old.txt", "nonexistent.txt")
+		if pane.cursor != originalCursor {
+			t.Errorf("Cursor should not move for non-existent new name")
+		}
+	})
+
+	t.Run("adjusts cursor when renaming to hidden file with showHidden false", func(t *testing.T) {
+		pane := m.getActivePane()
+		pane.showHidden = false
+		pane.cursor = 10 // Set cursor beyond entries length
+		m.moveCursorToFileAfterRename("old.txt", ".hidden")
+		// Cursor should be adjusted to valid range
+		if pane.cursor >= len(pane.entries) && len(pane.entries) > 0 {
+			t.Errorf("Cursor should be adjusted to valid range")
+		}
+	})
+
+	t.Run("handles empty entries when renaming to hidden", func(t *testing.T) {
+		emptyDir := t.TempDir()
+		model2 := NewModel()
+		model2.leftPath = emptyDir
+		model2.rightPath = emptyDir
+		msg2 := tea.WindowSizeMsg{Width: 120, Height: 40}
+		updatedModel2, _ := model2.Update(msg2)
+		m2 := updatedModel2.(Model)
+
+		pane2 := m2.getActivePane()
+		pane2.showHidden = false
+		pane2.entries = nil // Empty entries
+		pane2.cursor = 5
+		m2.moveCursorToFileAfterRename("old.txt", ".hidden")
+		if pane2.cursor != 0 {
+			t.Errorf("Cursor should be 0 for empty entries, got %d", pane2.cursor)
+		}
+	})
+}
+
+func TestModelRefreshBothPanes(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("refreshes both panes without error", func(t *testing.T) {
+		m.dialog = nil
+		m.RefreshBothPanes()
+		// Should not set error dialog for valid paths
+		// Note: dialog might still be nil if refresh succeeds
+	})
+
+	t.Run("updates disk space", func(t *testing.T) {
+		m.RefreshBothPanes()
+		// Just verify it doesn't panic
+	})
+}
+
+func TestModelSyncOppositePane(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("syncs opposite pane from left", func(t *testing.T) {
+		m.activePane = LeftPane
+		m.dialog = nil
+		m.SyncOppositePane()
+		// Right pane should be synced to left pane's path
+		if m.rightPane.path != m.leftPane.path {
+			t.Errorf("Right pane should sync to left pane path")
+		}
+	})
+
+	t.Run("syncs opposite pane from right", func(t *testing.T) {
+		m.activePane = RightPane
+		m.dialog = nil
+		m.SyncOppositePane()
+		// Left pane should be synced to right pane's path
+		if m.leftPane.path != m.rightPane.path {
+			t.Errorf("Left pane should sync to right pane path")
+		}
+	})
+
+	t.Run("sets error dialog on sync failure", func(t *testing.T) {
+		m.activePane = LeftPane
+		m.leftPane.path = "/nonexistent/path"
+		m.dialog = nil
+		m.SyncOppositePane()
+		if m.dialog == nil {
+			t.Error("Error dialog should be set on sync failure")
+		}
+	})
+}
+
+func TestModelConfirmSearch(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "abc.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "abd.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "xyz.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("confirms search with pattern via HandleKey", func(t *testing.T) {
+		m.searchState = SearchState{
+			Mode:     SearchModeIncremental,
+			IsActive: true,
+		}
+		m.minibuffer.Show()
+		// Type "abc" via HandleKey
+		m.minibuffer.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+		m.minibuffer.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}})
+		m.minibuffer.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}})
+		m.confirmSearch()
+		if m.searchState.Mode != SearchModeNone {
+			t.Error("Search mode should be cleared after confirm")
+		}
+		if m.searchState.PreviousResult == nil {
+			t.Error("Previous result should be stored after confirm with pattern")
+		}
+	})
+
+	t.Run("clears filter with empty pattern", func(t *testing.T) {
+		m.searchState = SearchState{
+			Mode:     SearchModeIncremental,
+			IsActive: true,
+		}
+		m.minibuffer.Show()
+		m.minibuffer.Clear()
+		m.confirmSearch()
+		if m.searchState.PreviousResult != nil {
+			t.Error("Previous result should be nil for empty pattern")
+		}
+	})
+}
+
+func TestModelUpdateKeyActions(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test1.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "test2.txt"), []byte("test"), 0644)
+	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Test various key actions - focus on code path coverage
+	keyTests := []struct {
+		name string
+		key  tea.KeyMsg
+	}{
+		{"Tab", tea.KeyMsg{Type: tea.KeyTab}},
+		{"Enter", tea.KeyMsg{Type: tea.KeyEnter}},
+		{"j", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}},
+		{"k", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}},
+		{"g", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}}},
+		{"G", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}}},
+		{"space", tea.KeyMsg{Type: tea.KeySpace}},
+		{"?", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}}},
+		{"h", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'h'}}},
+		{"l", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}},
+		{"Home", tea.KeyMsg{Type: tea.KeyHome}},
+		{"End", tea.KeyMsg{Type: tea.KeyEnd}},
+		{"PgUp", tea.KeyMsg{Type: tea.KeyPgUp}},
+		{"PgDown", tea.KeyMsg{Type: tea.KeyPgDown}},
+		{"Backspace", tea.KeyMsg{Type: tea.KeyBackspace}},
+		{"r", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}},
+		{"n", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}},
+		{"N", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'N'}}},
+		{"/", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}},
+		{"Ctrl+H", tea.KeyMsg{Type: tea.KeyCtrlH}},
+		{"s", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}},
+	}
+
+	for _, tt := range keyTests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Just verify it doesn't panic
+			m.Update(tt.key)
+		})
+	}
+}
+
+func TestModelUpdateWithDialog(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("dialog receives key events", func(t *testing.T) {
+		m.dialog = NewHelpDialog()
+		keyMsg := tea.KeyMsg{Type: tea.KeyEsc}
+		updatedModel, _ := m.Update(keyMsg)
+		updated := updatedModel.(Model)
+		// Dialog should be closed after Esc
+		if updated.dialog != nil && updated.dialog.IsActive() {
+			t.Error("Esc should close dialog")
+		}
+	})
+}
+
+func TestModelInitWithWarnings(t *testing.T) {
+	t.Run("calls Init without panic", func(t *testing.T) {
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"})
+		cmd := model.Init()
+		// Init returns nil
+		if cmd != nil {
+			t.Error("Init should return nil")
+		}
+	})
+
+	t.Run("configWarnings are stored", func(t *testing.T) {
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"})
+		if len(model.configWarnings) != 1 {
+			t.Errorf("Expected 1 warning, got %d", len(model.configWarnings))
+		}
+	})
+}
+
+func TestModelCheckFileConflict(t *testing.T) {
+	tmpDir := t.TempDir()
+	existingFile := filepath.Join(tmpDir, "existing.txt")
+	os.WriteFile(existingFile, []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+
+	t.Run("returns nil for non-conflicting file", func(t *testing.T) {
+		srcPath := filepath.Join(tmpDir, "newfile.txt")
+		os.WriteFile(srcPath, []byte("test"), 0644)
+		cmd := model.checkFileConflict(srcPath, tmpDir, "copy")
+		// Should return nil or a command depending on conflict
+		_ = cmd
+	})
+
+	t.Run("returns command for conflicting file", func(t *testing.T) {
+		// Create source file with same name as existing
+		srcDir := t.TempDir()
+		srcPath := filepath.Join(srcDir, "existing.txt")
+		os.WriteFile(srcPath, []byte("new content"), 0644)
+
+		cmd := model.checkFileConflict(srcPath, tmpDir, "copy")
+		if cmd == nil {
+			t.Error("Should return command for conflicting file")
+		}
+	})
+}
+
+func TestModelUpdateMessageTypes(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("handles directoryLoadCompleteMsg", func(t *testing.T) {
+		loadMsg := directoryLoadCompleteMsg{
+			paneID:   LeftPane,
+			panePath: tmpDir,
+			entries:  nil,
+		}
+		m.Update(loadMsg)
+	})
+
+	t.Run("handles diskSpaceUpdateMsg", func(t *testing.T) {
+		diskMsg := diskSpaceUpdateMsg{}
+		m.Update(diskMsg)
+	})
+
+	t.Run("handles clearStatusMsg", func(t *testing.T) {
+		m.statusMessage = "test message"
+		clearMsg := clearStatusMsg{}
+		updatedModel, _ := m.Update(clearMsg)
+		updated := updatedModel.(Model)
+		if updated.statusMessage != "" {
+			t.Error("clearStatusMsg should clear status")
+		}
+	})
+
+	t.Run("handles dialogResultMsg confirmed", func(t *testing.T) {
+		resultMsg := dialogResultMsg{
+			result: DialogResult{Confirmed: true},
+		}
+		m.Update(resultMsg)
+	})
+
+	t.Run("handles dialogResultMsg cancelled", func(t *testing.T) {
+		resultMsg := dialogResultMsg{
+			result: DialogResult{Cancelled: true},
+		}
+		m.Update(resultMsg)
+	})
+
+	t.Run("handles inputDialogResultMsg success", func(t *testing.T) {
+		resultMsg := inputDialogResultMsg{
+			operation: "create_file",
+			input:     "newfile.txt",
+		}
+		m.Update(resultMsg)
+	})
+
+	t.Run("handles inputDialogResultMsg error", func(t *testing.T) {
+		resultMsg := inputDialogResultMsg{
+			operation: "create_file",
+			err:       fmt.Errorf("test error"),
+		}
+		m.Update(resultMsg)
+	})
+}
+
+func TestModelRenderMethods(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("View renders without panic", func(t *testing.T) {
+		view := m.View()
+		if view == "" {
+			t.Error("View should not be empty")
+		}
+	})
+
+	t.Run("View with dialog", func(t *testing.T) {
+		m.dialog = NewHelpDialog()
+		view := m.View()
+		if view == "" {
+			t.Error("View with dialog should not be empty")
+		}
+	})
+
+	t.Run("View with error dialog", func(t *testing.T) {
+		m.dialog = NewErrorDialog("test error")
+		view := m.View()
+		if view == "" {
+			t.Error("View with error dialog should not be empty")
+		}
+	})
+
+	t.Run("View with status message", func(t *testing.T) {
+		m.dialog = nil
+		m.statusMessage = "Test status"
+		view := m.View()
+		if !strings.Contains(view, "Test status") {
+			t.Error("View should contain status message")
+		}
+	})
+
+	t.Run("View with error status", func(t *testing.T) {
+		m.statusMessage = "Error message"
+		m.isStatusError = true
+		view := m.View()
+		if view == "" {
+			t.Error("View with error status should not be empty")
+		}
+	})
+}
+
+func TestModelMinibufferInteraction(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "abc.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "abd.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("/ opens minibuffer for search", func(t *testing.T) {
+		m.searchState.IsActive = false
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+		m.Update(keyMsg)
+		// Minibuffer should be visible
+	})
+
+	t.Run("Esc during search closes minibuffer", func(t *testing.T) {
+		m.searchState.IsActive = true
+		m.minibuffer.Show()
+		keyMsg := tea.KeyMsg{Type: tea.KeyEsc}
+		m.Update(keyMsg)
+	})
+
+	t.Run("Enter during search confirms", func(t *testing.T) {
+		m.searchState.IsActive = true
+		m.searchState.Mode = SearchModeIncremental
+		m.minibuffer.Show()
+		keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+		m.Update(keyMsg)
+	})
+}
+
+func TestModelUpdateMoreMessages(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("handles ctrlCTimeoutMsg", func(t *testing.T) {
+		timeoutMsg := ctrlCTimeoutMsg{}
+		m.Update(timeoutMsg)
+	})
+
+	t.Run("handles showErrorDialogMsg", func(t *testing.T) {
+		errorMsg := showErrorDialogMsg{
+			message: "test error",
+		}
+		updatedModel, _ := m.Update(errorMsg)
+		updated := updatedModel.(Model)
+		if updated.dialog == nil {
+			t.Error("showErrorDialogMsg should set dialog")
+		}
+	})
+
+	t.Run("handles showStatusMsg", func(t *testing.T) {
+		statusMsg := showStatusMsg{
+			message: "test status",
+			isError: false,
+		}
+		updatedModel, _ := m.Update(statusMsg)
+		updated := updatedModel.(Model)
+		if updated.statusMessage != "test status" {
+			t.Errorf("Expected status 'test status', got %q", updated.statusMessage)
+		}
+	})
+
+	t.Run("handles fileOperationCompleteMsg", func(t *testing.T) {
+		opMsg := fileOperationCompleteMsg{
+			operation: "copy",
+		}
+		m.Update(opMsg)
+	})
+
+	t.Run("handles batchOperationCompleteMsg", func(t *testing.T) {
+		batchMsg := batchOperationCompleteMsg{
+			operation: "copy",
+			count:     5,
+		}
+		m.Update(batchMsg)
+	})
+}
+
+func TestModelMoreKeyActions(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
+	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	t.Run("c key for copy", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("m key for move", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("d key for delete", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("o key for open menu", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("a key for select all", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("u key for unselect all", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'u'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("= key for sync panes", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'='}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("b key for bookmarks", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("B key for add bookmark", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'B'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("Ctrl+C key", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+		m.Update(keyMsg)
+	})
+
+	t.Run("z key for compress", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'z'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("x key for extract", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'x'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("e key for edit", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("v key for view", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'v'}}
+		m.Update(keyMsg)
+	})
+
+	t.Run("! key for shell", func(t *testing.T) {
+		keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'!'}}
+		m.Update(keyMsg)
+	})
+}

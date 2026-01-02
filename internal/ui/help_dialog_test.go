@@ -133,3 +133,131 @@ func TestHelpDialogPageIndicator(t *testing.T) {
 		t.Error("Help dialog should contain page indicator [1/N]")
 	}
 }
+
+func TestHelpDialog_CloseKeys(t *testing.T) {
+	t.Run("Esc closes dialog", func(t *testing.T) {
+		dialog := NewHelpDialog()
+		updated, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
+		d := updated.(*HelpDialog)
+
+		if d.IsActive() {
+			t.Error("Dialog should be inactive after Esc")
+		}
+		if cmd == nil {
+			t.Error("Esc should return a command")
+		}
+	})
+
+	t.Run("? closes dialog", func(t *testing.T) {
+		dialog := NewHelpDialog()
+		updated, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'?'}})
+		d := updated.(*HelpDialog)
+
+		if d.IsActive() {
+			t.Error("Dialog should be inactive after ?")
+		}
+		if cmd == nil {
+			t.Error("? should return a command")
+		}
+	})
+
+	t.Run("Ctrl+C closes dialog", func(t *testing.T) {
+		dialog := NewHelpDialog()
+		updated, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+		d := updated.(*HelpDialog)
+
+		if d.IsActive() {
+			t.Error("Dialog should be inactive after Ctrl+C")
+		}
+		if cmd == nil {
+			t.Error("Ctrl+C should return a command")
+		}
+	})
+}
+
+func TestHelpDialog_InactiveIgnoresInput(t *testing.T) {
+	dialog := NewHelpDialog()
+	dialog.active = false
+
+	updated, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
+
+	if updated == nil {
+		t.Error("Updated dialog should not be nil")
+	}
+	if cmd != nil {
+		t.Error("Command should be nil for inactive dialog")
+	}
+}
+
+func TestHelpDialog_InactiveReturnsEmpty(t *testing.T) {
+	dialog := NewHelpDialog()
+	dialog.active = false
+	view := dialog.View()
+
+	if view != "" {
+		t.Error("View should be empty for inactive dialog")
+	}
+}
+
+func TestHelpDialog_IsActive(t *testing.T) {
+	dialog := NewHelpDialog()
+
+	if !dialog.IsActive() {
+		t.Error("IsActive() should return true for new dialog")
+	}
+
+	dialog.active = false
+	if dialog.IsActive() {
+		t.Error("IsActive() should return false for inactive dialog")
+	}
+}
+
+func TestHelpDialog_DisplayType(t *testing.T) {
+	dialog := NewHelpDialog()
+	if dialog.DisplayType() != DialogDisplayScreen {
+		t.Errorf("DisplayType() = %v, want DialogDisplayScreen", dialog.DisplayType())
+	}
+}
+
+func TestHelpDialog_DownArrowKey(t *testing.T) {
+	dialog := NewHelpDialog()
+	dialog.Update(tea.KeyMsg{Type: tea.KeyDown})
+
+	if dialog.scrollOffset != 1 {
+		t.Errorf("After down arrow, scrollOffset = %d, want 1", dialog.scrollOffset)
+	}
+}
+
+func TestHelpDialog_UpArrowKey(t *testing.T) {
+	dialog := NewHelpDialog()
+	dialog.scrollOffset = 5
+	dialog.Update(tea.KeyMsg{Type: tea.KeyUp})
+
+	if dialog.scrollOffset != 4 {
+		t.Errorf("After up arrow, scrollOffset = %d, want 4", dialog.scrollOffset)
+	}
+}
+
+func TestHelpDialog_ScrollDown_MaxOffset(t *testing.T) {
+	dialog := NewHelpDialog()
+	// Set visible height greater than content to test maxOffset < 0 case
+	dialog.visibleHeight = len(dialog.contentLines) + 10
+
+	dialog.scrollDown(5)
+
+	if dialog.scrollOffset != 0 {
+		t.Errorf("scrollOffset = %d, want 0 when content fits in view", dialog.scrollOffset)
+	}
+}
+
+func TestHelpDialog_ScrollToEnd_ShortContent(t *testing.T) {
+	dialog := NewHelpDialog()
+	// Set visible height greater than content
+	dialog.visibleHeight = len(dialog.contentLines) + 10
+
+	dialog.scrollToEnd()
+
+	if dialog.scrollOffset != 0 {
+		t.Errorf("scrollOffset = %d, want 0 when content fits in view", dialog.scrollOffset)
+	}
+}
