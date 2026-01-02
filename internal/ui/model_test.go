@@ -4014,3 +4014,77 @@ func TestModelMoreKeyActions(t *testing.T) {
 		m.Update(keyMsg)
 	})
 }
+
+// TestContextMenuCompressWithNilAction tests that compress action works even when Action is nil
+// This is a regression test for the bug where compress menu item had Action: nil
+// and the handler checked result.action != nil before processing actionID
+func TestContextMenuCompressWithNilAction(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Move to a file (not parent directory)
+	m.getActivePane().MoveCursorDown()
+
+	// Press @ key to open context menu
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'@'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	if m.dialog == nil {
+		t.Fatal("context menu should be opened")
+	}
+
+	// Check that the dialog is a ContextMenuDialog
+	contextMenu, ok := m.dialog.(*ContextMenuDialog)
+	if !ok {
+		t.Fatal("dialog should be ContextMenuDialog")
+	}
+
+	// Find compress menu item index
+	compressIndex := -1
+	for i, item := range contextMenu.items {
+		if item.ID == "compress" {
+			compressIndex = i
+			break
+		}
+	}
+	if compressIndex == -1 {
+		t.Fatal("compress menu item should exist")
+	}
+
+	// Select compress by navigating to it and pressing Enter
+	for i := 0; i < compressIndex; i++ {
+		keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+		updatedModel, _ = m.Update(keyMsg)
+		m = updatedModel.(Model)
+	}
+
+	// Press Enter to select
+	keyMsg = tea.KeyMsg{Type: tea.KeyEnter}
+	updatedModel, cmd := m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Execute the command to send contextMenuResultMsg
+	if cmd != nil {
+		resultMsg := cmd()
+		updatedModel, _ = m.Update(resultMsg)
+		m = updatedModel.(Model)
+	}
+
+	// Verify CompressFormatDialog is shown
+	if m.dialog == nil {
+		t.Error("dialog should be shown after compress action")
+	}
+
+	_, isCompressFormatDialog := m.dialog.(*CompressFormatDialog)
+	if !isCompressFormatDialog {
+		t.Errorf("dialog should be CompressFormatDialog after compress action from context menu, got %T", m.dialog)
+	}
+}

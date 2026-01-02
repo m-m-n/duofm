@@ -163,66 +163,67 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
-			if result.action != nil {
-				activePane := m.getActivePane()
-				markedFiles := activePane.GetMarkedFiles()
+			// actionID ベースの処理（action が nil でも動作する）
+			activePane := m.getActivePane()
+			markedFiles := activePane.GetMarkedFiles()
 
-				// 削除の場合は確認ダイアログを表示
-				if result.actionID == "delete" {
-					if len(markedFiles) > 0 {
-						// マークファイルの一括削除
+			// 削除の場合は確認ダイアログを表示
+			if result.actionID == "delete" {
+				if len(markedFiles) > 0 {
+					// マークファイルの一括削除
+					m.dialog = NewConfirmDialog(
+						fmt.Sprintf("Delete %d files?", len(markedFiles)),
+						"This action cannot be undone.",
+					)
+				} else {
+					// 単一ファイル削除
+					entry := activePane.SelectedEntry()
+					if entry != nil && !entry.IsParentDir() {
+						m.pendingAction = result.action
 						m.dialog = NewConfirmDialog(
-							fmt.Sprintf("Delete %d files?", len(markedFiles)),
-							"This action cannot be undone.",
+							"Delete file?",
+							entry.DisplayName(),
 						)
-					} else {
-						// 単一ファイル削除
-						entry := activePane.SelectedEntry()
-						if entry != nil && !entry.IsParentDir() {
-							m.pendingAction = result.action
-							m.dialog = NewConfirmDialog(
-								"Delete file?",
-								entry.DisplayName(),
-							)
-						}
 					}
-					return m, nil
 				}
+				return m, nil
+			}
 
-				// 圧縮の場合 - フォーマット選択ダイアログを表示
-				if result.actionID == "compress" {
-					m.dialog = NewCompressFormatDialog()
-					return m, nil
+			// 圧縮の場合 - フォーマット選択ダイアログを表示
+			if result.actionID == "compress" {
+				m.dialog = NewCompressFormatDialog()
+				return m, nil
+			}
+
+			// 展開の場合 - セキュリティチェック後に実行
+			if result.actionID == "extract" {
+				entry := activePane.SelectedEntry()
+				if entry != nil && !entry.IsParentDir() {
+					archivePath := filepath.Join(activePane.Path(), entry.Name)
+					destDir := m.getInactivePane().Path()
+					return m, m.checkExtractSecurity(archivePath, destDir)
 				}
+				return m, nil
+			}
 
-				// 展開の場合 - セキュリティチェック後に実行
-				if result.actionID == "extract" {
-					entry := activePane.SelectedEntry()
-					if entry != nil && !entry.IsParentDir() {
-						archivePath := filepath.Join(activePane.Path(), entry.Name)
-						destDir := m.getInactivePane().Path()
-						return m, m.checkExtractSecurity(archivePath, destDir)
-					}
-					return m, nil
+			// コピー/移動の場合
+			if result.actionID == "copy" || result.actionID == "move" {
+				if len(markedFiles) > 0 {
+					// マークファイルがある場合 → 一括操作
+					return m, m.startBatchOperation(markedFiles, result.actionID)
 				}
-
-				// コピー/移動の場合
-				if result.actionID == "copy" || result.actionID == "move" {
-					if len(markedFiles) > 0 {
-						// マークファイルがある場合 → 一括操作
-						return m, m.startBatchOperation(markedFiles, result.actionID)
-					}
-					// 単一ファイル操作
-					entry := activePane.SelectedEntry()
-					if entry != nil && !entry.IsParentDir() {
-						srcPath := filepath.Join(activePane.Path(), entry.Name)
-						destPath := m.getInactivePane().Path()
-						return m, m.checkFileConflict(srcPath, destPath, result.actionID)
-					}
-					return m, nil
+				// 単一ファイル操作
+				entry := activePane.SelectedEntry()
+				if entry != nil && !entry.IsParentDir() {
+					srcPath := filepath.Join(activePane.Path(), entry.Name)
+					destPath := m.getInactivePane().Path()
+					return m, m.checkFileConflict(srcPath, destPath, result.actionID)
 				}
+				return m, nil
+			}
 
-				// その他のアクションは直接実行
+			// その他のアクションは直接実行（action が必要）
+			if result.action != nil {
 				if err := result.action(); err != nil {
 					m.dialog = NewErrorDialog(fmt.Sprintf("Operation failed: %v", err))
 					return m, nil
