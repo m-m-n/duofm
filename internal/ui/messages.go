@@ -123,3 +123,50 @@ type extractSecurityCheckMsg struct {
 	ratio         float64 // 圧縮率（展開サイズ/アーカイブサイズ）
 	err           error   // エラー（メタデータ取得失敗時）
 }
+
+// permissionOperationStartMsg はパーミッション変更操作の開始を通知
+type permissionOperationStartMsg struct {
+	path      string // 対象パス
+	mode      string // 新しいパーミッション
+	recursive bool   // 再帰的変更かどうか
+}
+
+// permissionOperationCompleteMsg はパーミッション変更操作の完了を通知
+type permissionOperationCompleteMsg struct {
+	path    string // 対象パス
+	success bool   // 成功したかどうか
+	err     error  // エラー（失敗時）
+}
+
+// showRecursivePermDialogMsg はRecursivePermDialogの表示を通知
+type showRecursivePermDialogMsg struct {
+	path string // 対象パス
+}
+
+// batchPermissionStartMsg はバッチパーミッション変更開始を通知
+type batchPermissionStartMsg struct {
+	paths []string
+	mode  string
+}
+
+// batchPermissionCompleteMsg はバッチパーミッション変更完了を通知
+type batchPermissionCompleteMsg struct {
+	totalCount   int
+	successCount int
+	failedCount  int
+	errors       []fs.PermissionError
+}
+
+// batchPermissionProgressMsg はバッチパーミッション変更進捗を通知
+type batchPermissionProgressMsg struct {
+	processed   int
+	total       int
+	currentPath string
+}
+
+// recursivePermissionCompleteMsg は再帰的パーミッション変更完了を通知
+type recursivePermissionCompleteMsg struct {
+	path         string
+	successCount int
+	errors       []fs.PermissionError
+}

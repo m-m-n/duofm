@@ -8,6 +8,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Dual-pane interface**: Navigate two directories side-by-side
 - **Vim-style keybindings**: Familiar hjkl navigation with arrow key support
 - **File operations**: Copy, move, delete, rename files and directories
+- **Permission editing**: Change file/directory permissions (chmod) with Shift+P
 - **File creation**: Create new files (N) and directories (Shift+N)
 - **Multi-file marking**: Select multiple files with Space for batch operations
 - **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
@@ -139,6 +140,7 @@ duofm
 | `c` | Copy to opposite pane               |
 | `m` | Move to opposite pane               |
 | `d` | Delete (with confirmation)          |
+| `P` (Shift+P) | Change permissions (chmod)    |
 | `o` | Open context menu (includes Compress/Extract) |
 
 ### Other

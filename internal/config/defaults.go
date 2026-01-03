@@ -51,6 +51,9 @@ func DefaultKeybindings() map[string][]string {
 		// Bookmarks
 		"bookmark":     {"B"},
 		"add_bookmark": {"Shift+B"},
+
+		// Permission edit
+		"permission": {"P", "Shift+P"},
 	}
 }
 
@@ -89,5 +92,6 @@ func AllActions() []string {
 		"escape",
 		"bookmark",
 		"add_bookmark",
+		"permission",
 	}
 }
