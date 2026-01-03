@@ -217,6 +217,9 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 
 	case ActionAddBookmark:
 		return m.handleAddBookmarkUI()
+
+	case ActionPermission:
+		return m.handlePermission()
 	}
 
 	return m, nil

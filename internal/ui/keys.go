@@ -57,4 +57,7 @@ const (
 	// Bookmarks
 	KeyBookmark    = "b" // Open bookmark manager
 	KeyAddBookmark = "B" // Add current directory to bookmarks (Shift+b)
+
+	// Permission edit
+	KeyPermission = "P" // Change permissions (Shift+p)
 )
