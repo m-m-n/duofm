@@ -112,6 +112,16 @@ graph TB
 - Visual highlighting for marked files (different colors for active/inactive panes)
 - Marks cleared on directory change
 
+#### Permission Management
+- Change file/directory permissions (chmod) with Shift+P
+- Numeric mode (octal notation): 000-777
+- Real-time symbolic notation display (-rwxr-xr-x)
+- Quick presets for common permissions (644, 755, etc.)
+- Recursive permission changes with separate settings for directories and files
+- Batch permission changes for multiple marked files
+- Progress display for large operations
+- Comprehensive error reporting
+
 #### Archive Operations
 - **Create archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
 - **Extract archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
@@ -320,6 +330,12 @@ All dialogs follow consistent UI patterns:
 - Add, edit, delete bookmarks
 - Warning indicators for non-existent paths
 
+#### Permission Dialog
+- Numeric permission input (000-777)
+- Real-time symbolic notation display
+- Quick presets for common permissions
+- Recursive option for directories
+
 #### Archive Progress Dialog
 - Operation type (Compressing/Extracting)
 - Progress bar with percentage
@@ -371,6 +387,7 @@ All dialogs follow consistent UI patterns:
 | N | New file |
 | Shift+N | New directory |
 | Space | Mark/unmark file |
+| Shift+P | Change permissions (chmod) |
 
 ### Bookmarks
 | Key | Action |
@@ -424,6 +441,7 @@ add_bookmark = ["Shift+B"]
 history_back = ["Alt+Left", "["]
 history_forward = ["Alt+Right", "]"]
 context_menu = ["@"]
+permission = ["Shift+P"]
 ```
 
 ### Colors Section
@@ -524,6 +542,10 @@ east_asian_ambiguous_width = 1
   - Zip bomb detection (warns at ratio > 1:1000)
   - Disk space validation
   - Setuid/setgid bit stripping
+- Permission changes:
+  - All input validated (000-777 range)
+  - No privilege escalation
+  - Symlinks skipped to prevent following malicious links
 
 ## Testing Strategy
 
