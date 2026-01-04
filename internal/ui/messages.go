@@ -68,38 +68,6 @@ type inputDialogResultMsg struct {
 	err       error  // error if any
 }
 
-// archiveOperationStartMsg notifies the start of an archive operation
-type archiveOperationStartMsg struct {
-	taskID string // task ID
-}
-
-// archiveProgressUpdateMsg notifies progress updates for an archive operation
-type archiveProgressUpdateMsg struct {
-	taskID          string        // task ID
-	progress        float64       // progress rate (0.0-1.0)
-	processedFiles  int           // number of processed files
-	totalFiles      int           // total number of files
-	currentFile     string        // currently processing file
-	elapsedTime     time.Duration // elapsed time
-	estimatedRemain time.Duration // estimated remaining time
-}
-
-// archiveOperationCompleteMsg notifies the completion of an archive operation
-type archiveOperationCompleteMsg struct {
-	taskID      string // task ID
-	success     bool   // whether successful
-	cancelled   bool   // whether cancelled
-	archivePath string // path of created archive (for compress/extract)
-	err         error  // error (on failure)
-}
-
-// archiveOperationErrorMsg notifies an error in an archive operation
-type archiveOperationErrorMsg struct {
-	taskID  string // task ID
-	err     error  // error
-	message string // user-facing error message
-}
-
 // compressionLevelResultMsg notifies the result of compression level selection
 type compressionLevelResultMsg struct {
 	level     int  // selected compression level (0-9)
@@ -110,19 +78,6 @@ type compressionLevelResultMsg struct {
 type archiveNameResultMsg struct {
 	name      string // entered archive name
 	cancelled bool   // whether cancelled
-}
-
-// extractSecurityCheckMsg notifies security check result before archive extraction
-type extractSecurityCheckMsg struct {
-	archivePath   string  // archive path
-	destDir       string  // destination directory
-	archiveSize   int64   // archive size
-	extractedSize int64   // extracted size
-	availableSize int64   // available space at destination
-	compressionOK bool    // whether compression ratio is normal
-	diskSpaceOK   bool    // whether disk space is sufficient
-	ratio         float64 // compression ratio (extracted size / archive size)
-	err           error   // error (on metadata retrieval failure)
 }
 
 // permissionOperationStartMsg notifies the start of a permission change operation

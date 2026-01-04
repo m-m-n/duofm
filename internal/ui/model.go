@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/sakura/duofm/internal/archive"
@@ -16,16 +15,6 @@ import (
 
 // ANSIエスケープシーケンスを除去するための正規表現
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-// ArchiveOperationState holds state for in-progress archive operations
-type ArchiveOperationState struct {
-	Sources     []string              // Source files/directories to archive
-	DestDir     string                // Destination directory
-	Format      archive.ArchiveFormat // Selected archive format
-	Level       int                   // Compression level (0-9)
-	ArchiveName string                // Archive filename
-	TaskID      string                // Task ID for background operation
-}
 
 // Model はアプリケーション全体の状態を保持
 type Model struct {
@@ -72,9 +61,8 @@ type Model struct {
 	// Bookmarks (delegated)
 	bookmarkManager *BookmarkManager
 
-	// Archive operations
-	archiveOp         *ArchiveOperationState     // アーカイブ操作の状態
-	archiveController *archive.ArchiveController // アーカイブコントローラー
+	// Archive operations (delegated)
+	archiveOpManager *ArchiveOperationManager
 }
 
 // PanePosition はペインの位置を表す
@@ -120,22 +108,22 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 	warnings = append(warnings, bookmarkWarnings...)
 
 	return Model{
-		leftPane:          nil, // Updateで初期化
-		rightPane:         nil, // Updateで初期化
-		leftPath:          cwd,
-		rightPath:         home,
-		activePane:        LeftPane,
-		dialog:            nil,
-		ready:             false,
-		diskSpaceMonitor:  NewDiskSpaceMonitor(),
-		searchState:       SearchState{Mode: SearchModeNone},
-		minibuffer:        NewMinibuffer(),
-		keybindingMap:     keybindingMap,
-		configWarnings:    warnings,
-		theme:             theme,
-		bookmarkManager:   bookmarkManager,
-		batchOpManager:    NewBatchOperationManager(),
-		archiveController: archive.NewArchiveController(),
+		leftPane:         nil, // Updateで初期化
+		rightPane:        nil, // Updateで初期化
+		leftPath:         cwd,
+		rightPath:        home,
+		activePane:       LeftPane,
+		dialog:           nil,
+		ready:            false,
+		diskSpaceMonitor: NewDiskSpaceMonitor(),
+		searchState:      SearchState{Mode: SearchModeNone},
+		minibuffer:       NewMinibuffer(),
+		keybindingMap:    keybindingMap,
+		configWarnings:   warnings,
+		theme:            theme,
+		bookmarkManager:  bookmarkManager,
+		batchOpManager:   NewBatchOperationManager(),
+		archiveOpManager: NewArchiveOperationManager(),
 	}
 }
 
@@ -614,182 +602,47 @@ func isDirectory(path string) bool {
 	return info.IsDir()
 }
 
-// startArchiveCompression starts the background archive compression task
+// startArchiveCompression starts the background archive compression task.
+// Shows progress dialog and delegates to ArchiveOperationManager.
 func (m *Model) startArchiveCompression(archivePath string) tea.Cmd {
-	if m.archiveOp == nil || m.archiveController == nil {
+	if !m.archiveOpManager.IsActive() {
 		return nil
 	}
 
-	sources := m.archiveOp.Sources
-	format := m.archiveOp.Format
-	level := m.archiveOp.Level
-	controller := m.archiveController
-
-	// Show progress dialog
+	// Show progress dialog with cancel callback
 	progressDialog := NewArchiveProgressDialog("compress", archivePath)
 	progressDialog.SetOnCancel(func() {
-		if m.archiveOp != nil && m.archiveOp.TaskID != "" {
-			controller.CancelTask(m.archiveOp.TaskID)
-		}
+		m.archiveOpManager.CancelTask()
 	})
 	m.dialog = progressDialog
 
-	return func() tea.Msg {
-		taskID, err := controller.CreateArchive(sources, archivePath, format, level)
-		if err != nil {
-			return archiveOperationErrorMsg{
-				err:     err,
-				message: fmt.Sprintf("Failed to start compression: %v", err),
-			}
-		}
-		return archiveOperationStartMsg{taskID: taskID}
-	}
+	return m.archiveOpManager.StartCompression(archivePath)
 }
 
-// pollArchiveProgress polls for archive operation progress
+// pollArchiveProgress polls for archive operation progress.
+// Delegates to ArchiveOperationManager.
 func (m *Model) pollArchiveProgress(taskID string) tea.Cmd {
-	if m.archiveController == nil {
-		return nil
-	}
-
-	controller := m.archiveController
-
-	return tea.Tick(100*time.Millisecond, func(t time.Time) tea.Msg {
-		status := controller.GetTaskStatus(taskID)
-		if status == nil {
-			return archiveOperationCompleteMsg{
-				taskID:  taskID,
-				success: false,
-				err:     fmt.Errorf("task not found"),
-			}
-		}
-
-		switch status.State {
-		case archive.TaskStateRunning:
-			// Return progress update
-			if status.Progress != nil {
-				return archiveProgressUpdateMsg{
-					taskID:          taskID,
-					progress:        float64(status.Progress.Percentage()) / 100.0,
-					processedFiles:  status.Progress.ProcessedFiles,
-					totalFiles:      status.Progress.TotalFiles,
-					currentFile:     status.Progress.CurrentFile,
-					elapsedTime:     status.Progress.ElapsedTime(),
-					estimatedRemain: status.Progress.EstimatedRemaining(),
-				}
-			}
-			return archiveProgressUpdateMsg{taskID: taskID}
-
-		case archive.TaskStateCompleted:
-			archivePath := ""
-			if status.Progress != nil {
-				archivePath = status.Progress.ArchivePath
-			}
-			return archiveOperationCompleteMsg{
-				taskID:      taskID,
-				success:     true,
-				archivePath: archivePath,
-			}
-
-		case archive.TaskStateCancelled:
-			return archiveOperationCompleteMsg{
-				taskID:    taskID,
-				cancelled: true,
-			}
-
-		case archive.TaskStateFailed:
-			return archiveOperationCompleteMsg{
-				taskID:  taskID,
-				success: false,
-				err:     status.Error,
-			}
-
-		default:
-			return archiveProgressUpdateMsg{taskID: taskID}
-		}
-	})
+	return m.archiveOpManager.PollProgress(taskID)
 }
 
-// checkExtractSecurity performs security checks before archive extraction
+// checkExtractSecurity performs security checks before archive extraction.
+// Delegates to ArchiveOperationManager.
 func (m *Model) checkExtractSecurity(archivePath, destDir string) tea.Cmd {
-	if m.archiveController == nil {
-		return nil
-	}
-
-	controller := m.archiveController
-
-	return func() tea.Msg {
-		// Get archive metadata
-		metadata, err := controller.GetArchiveMetadata(archivePath)
-		if err != nil {
-			return extractSecurityCheckMsg{
-				archivePath: archivePath,
-				destDir:     destDir,
-				err:         err,
-			}
-		}
-
-		// Check compression ratio (warn if > 1:1000)
-		var ratio float64
-		compressionOK := true
-		if metadata.ArchiveSize > 0 {
-			ratio = float64(metadata.ExtractedSize) / float64(metadata.ArchiveSize)
-			if ratio > 1000.0 {
-				compressionOK = false
-			}
-		}
-
-		// Check available disk space
-		availableSize := archive.GetAvailableDiskSpace(destDir)
-		diskSpaceOK := true
-		if availableSize > 0 && metadata.ExtractedSize > availableSize {
-			diskSpaceOK = false
-		}
-
-		return extractSecurityCheckMsg{
-			archivePath:   archivePath,
-			destDir:       destDir,
-			archiveSize:   metadata.ArchiveSize,
-			extractedSize: metadata.ExtractedSize,
-			availableSize: availableSize,
-			compressionOK: compressionOK,
-			diskSpaceOK:   diskSpaceOK,
-			ratio:         ratio,
-		}
-	}
+	return m.archiveOpManager.CheckSecurity(archivePath, destDir)
 }
 
-// startArchiveExtraction starts the background archive extraction task
+// startArchiveExtraction starts the background archive extraction task.
+// Shows progress dialog and delegates to ArchiveOperationManager.
 func (m *Model) startArchiveExtraction(archivePath, destDir string) tea.Cmd {
-	if m.archiveController == nil {
-		return nil
-	}
+	// Prepare state via manager
+	m.archiveOpManager.PrepareExtraction(archivePath, destDir)
 
-	controller := m.archiveController
-
-	// Show progress dialog
+	// Show progress dialog with cancel callback
 	progressDialog := NewArchiveProgressDialog("extract", archivePath)
 	progressDialog.SetOnCancel(func() {
-		if m.archiveOp != nil && m.archiveOp.TaskID != "" {
-			controller.CancelTask(m.archiveOp.TaskID)
-		}
+		m.archiveOpManager.CancelTask()
 	})
 	m.dialog = progressDialog
 
-	// Initialize archiveOp for extraction tracking
-	m.archiveOp = &ArchiveOperationState{
-		Sources: []string{archivePath},
-		DestDir: destDir,
-	}
-
-	return func() tea.Msg {
-		taskID, err := controller.ExtractArchive(archivePath, destDir)
-		if err != nil {
-			return archiveOperationErrorMsg{
-				err:     err,
-				message: fmt.Sprintf("Failed to start extraction: %v", err),
-			}
-		}
-		return archiveOperationStartMsg{taskID: taskID}
-	}
+	return m.archiveOpManager.StartExtraction(archivePath, destDir)
 }

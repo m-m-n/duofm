@@ -213,7 +213,7 @@ func (m Model) handleCompressFormatResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 	m.dialog = nil
 
 	if result.cancelled {
-		m.archiveOp = nil
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 
@@ -238,12 +238,9 @@ func (m Model) handleCompressFormatResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return m, statusMessageClearCmd(3 * time.Second), true
 	}
 
-	m.archiveOp = &ArchiveOperationState{
-		Sources: sources,
-		DestDir: m.getInactivePane().Path(),
-		Format:  result.format,
-		Level:   6,
-	}
+	// Prepare compression state via manager
+	destDir := m.getInactivePane().Path()
+	m.archiveOpManager.PrepareCompression(sources, destDir, result.format, 6, "")
 
 	if result.format == archive.FormatTar {
 		defaultName := m.generateDefaultArchiveName(sources, result.format)
@@ -263,13 +260,14 @@ func (m Model) handleCompressionLevelResult(msg tea.Msg) (Model, tea.Cmd, bool) 
 
 	m.dialog = nil
 
-	if result.cancelled || m.archiveOp == nil {
-		m.archiveOp = nil
+	state := m.archiveOpManager.State()
+	if result.cancelled || state == nil {
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 
-	m.archiveOp.Level = result.level
-	defaultName := m.generateDefaultArchiveName(m.archiveOp.Sources, m.archiveOp.Format)
+	state.Level = result.level
+	defaultName := m.generateDefaultArchiveName(state.Sources, state.Format)
 	m.dialog = NewArchiveNameDialog(defaultName)
 	return m, nil, true
 }
@@ -283,18 +281,19 @@ func (m Model) handleArchiveNameResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 
 	m.dialog = nil
 
-	if result.cancelled || m.archiveOp == nil {
-		m.archiveOp = nil
+	state := m.archiveOpManager.State()
+	if result.cancelled || state == nil {
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 
-	m.archiveOp.ArchiveName = result.name
-	archivePath := filepath.Join(m.archiveOp.DestDir, result.name)
+	state.ArchiveName = result.name
+	archivePath := filepath.Join(state.DestDir, result.name)
 
 	exists, err := fileExists(archivePath)
 	if err != nil {
 		m.dialog = NewErrorDialog(fmt.Sprintf("Cannot check file: %v", err))
-		m.archiveOp = nil
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 	if exists {
@@ -314,8 +313,9 @@ func (m Model) handleArchiveConflictResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 
 	m.dialog = nil
 
-	if result.cancelled || m.archiveOp == nil {
-		m.archiveOp = nil
+	state := m.archiveOpManager.State()
+	if result.cancelled || state == nil {
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 
@@ -326,7 +326,7 @@ func (m Model) handleArchiveConflictResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 		if err := removeFile(archivePath); err != nil {
 			m.statusMessage = fmt.Sprintf("Failed to remove existing file: %v", err)
 			m.isStatusError = true
-			m.archiveOp = nil
+			m.archiveOpManager.Clear()
 			return m, statusMessageClearCmd(5 * time.Second), true
 		}
 		return m, m.startArchiveCompression(archivePath), true
@@ -338,7 +338,7 @@ func (m Model) handleArchiveConflictResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return m, nil, true
 
 	case ArchiveConflictCancel:
-		m.archiveOp = nil
+		m.archiveOpManager.Clear()
 		return m, nil, true
 	}
 
@@ -523,10 +523,10 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 func (m Model) handleArchiveMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// アーカイブ操作開始
 	if result, ok := msg.(archiveOperationStartMsg); ok {
-		if m.archiveOp == nil {
+		if !m.archiveOpManager.IsActive() {
 			return m, nil, true
 		}
-		m.archiveOp.TaskID = result.taskID
+		m.archiveOpManager.SetTaskID(result.taskID)
 		return m, m.pollArchiveProgress(result.taskID), true
 	}
 
@@ -546,7 +546,7 @@ func (m Model) handleArchiveMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// アーカイブ操作完了
 	if result, ok := msg.(archiveOperationCompleteMsg); ok {
 		m.dialog = nil
-		m.archiveOp = nil
+		m.archiveOpManager.Clear()
 
 		if result.cancelled {
 			m.statusMessage = "Archive operation cancelled"
@@ -571,7 +571,7 @@ func (m Model) handleArchiveMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// アーカイブ操作エラー
 	if result, ok := msg.(archiveOperationErrorMsg); ok {
 		m.dialog = nil
-		m.archiveOp = nil
+		m.archiveOpManager.Clear()
 		m.statusMessage = result.message
 		m.isStatusError = true
 		return m, statusMessageClearCmd(5 * time.Second), true
