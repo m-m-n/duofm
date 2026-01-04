@@ -4,26 +4,28 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ErrorDialog はエラーダイアログ
 type ErrorDialog struct {
+	BaseDialog
 	message string
-	active  bool
+	styles  DialogStyles
 }
 
 // NewErrorDialog は新しいエラーダイアログを作成
 func NewErrorDialog(message string) *ErrorDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
 	return &ErrorDialog{
-		message: message,
-		active:  true,
+		BaseDialog: base,
+		message:    message,
+		styles:     ErrorDialogStyles(base.Width()),
 	}
 }
 
 // Update はメッセージを処理
 func (d *ErrorDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -31,7 +33,7 @@ func (d *ErrorDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "enter", "ctrl+c":
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return dialogResultMsg{
 					result: DialogResult{Cancelled: true},
@@ -45,53 +47,22 @@ func (d *ErrorDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログをレンダリング
 func (d *ErrorDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
 
-	width := 50
-
 	// タイトル
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2).
-		Bold(true).
-		Foreground(lipgloss.Color("196"))
-	b.WriteString(titleStyle.Render("Error"))
+	b.WriteString(d.styles.Title.Render("Error"))
 	b.WriteString("\n\n")
 
 	// メッセージ
-	messageStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2)
-	b.WriteString(messageStyle.Render(d.message))
+	b.WriteString(d.styles.Body.Render(d.message))
 	b.WriteString("\n\n")
 
 	// ヒント
-	hintStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2).
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(hintStyle.Render("Press Esc to close"))
+	b.WriteString(d.styles.Footer.Render("Press Esc to close"))
 
-	// ボーダーで囲む
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("196")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
-}
-
-// IsActive はダイアログがアクティブかどうかを返す
-func (d *ErrorDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *ErrorDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }

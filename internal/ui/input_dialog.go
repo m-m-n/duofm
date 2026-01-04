@@ -4,30 +4,30 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // InputDialog はテキスト入力ダイアログ
 type InputDialog struct {
+	BaseDialog
 	title         string               // dialog title/prompt
 	textInput     *TextInput           // reusable text input component
-	active        bool                 // whether dialog is active
-	width         int                  // dialog width
 	onConfirm     func(string) tea.Cmd // callback on Enter key
 	errorMsg      string               // validation error message
 	emptyErrorMsg string               // error message for empty input (customizable)
+	styles        DialogStyles
 }
 
 // NewInputDialog creates a new input dialog
 func NewInputDialog(title string, onConfirm func(string) tea.Cmd) *InputDialog {
+	base := NewBaseDialog(DialogDisplayPane)
 	return &InputDialog{
+		BaseDialog:    base,
 		title:         title,
 		textInput:     NewTextInput(""),
-		active:        true,
-		width:         50,
 		onConfirm:     onConfirm,
 		errorMsg:      "",
 		emptyErrorMsg: "Input cannot be empty",
+		styles:        DefaultDialogStyles(base.Width()),
 	}
 }
 
@@ -38,7 +38,7 @@ func (d *InputDialog) SetEmptyErrorMsg(msg string) {
 
 // Update handles messages
 func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -54,7 +54,7 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				d.errorMsg = d.emptyErrorMsg
 				return d, nil
 			}
-			d.active = false
+			d.Close()
 			if d.onConfirm != nil {
 				return d, d.onConfirm(d.textInput.Value)
 			}
@@ -66,7 +66,7 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 
 		case tea.KeyEsc:
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return inputDialogResultMsg{
 					cancelled: true,
@@ -86,20 +86,15 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the dialog
 func (d *InputDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
 	// Title
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render(d.title))
+	b.WriteString(d.styles.Title.Render(d.title))
 	b.WriteString("\n\n")
 
 	// Input field
@@ -109,60 +104,22 @@ func (d *InputDialog) View() string {
 
 	// Error message (if any)
 	if d.errorMsg != "" {
-		errorStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("196")) // red color
 		b.WriteString("\n")
-		b.WriteString(errorStyle.Render(d.errorMsg))
+		b.WriteString(d.styles.Error.Render(d.errorMsg))
 	}
 
 	b.WriteString("\n")
 
 	// Footer
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(footerStyle.Render("Enter: Confirm  Esc: Cancel"))
+	b.WriteString(d.styles.Footer.Render("Enter: Confirm  Esc: Cancel"))
 
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // renderInputField renders the input field
 func (d *InputDialog) renderInputField(width int) string {
-	// Input field style
-	fieldStyle := lipgloss.NewStyle().
-		Width(width).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("236")).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240"))
-
-	return fieldStyle.Render(d.textInput.RenderWithCursor(width - 2))
-}
-
-// IsActive returns whether the dialog is active
-func (d *InputDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *InputDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
-}
-
-// SetWidth sets the dialog width
-func (d *InputDialog) SetWidth(width int) {
-	d.width = width
+	inputStyle := d.styles.Input.Width(width)
+	return inputStyle.Render(d.textInput.RenderWithCursor(width - 2))
 }
 
 // SetInput sets the input value and positions cursor at the end.
