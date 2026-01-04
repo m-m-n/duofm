@@ -13,7 +13,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Multi-file marking**: Select multiple files with Space for batch operations
 - **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
 - **Overwrite handling**: Smart conflict resolution with overwrite, skip, or rename options
-- **Archive operations**: Create and extract tar, tar.gz, tar.bz2, tar.xz, zip, and 7z archives
+- **Archive operations**: Create and extract tar, tar.gz, tar.bz2, tar.xz, zip, and 7z archives (Linux only)
 
 ### Navigation
 - **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
@@ -21,7 +21,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Hidden files**: Toggle visibility with `Ctrl+H`
 - **Quick navigation**: Home (`~`), previous directory (`-`), sync panes (`=`)
 - **Sort options**: By name, size, or date with live preview
-- **Bookmarks**: Save and jump to frequently used directories (`b`/`B`)
+- **Bookmarks**: Save and jump to frequently used directories (`B`/`Shift+B`)
 - **Smart cursor**: Remember position when navigating to parent directory
 - **Refresh**: Reload directory contents with F5 or Ctrl+R
 
@@ -34,8 +34,8 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Dialog overlays**: Dimmed background keeps file list visible during dialogs
 
 ### Integration
-- **External viewer**: Open files with $PAGER (`v` key or `Enter`)
-- **External editor**: Edit files with $EDITOR (`e` key)
+- **External viewer**: Open files with $PAGER (`V` key or `Enter`)
+- **External editor**: Edit files with $EDITOR (`E` key)
 - **Shell commands**: Execute commands with `!` key in current directory
 - **Working directory**: External apps open in file's directory
 
