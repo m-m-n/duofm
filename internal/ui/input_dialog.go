@@ -10,8 +10,7 @@ import (
 // InputDialog はテキスト入力ダイアログ
 type InputDialog struct {
 	title         string               // dialog title/prompt
-	input         string               // current input text
-	cursorPos     int                  // cursor position
+	textInput     *TextInput           // reusable text input component
 	active        bool                 // whether dialog is active
 	width         int                  // dialog width
 	onConfirm     func(string) tea.Cmd // callback on Enter key
@@ -23,8 +22,7 @@ type InputDialog struct {
 func NewInputDialog(title string, onConfirm func(string) tea.Cmd) *InputDialog {
 	return &InputDialog{
 		title:         title,
-		input:         "",
-		cursorPos:     0,
+		textInput:     NewTextInput(""),
 		active:        true,
 		width:         50,
 		onConfirm:     onConfirm,
@@ -52,13 +50,13 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyEnter:
 			// Check for empty input
-			if d.input == "" {
+			if d.textInput.IsEmpty() {
 				d.errorMsg = d.emptyErrorMsg
 				return d, nil
 			}
 			d.active = false
 			if d.onConfirm != nil {
-				return d, d.onConfirm(d.input)
+				return d, d.onConfirm(d.textInput.Value)
 			}
 			// Defensive: if onConfirm is nil, send cancel message to avoid freeze
 			return d, func() tea.Msg {
@@ -75,72 +73,11 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-		case tea.KeyRunes:
-			// Character input
-			runes := []rune(d.input)
-			newRunes := make([]rune, 0, len(runes)+len(msg.Runes))
-			newRunes = append(newRunes, runes[:d.cursorPos]...)
-			newRunes = append(newRunes, msg.Runes...)
-			newRunes = append(newRunes, runes[d.cursorPos:]...)
-			d.input = string(newRunes)
-			d.cursorPos += len(msg.Runes)
-			return d, nil
-
-		case tea.KeyBackspace:
-			if d.cursorPos > 0 {
-				runes := []rune(d.input)
-				newRunes := make([]rune, 0, len(runes)-1)
-				newRunes = append(newRunes, runes[:d.cursorPos-1]...)
-				newRunes = append(newRunes, runes[d.cursorPos:]...)
-				d.input = string(newRunes)
-				d.cursorPos--
+		default:
+			// Delegate text editing to TextInput
+			if d.textInput.HandleKey(msg) {
+				return d, nil
 			}
-			return d, nil
-
-		case tea.KeyDelete:
-			runes := []rune(d.input)
-			if d.cursorPos < len(runes) {
-				newRunes := make([]rune, 0, len(runes)-1)
-				newRunes = append(newRunes, runes[:d.cursorPos]...)
-				newRunes = append(newRunes, runes[d.cursorPos+1:]...)
-				d.input = string(newRunes)
-			}
-			return d, nil
-
-		case tea.KeyLeft:
-			if d.cursorPos > 0 {
-				d.cursorPos--
-			}
-			return d, nil
-
-		case tea.KeyRight:
-			if d.cursorPos < len([]rune(d.input)) {
-				d.cursorPos++
-			}
-			return d, nil
-
-		case tea.KeyCtrlA:
-			// Move to beginning of line
-			d.cursorPos = 0
-			return d, nil
-
-		case tea.KeyCtrlE:
-			// Move to end of line
-			d.cursorPos = len([]rune(d.input))
-			return d, nil
-
-		case tea.KeyCtrlU:
-			// Delete from cursor to beginning of line
-			runes := []rune(d.input)
-			d.input = string(runes[d.cursorPos:])
-			d.cursorPos = 0
-			return d, nil
-
-		case tea.KeyCtrlK:
-			// Delete from cursor to end of line
-			runes := []rune(d.input)
-			d.input = string(runes[:d.cursorPos])
-			return d, nil
 		}
 	}
 
@@ -201,42 +138,6 @@ func (d *InputDialog) View() string {
 
 // renderInputField renders the input field
 func (d *InputDialog) renderInputField(width int) string {
-	runes := []rune(d.input)
-	displayInput := d.input
-
-	// Calculate displayable range
-	cursorDisplayPos := d.cursorPos
-	startPos := 0
-
-	if len(runes) > width-2 {
-		// Adjust so cursor is within display range
-		if d.cursorPos > width-3 {
-			startPos = d.cursorPos - width + 3
-		}
-		endPos := startPos + width - 2
-		if endPos > len(runes) {
-			endPos = len(runes)
-		}
-		displayInput = string(runes[startPos:endPos])
-		cursorDisplayPos = d.cursorPos - startPos
-	}
-
-	// Build display string with cursor
-	displayRunes := []rune(displayInput)
-	var result strings.Builder
-	for i, r := range displayRunes {
-		if i == cursorDisplayPos {
-			// Reverse display for cursor position
-			result.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
-		} else {
-			result.WriteRune(r)
-		}
-	}
-	// If cursor is at end, show block cursor
-	if cursorDisplayPos >= len(displayRunes) {
-		result.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
-	}
-
 	// Input field style
 	fieldStyle := lipgloss.NewStyle().
 		Width(width).
@@ -246,7 +147,7 @@ func (d *InputDialog) renderInputField(width int) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240"))
 
-	return fieldStyle.Render(result.String())
+	return fieldStyle.Render(d.textInput.RenderWithCursor(width - 2))
 }
 
 // IsActive returns whether the dialog is active
@@ -262,4 +163,21 @@ func (d *InputDialog) DisplayType() DialogDisplayType {
 // SetWidth sets the dialog width
 func (d *InputDialog) SetWidth(width int) {
 	d.width = width
+}
+
+// SetInput sets the input value and positions cursor at the end.
+// This is useful for pre-populating the input field.
+func (d *InputDialog) SetInput(value string) {
+	d.textInput.Value = value
+	d.textInput.CursorPos = len([]rune(value))
+}
+
+// Input returns the current input value (for testing).
+func (d *InputDialog) Input() string {
+	return d.textInput.Value
+}
+
+// CursorPos returns the current cursor position (for testing).
+func (d *InputDialog) CursorPos() int {
+	return d.textInput.CursorPos
 }

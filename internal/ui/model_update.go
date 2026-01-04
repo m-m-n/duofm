@@ -492,8 +492,7 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 			return m.handleBookmarkEdit(currentBookmarks, editIndex, newAlias)
 		})
 		dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
-		dialog.input = result.bookmark.Name
-		dialog.cursorPos = len(result.bookmark.Name)
+		dialog.SetInput(result.bookmark.Name)
 		m.dialog = dialog
 		return m, nil, true
 	}

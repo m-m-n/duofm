@@ -13,8 +13,7 @@ import (
 // RenameInputDialog is an input dialog with real-time validation for rename operations
 type RenameInputDialog struct {
 	title         string
-	input         string
-	cursorPos     int
+	textInput     *TextInput      // reusable text input component
 	active        bool
 	width         int
 	destPath      string          // Destination directory
@@ -46,8 +45,7 @@ func NewRenameInputDialog(destPath, srcPath, operation string) *RenameInputDialo
 
 	return &RenameInputDialog{
 		title:         "New name:",
-		input:         suggested,
-		cursorPos:     len(suggested),
+		textInput:     NewTextInput(suggested),
 		active:        true,
 		width:         50,
 		destPath:      destPath,
@@ -114,19 +112,19 @@ func itoa(n int) string {
 
 // validateInput validates the current input
 func (d *RenameInputDialog) validateInput() {
-	if d.input == "" {
+	if d.textInput.IsEmpty() {
 		d.hasError = true
 		d.errorMessage = "File name cannot be empty"
 		return
 	}
 
-	if d.existingFiles[d.input] {
+	if d.existingFiles[d.textInput.Value] {
 		d.hasError = true
 		d.errorMessage = "File already exists"
 		return
 	}
 
-	if err := fs.ValidateFilename(d.input); err != nil {
+	if err := fs.ValidateFilename(d.textInput.Value); err != nil {
 		d.hasError = true
 		d.errorMessage = err.Error()
 		return
@@ -152,7 +150,7 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			d.active = false
 			return d, func() tea.Msg {
 				return renameInputResultMsg{
-					newName:   d.input,
+					newName:   d.textInput.Value,
 					srcPath:   d.srcPath,
 					destPath:  d.destPath,
 					operation: d.operation,
@@ -167,73 +165,16 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-		case tea.KeyRunes:
-			// Character input
-			runes := []rune(d.input)
-			newRunes := make([]rune, 0, len(runes)+len(msg.Runes))
-			newRunes = append(newRunes, runes[:d.cursorPos]...)
-			newRunes = append(newRunes, msg.Runes...)
-			newRunes = append(newRunes, runes[d.cursorPos:]...)
-			d.input = string(newRunes)
-			d.cursorPos += len(msg.Runes)
-			d.validateInput()
-			return d, nil
-
-		case tea.KeyBackspace:
-			if d.cursorPos > 0 {
-				runes := []rune(d.input)
-				newRunes := make([]rune, 0, len(runes)-1)
-				newRunes = append(newRunes, runes[:d.cursorPos-1]...)
-				newRunes = append(newRunes, runes[d.cursorPos:]...)
-				d.input = string(newRunes)
-				d.cursorPos--
-				d.validateInput()
+		default:
+			// Delegate text editing to TextInput
+			oldValue := d.textInput.Value
+			if d.textInput.HandleKey(msg) {
+				// Re-validate if input changed
+				if d.textInput.Value != oldValue {
+					d.validateInput()
+				}
+				return d, nil
 			}
-			return d, nil
-
-		case tea.KeyDelete:
-			runes := []rune(d.input)
-			if d.cursorPos < len(runes) {
-				newRunes := make([]rune, 0, len(runes)-1)
-				newRunes = append(newRunes, runes[:d.cursorPos]...)
-				newRunes = append(newRunes, runes[d.cursorPos+1:]...)
-				d.input = string(newRunes)
-				d.validateInput()
-			}
-			return d, nil
-
-		case tea.KeyLeft:
-			if d.cursorPos > 0 {
-				d.cursorPos--
-			}
-			return d, nil
-
-		case tea.KeyRight:
-			if d.cursorPos < len([]rune(d.input)) {
-				d.cursorPos++
-			}
-			return d, nil
-
-		case tea.KeyCtrlA:
-			d.cursorPos = 0
-			return d, nil
-
-		case tea.KeyCtrlE:
-			d.cursorPos = len([]rune(d.input))
-			return d, nil
-
-		case tea.KeyCtrlU:
-			runes := []rune(d.input)
-			d.input = string(runes[d.cursorPos:])
-			d.cursorPos = 0
-			d.validateInput()
-			return d, nil
-
-		case tea.KeyCtrlK:
-			runes := []rune(d.input)
-			d.input = string(runes[:d.cursorPos])
-			d.validateInput()
-			return d, nil
 		}
 	}
 
@@ -299,39 +240,6 @@ func (d *RenameInputDialog) View() string {
 
 // renderInputField renders the input field
 func (d *RenameInputDialog) renderInputField(width int) string {
-	runes := []rune(d.input)
-	displayInput := d.input
-
-	// Calculate displayable range
-	cursorDisplayPos := d.cursorPos
-	startPos := 0
-
-	if len(runes) > width-2 {
-		if d.cursorPos > width-3 {
-			startPos = d.cursorPos - width + 3
-		}
-		endPos := startPos + width - 2
-		if endPos > len(runes) {
-			endPos = len(runes)
-		}
-		displayInput = string(runes[startPos:endPos])
-		cursorDisplayPos = d.cursorPos - startPos
-	}
-
-	// Build display string with cursor
-	displayRunes := []rune(displayInput)
-	var result strings.Builder
-	for i, r := range displayRunes {
-		if i == cursorDisplayPos {
-			result.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
-		} else {
-			result.WriteRune(r)
-		}
-	}
-	if cursorDisplayPos >= len(displayRunes) {
-		result.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
-	}
-
 	// Input field style
 	fieldStyle := lipgloss.NewStyle().
 		Width(width).
@@ -341,7 +249,7 @@ func (d *RenameInputDialog) renderInputField(width int) string {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("240"))
 
-	return fieldStyle.Render(result.String())
+	return fieldStyle.Render(d.textInput.RenderWithCursor(width - 2))
 }
 
 // IsActive returns whether the dialog is active
@@ -352,4 +260,21 @@ func (d *RenameInputDialog) IsActive() bool {
 // DisplayType returns the dialog display type
 func (d *RenameInputDialog) DisplayType() DialogDisplayType {
 	return DialogDisplayPane
+}
+
+// Input returns the current input value.
+func (d *RenameInputDialog) Input() string {
+	return d.textInput.Value
+}
+
+// SetInput sets the input value and positions cursor at the end.
+func (d *RenameInputDialog) SetInput(value string) {
+	d.textInput.Value = value
+	d.textInput.CursorPos = len([]rune(value))
+	d.validateInput()
+}
+
+// CursorPos returns the current cursor position.
+func (d *RenameInputDialog) CursorPos() int {
+	return d.textInput.CursorPos
 }

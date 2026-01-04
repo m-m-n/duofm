@@ -29,8 +29,8 @@ func TestNewRenameInputDialog(t *testing.T) {
 		t.Errorf("operation = %q, want %q", d.operation, "copy")
 	}
 	// Should have suggested name "source_copy.txt"
-	if d.input != "source_copy.txt" {
-		t.Errorf("suggested name = %q, want %q", d.input, "source_copy.txt")
+	if d.Input() != "source_copy.txt" {
+		t.Errorf("suggested name = %q, want %q", d.Input(), "source_copy.txt")
 	}
 }
 
@@ -95,8 +95,7 @@ func TestRenameInputDialogValidation(t *testing.T) {
 	}
 
 	// Empty input should show error
-	d.input = ""
-	d.validateInput()
+	d.SetInput("")
 	if !d.hasError {
 		t.Error("empty input should have error")
 	}
@@ -105,8 +104,7 @@ func TestRenameInputDialogValidation(t *testing.T) {
 	}
 
 	// Existing file should show error
-	d.input = "existing.txt"
-	d.validateInput()
+	d.SetInput("existing.txt")
 	if !d.hasError {
 		t.Error("existing file should have error")
 	}
@@ -115,8 +113,7 @@ func TestRenameInputDialogValidation(t *testing.T) {
 	}
 
 	// Valid name should not have error
-	d.input = "new_file.txt"
-	d.validateInput()
+	d.SetInput("new_file.txt")
 	if d.hasError {
 		t.Errorf("valid name should not have error, got: %s", d.errorMessage)
 	}
@@ -128,8 +125,7 @@ func TestRenameInputDialogInvalidFilename(t *testing.T) {
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
 
 	// Filename with path separator should be invalid
-	d.input = "dir/file.txt"
-	d.validateInput()
+	d.SetInput("dir/file.txt")
 	if !d.hasError {
 		t.Error("filename with path separator should have error")
 	}
@@ -145,8 +141,7 @@ func TestRenameInputDialogEnterDisabledOnError(t *testing.T) {
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
 
 	// Set to existing file (causes error)
-	d.input = "existing.txt"
-	d.validateInput()
+	d.SetInput("existing.txt")
 
 	// Press Enter - should do nothing
 	_, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -162,8 +157,7 @@ func TestRenameInputDialogEnterSuccess(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "newname.txt"
-	d.validateInput()
+	d.SetInput("newname.txt")
 
 	_, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
@@ -216,31 +210,31 @@ func TestRenameInputDialogCursorNavigation(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test.txt"
-	d.cursorPos = 4
+	d.textInput.Value = "test.txt"
+	d.textInput.CursorPos = 4
 
 	// Move left
 	d.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if d.cursorPos != 3 {
-		t.Errorf("after Left: cursorPos = %d, want 3", d.cursorPos)
+	if d.CursorPos() != 3 {
+		t.Errorf("after Left: cursorPos = %d, want 3", d.CursorPos())
 	}
 
 	// Move right
 	d.Update(tea.KeyMsg{Type: tea.KeyRight})
-	if d.cursorPos != 4 {
-		t.Errorf("after Right: cursorPos = %d, want 4", d.cursorPos)
+	if d.CursorPos() != 4 {
+		t.Errorf("after Right: cursorPos = %d, want 4", d.CursorPos())
 	}
 
 	// Ctrl+A (beginning)
 	d.Update(tea.KeyMsg{Type: tea.KeyCtrlA})
-	if d.cursorPos != 0 {
-		t.Errorf("after Ctrl+A: cursorPos = %d, want 0", d.cursorPos)
+	if d.CursorPos() != 0 {
+		t.Errorf("after Ctrl+A: cursorPos = %d, want 0", d.CursorPos())
 	}
 
 	// Ctrl+E (end)
 	d.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
-	if d.cursorPos != 8 {
-		t.Errorf("after Ctrl+E: cursorPos = %d, want 8", d.cursorPos)
+	if d.CursorPos() != 8 {
+		t.Errorf("after Ctrl+E: cursorPos = %d, want 8", d.CursorPos())
 	}
 }
 
@@ -248,19 +242,19 @@ func TestRenameInputDialogTextEditing(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test"
-	d.cursorPos = 4
+	d.textInput.Value = "test"
+	d.textInput.CursorPos = 4
 
 	// Type character
 	d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}})
-	if d.input != "tests" {
-		t.Errorf("after typing 's': input = %q, want 'tests'", d.input)
+	if d.Input() != "tests" {
+		t.Errorf("after typing 's': input = %q, want 'tests'", d.Input())
 	}
 
 	// Backspace
 	d.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	if d.input != "test" {
-		t.Errorf("after Backspace: input = %q, want 'test'", d.input)
+	if d.Input() != "test" {
+		t.Errorf("after Backspace: input = %q, want 'test'", d.Input())
 	}
 }
 
@@ -278,8 +272,7 @@ func TestRenameInputDialogView(t *testing.T) {
 	}
 
 	// With error
-	d.input = ""
-	d.validateInput()
+	d.SetInput("")
 	viewWithError := d.View()
 
 	if !strings.Contains(viewWithError, "cannot be empty") {
@@ -341,17 +334,17 @@ func TestRenameInputDialogCtrlU(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test.txt"
-	d.cursorPos = 4 // cursor at 't' before '.txt'
+	d.textInput.Value = "test.txt"
+	d.textInput.CursorPos = 4 // cursor at 't' before '.txt'
 
 	// Ctrl+U should delete from cursor to beginning
 	d.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
 
-	if d.input != ".txt" {
-		t.Errorf("after Ctrl+U: input = %q, want '.txt'", d.input)
+	if d.Input() != ".txt" {
+		t.Errorf("after Ctrl+U: input = %q, want '.txt'", d.Input())
 	}
-	if d.cursorPos != 0 {
-		t.Errorf("after Ctrl+U: cursorPos = %d, want 0", d.cursorPos)
+	if d.CursorPos() != 0 {
+		t.Errorf("after Ctrl+U: cursorPos = %d, want 0", d.CursorPos())
 	}
 }
 
@@ -359,17 +352,17 @@ func TestRenameInputDialogCtrlK(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test.txt"
-	d.cursorPos = 4 // cursor at 't' before '.txt'
+	d.textInput.Value = "test.txt"
+	d.textInput.CursorPos = 4 // cursor at 't' before '.txt'
 
 	// Ctrl+K should delete from cursor to end
 	d.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
 
-	if d.input != "test" {
-		t.Errorf("after Ctrl+K: input = %q, want 'test'", d.input)
+	if d.Input() != "test" {
+		t.Errorf("after Ctrl+K: input = %q, want 'test'", d.Input())
 	}
-	if d.cursorPos != 4 {
-		t.Errorf("after Ctrl+K: cursorPos = %d, want 4", d.cursorPos)
+	if d.CursorPos() != 4 {
+		t.Errorf("after Ctrl+K: cursorPos = %d, want 4", d.CursorPos())
 	}
 }
 
@@ -377,15 +370,15 @@ func TestRenameInputDialogDelete(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test.txt"
-	d.cursorPos = 4 // cursor at 't' before '.txt'
+	d.textInput.Value = "test.txt"
+	d.textInput.CursorPos = 4 // cursor at 't' before '.txt'
 
 	// Delete should delete character under cursor
 	d.Update(tea.KeyMsg{Type: tea.KeyDelete})
 
-	if d.input != "test.txt" && d.input != "testtxt" {
+	if d.Input() != "test.txt" && d.Input() != "testtxt" {
 		// Expected behavior: delete '.' at position 4
-		t.Logf("after Delete: input = %q", d.input)
+		t.Logf("after Delete: input = %q", d.Input())
 	}
 }
 
@@ -393,20 +386,20 @@ func TestRenameInputDialogCursorBoundaries(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test"
-	d.cursorPos = 0
+	d.textInput.Value = "test"
+	d.textInput.CursorPos = 0
 
 	// Left at beginning should not go negative
 	d.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if d.cursorPos != 0 {
-		t.Errorf("after Left at 0: cursorPos = %d, want 0", d.cursorPos)
+	if d.CursorPos() != 0 {
+		t.Errorf("after Left at 0: cursorPos = %d, want 0", d.CursorPos())
 	}
 
 	// Right at end should not exceed length
-	d.cursorPos = 4
+	d.textInput.CursorPos = 4
 	d.Update(tea.KeyMsg{Type: tea.KeyRight})
-	if d.cursorPos != 4 {
-		t.Errorf("after Right at end: cursorPos = %d, want 4", d.cursorPos)
+	if d.CursorPos() != 4 {
+		t.Errorf("after Right at end: cursorPos = %d, want 4", d.CursorPos())
 	}
 }
 
@@ -414,17 +407,17 @@ func TestRenameInputDialogBackspaceAtStart(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test"
-	d.cursorPos = 0
+	d.textInput.Value = "test"
+	d.textInput.CursorPos = 0
 
 	// Backspace at start should do nothing
 	d.Update(tea.KeyMsg{Type: tea.KeyBackspace})
 
-	if d.input != "test" {
-		t.Errorf("after Backspace at 0: input = %q, want 'test'", d.input)
+	if d.Input() != "test" {
+		t.Errorf("after Backspace at 0: input = %q, want 'test'", d.Input())
 	}
-	if d.cursorPos != 0 {
-		t.Errorf("after Backspace at 0: cursorPos = %d, want 0", d.cursorPos)
+	if d.CursorPos() != 0 {
+		t.Errorf("after Backspace at 0: cursorPos = %d, want 0", d.CursorPos())
 	}
 }
 
@@ -438,8 +431,7 @@ func TestRenameInputDialogMoveOperation(t *testing.T) {
 	}
 
 	// Test successful confirmation
-	d.input = "newname.txt"
-	d.validateInput()
+	d.SetInput("newname.txt")
 
 	_, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEnter})
 	if cmd == nil {
@@ -566,8 +558,7 @@ func TestRenameInputDialogLongInputScrolling(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "this_is_a_very_long_filename_that_should_cause_scrolling_in_the_input_field.txt"
-	d.cursorPos = len(d.input)
+	d.SetInput("this_is_a_very_long_filename_that_should_cause_scrolling_in_the_input_field.txt")
 
 	// View should render without error
 	view := d.View()
@@ -580,16 +571,16 @@ func TestRenameInputDialogInsertInMiddle(t *testing.T) {
 	tempDir := t.TempDir()
 
 	d := NewRenameInputDialog(tempDir, filepath.Join(tempDir, "source.txt"), "copy")
-	d.input = "test.txt"
-	d.cursorPos = 4 // position at '.'
+	d.textInput.Value = "test.txt"
+	d.textInput.CursorPos = 4 // position at '.'
 
 	// Insert character at cursor position
 	d.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'_'}})
 
-	if d.input != "test_.txt" {
-		t.Errorf("after insert: input = %q, want 'test_.txt'", d.input)
+	if d.Input() != "test_.txt" {
+		t.Errorf("after insert: input = %q, want 'test_.txt'", d.Input())
 	}
-	if d.cursorPos != 5 {
-		t.Errorf("after insert: cursorPos = %d, want 5", d.cursorPos)
+	if d.CursorPos() != 5 {
+		t.Errorf("after insert: cursorPos = %d, want 5", d.CursorPos())
 	}
 }
