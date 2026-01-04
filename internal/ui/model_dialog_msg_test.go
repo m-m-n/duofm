@@ -714,10 +714,11 @@ func TestModelUpdateMoreMessages(t *testing.T) {
 		m.Update(opMsg)
 	})
 
-	t.Run("handles batchOperationCompleteMsg", func(t *testing.T) {
-		batchMsg := batchOperationCompleteMsg{
+	t.Run("handles batchCompleteMsg", func(t *testing.T) {
+		batchMsg := batchCompleteMsg{
 			operation: "copy",
-			count:     5,
+			completed: 5,
+			failed:    0,
 		}
 		m.Update(batchMsg)
 	})

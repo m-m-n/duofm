@@ -17,16 +17,6 @@ import (
 // ANSIエスケープシーケンスを除去するための正規表現
 var ansiRegex = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
-// BatchOperation holds state for batch file operations
-type BatchOperation struct {
-	Files      []string // List of source file paths
-	CurrentIdx int      // Current file index
-	DestPath   string   // Destination directory
-	Operation  string   // "copy" or "move"
-	Completed  []string // Successfully completed files
-	Failed     []string // Failed files
-}
-
 // ArchiveOperationState holds state for in-progress archive operations
 type ArchiveOperationState struct {
 	Sources     []string              // Source files/directories to archive
@@ -72,8 +62,8 @@ type Model struct {
 	sortDialog *SortDialog // ソートダイアログ（nil = 非表示）
 
 	// Operations
-	pendingAction func() error    // 確認待ちのアクション（コンテキストメニューの削除用）
-	batchOp       *BatchOperation // Active batch operation (nil if none)
+	pendingAction   func() error           // 確認待ちのアクション（コンテキストメニューの削除用）
+	batchOpManager  *BatchOperationManager // Batch copy/move manager (delegated)
 
 	// Configuration
 	keybindingMap *KeybindingMap // キーバインドマップ
@@ -144,6 +134,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		configWarnings:    warnings,
 		theme:             theme,
 		bookmarkManager:   bookmarkManager,
+		batchOpManager:    NewBatchOperationManager(),
 		archiveController: archive.NewArchiveController(),
 	}
 }
@@ -533,103 +524,38 @@ type fileOperationCompleteMsg struct {
 	operation string
 }
 
-// batchFileCompleteMsg is sent when one file in a batch operation completes
-type batchFileCompleteMsg struct {
-	success bool
-	srcPath string
-}
-
-// startBatchOperation initializes a batch copy/move operation
+// startBatchOperation initializes a batch copy/move operation.
+// Delegates to BatchOperationManager and processes the first file.
 func (m *Model) startBatchOperation(files []string, operation string) tea.Cmd {
 	srcDir := m.getActivePane().Path()
 	destDir := m.getInactivePane().Path()
 
-	// Build full paths
-	fullPaths := make([]string, len(files))
-	for i, f := range files {
-		fullPaths[i] = filepath.Join(srcDir, f)
-	}
-
-	m.batchOp = &BatchOperation{
-		Files:      fullPaths,
-		CurrentIdx: 0,
-		DestPath:   destDir,
-		Operation:  operation,
-		Completed:  make([]string, 0),
-		Failed:     make([]string, 0),
-	}
+	// Start the batch operation via manager
+	m.batchOpManager.Start(files, srcDir, destDir, operation)
 
 	// Process first file
 	return m.processBatchFile()
 }
 
-// processBatchFile processes the current file in the batch operation
+// processBatchFile processes the current file in the batch operation.
 func (m *Model) processBatchFile() tea.Cmd {
-	if m.batchOp == nil || m.batchOp.CurrentIdx >= len(m.batchOp.Files) {
-		return m.completeBatchOperation()
+	srcPath := m.batchOpManager.CurrentFile()
+	if srcPath == "" {
+		// No more files - complete the operation
+		return m.batchOpManager.Advance(true, "") // triggers completion
 	}
 
-	srcPath := m.batchOp.Files[m.batchOp.CurrentIdx]
-	return m.checkFileConflict(srcPath, m.batchOp.DestPath, m.batchOp.Operation)
+	return m.checkFileConflict(srcPath, m.batchOpManager.DestPath(), m.batchOpManager.Operation())
 }
 
-// advanceBatchOperation moves to the next file in the batch
+// advanceBatchOperation moves to the next file in the batch.
 func (m *Model) advanceBatchOperation(success bool, srcPath string) tea.Cmd {
-	if m.batchOp == nil {
-		return nil
-	}
-
-	if success {
-		m.batchOp.Completed = append(m.batchOp.Completed, srcPath)
-	} else {
-		m.batchOp.Failed = append(m.batchOp.Failed, srcPath)
-	}
-
-	m.batchOp.CurrentIdx++
-	return m.processBatchFile()
+	return m.batchOpManager.Advance(success, srcPath)
 }
 
-// completeBatchOperation finishes the batch operation
-func (m *Model) completeBatchOperation() tea.Cmd {
-	if m.batchOp == nil {
-		return nil
-	}
-
-	operation := m.batchOp.Operation
-	completed := len(m.batchOp.Completed)
-	m.batchOp = nil
-
-	// Clear marks
-	m.getActivePane().ClearMarks()
-
-	// Reload both panes
-	m.getActivePane().LoadDirectory()
-	m.getInactivePane().LoadDirectory()
-
-	return func() tea.Msg {
-		return batchOperationCompleteMsg{operation: operation, count: completed}
-	}
-}
-
-// cancelBatchOperation cancels the remaining batch operation
-func (m *Model) cancelBatchOperation() {
-	if m.batchOp == nil {
-		return
-	}
-
-	// Clear marks and batch state
-	m.getActivePane().ClearMarks()
-	m.batchOp = nil
-
-	// Reload both panes
-	m.getActivePane().LoadDirectory()
-	m.getInactivePane().LoadDirectory()
-}
-
-// batchOperationCompleteMsg is sent when a batch operation finishes
-type batchOperationCompleteMsg struct {
-	operation string
-	count     int
+// cancelBatchOperation cancels the remaining batch operation.
+func (m *Model) cancelBatchOperation() tea.Cmd {
+	return m.batchOpManager.Cancel()
 }
 
 
