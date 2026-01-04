@@ -9,20 +9,18 @@ import (
 
 // ArchiveNameDialog はアーカイブ名入力ダイアログ
 type ArchiveNameDialog struct {
-	title     string // ダイアログタイトル
-	input     string // 現在の入力テキスト
-	cursorPos int    // カーソル位置
-	active    bool   // ダイアログがアクティブ
-	width     int    // ダイアログの幅
-	errorMsg  string // バリデーションエラーメッセージ
+	title     string     // ダイアログタイトル
+	textInput *TextInput // reusable text input component
+	active    bool       // ダイアログがアクティブ
+	width     int        // ダイアログの幅
+	errorMsg  string     // バリデーションエラーメッセージ
 }
 
 // NewArchiveNameDialog は新しいアーカイブ名入力ダイアログを作成
 func NewArchiveNameDialog(defaultName string) *ArchiveNameDialog {
 	return &ArchiveNameDialog{
 		title:     "Archive Name",
-		input:     defaultName,
-		cursorPos: len(defaultName),
+		textInput: NewTextInput(defaultName),
 		active:    true,
 		width:     60,
 		errorMsg:  "",
@@ -50,7 +48,7 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 		case tea.KeyEnter:
 			// Enterで確定
-			name := strings.TrimSpace(d.input)
+			name := strings.TrimSpace(d.textInput.Value)
 
 			// バリデーション
 			if name == "" {
@@ -71,32 +69,11 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return archiveNameResultMsg{name: name, cancelled: false}
 			}
 
-		case tea.KeyBackspace, tea.KeyDelete:
-			if d.cursorPos > 0 {
-				d.input = d.input[:d.cursorPos-1] + d.input[d.cursorPos:]
-				d.cursorPos--
+		default:
+			// Delegate text editing to TextInput
+			if d.textInput.HandleKey(msg) {
+				return d, nil
 			}
-
-		case tea.KeyLeft:
-			if d.cursorPos > 0 {
-				d.cursorPos--
-			}
-
-		case tea.KeyRight:
-			if d.cursorPos < len(d.input) {
-				d.cursorPos++
-			}
-
-		case tea.KeyHome, tea.KeyCtrlA:
-			d.cursorPos = 0
-
-		case tea.KeyEnd, tea.KeyCtrlE:
-			d.cursorPos = len(d.input)
-
-		case tea.KeyRunes:
-			// 文字入力
-			d.input = d.input[:d.cursorPos] + string(msg.Runes) + d.input[d.cursorPos:]
-			d.cursorPos += len(msg.Runes)
 		}
 	}
 
@@ -132,12 +109,7 @@ func (d *ArchiveNameDialog) View() string {
 	content += titleStyle.Render(d.title) + "\n\n"
 
 	// 入力フィールド（カーソル表示）
-	inputText := d.input
-	if d.cursorPos < len(inputText) {
-		inputText = inputText[:d.cursorPos] + "█" + inputText[d.cursorPos+1:]
-	} else {
-		inputText += "█"
-	}
+	inputText := d.textInput.RenderWithCursor(d.width - 10)
 	content += inputStyle.Render(inputText) + "\n"
 
 	// エラーメッセージ
@@ -169,4 +141,20 @@ func (d *ArchiveNameDialog) SetActive(active bool) {
 // DisplayType はダイアログの表示タイプを返す
 func (d *ArchiveNameDialog) DisplayType() DialogDisplayType {
 	return DialogDisplayScreen
+}
+
+// Input returns the current input value.
+func (d *ArchiveNameDialog) Input() string {
+	return d.textInput.Value
+}
+
+// SetInput sets the input value and positions cursor at the end.
+func (d *ArchiveNameDialog) SetInput(value string) {
+	d.textInput.Value = value
+	d.textInput.CursorPos = len([]rune(value))
+}
+
+// CursorPos returns the current cursor position.
+func (d *ArchiveNameDialog) CursorPos() int {
+	return d.textInput.CursorPos
 }

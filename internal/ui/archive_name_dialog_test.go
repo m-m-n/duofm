@@ -17,14 +17,14 @@ func TestNewArchiveNameDialog(t *testing.T) {
 		t.Error("NewArchiveNameDialog() should be active by default")
 	}
 
-	if dialog.input != "test.tar.gz" {
-		t.Errorf("NewArchiveNameDialog() input = %q, want %q", dialog.input, "test.tar.gz")
+	if dialog.Input() != "test.tar.gz" {
+		t.Errorf("NewArchiveNameDialog() input = %q, want %q", dialog.Input(), "test.tar.gz")
 	}
 }
 
 func TestArchiveNameDialog_EmptyInput(t *testing.T) {
 	dialog := NewArchiveNameDialog("test.tar.gz")
-	dialog.input = ""
+	dialog.SetInput("")
 
 	// Try to confirm with empty input
 	updated, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -52,7 +52,7 @@ func TestArchiveNameDialog_InvalidCharacters(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dialog.input = tt.input
+			dialog.SetInput(tt.input)
 			updated, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
 			d := updated.(*ArchiveNameDialog)
 
@@ -65,7 +65,7 @@ func TestArchiveNameDialog_InvalidCharacters(t *testing.T) {
 
 func TestArchiveNameDialog_ValidInput(t *testing.T) {
 	dialog := NewArchiveNameDialog("default.tar.gz")
-	dialog.input = "myarchive.tar.xz"
+	dialog.SetInput("myarchive.tar.xz")
 
 	// Confirm with valid input
 	updated, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -170,7 +170,7 @@ func TestArchiveNameDialog_View(t *testing.T) {
 
 	t.Run("dialog with error shows error message", func(t *testing.T) {
 		dialog := NewArchiveNameDialog("test.tar.gz")
-		dialog.input = ""
+		dialog.SetInput("")
 		// Trigger validation error
 		dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -199,14 +199,14 @@ func TestArchiveNameDialog_View(t *testing.T) {
 
 func TestArchiveNameDialog_Backspace(t *testing.T) {
 	dialog := NewArchiveNameDialog("test.tar.gz")
-	initialLen := len(dialog.input)
+	initialLen := len(dialog.Input())
 
 	// Press backspace
 	updated, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyBackspace})
 	d := updated.(*ArchiveNameDialog)
 
-	if len(d.input) != initialLen-1 {
-		t.Errorf("Backspace should remove one character, got len=%d, want %d", len(d.input), initialLen-1)
+	if len(d.Input()) != initialLen-1 {
+		t.Errorf("Backspace should remove one character, got len=%d, want %d", len(d.Input()), initialLen-1)
 	}
 }
 
@@ -217,8 +217,8 @@ func TestArchiveNameDialog_TypeCharacter(t *testing.T) {
 	updated, _ := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	d := updated.(*ArchiveNameDialog)
 
-	if d.input != "testa" {
-		t.Errorf("Typing 'a' should append, got %q, want %q", d.input, "testa")
+	if d.Input() != "testa" {
+		t.Errorf("Typing 'a' should append, got %q, want %q", d.Input(), "testa")
 	}
 }
 

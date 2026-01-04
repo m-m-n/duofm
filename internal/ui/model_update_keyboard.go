@@ -431,8 +431,7 @@ func (m Model) handleAddBookmarkUI() (tea.Model, tea.Cmd) {
 		return m.handleAddBookmark(currentBookmarks, currentPath, alias)
 	})
 	dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
-	dialog.input = defaultAlias
-	dialog.cursorPos = len(defaultAlias)
+	dialog.SetInput(defaultAlias)
 	m.dialog = dialog
 	return m, nil
 }

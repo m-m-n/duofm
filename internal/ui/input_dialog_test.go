@@ -14,10 +14,10 @@ func TestInputDialog_New(t *testing.T) {
 	if dialog.title != title {
 		t.Errorf("Expected title %q, got %q", title, dialog.title)
 	}
-	if dialog.input != "" {
+	if dialog.Input() != "" {
 		t.Error("Input should be empty initially")
 	}
-	if dialog.cursorPos != 0 {
+	if dialog.CursorPos() != 0 {
 		t.Error("Cursor position should be 0 initially")
 	}
 	if !dialog.active {
@@ -40,146 +40,144 @@ func TestInputDialog_CharacterInput(t *testing.T) {
 		dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)})
 	}
 
-	if dialog.input != "hello" {
-		t.Errorf("Expected input %q, got %q", "hello", dialog.input)
+	if dialog.Input() != "hello" {
+		t.Errorf("Expected input %q, got %q", "hello", dialog.Input())
 	}
-	if dialog.cursorPos != 5 {
-		t.Errorf("Expected cursor at 5, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 5 {
+		t.Errorf("Expected cursor at 5, got %d", dialog.CursorPos())
 	}
 }
 
 func TestInputDialog_CursorMovement(t *testing.T) {
 	dialog := NewInputDialog("Test:", nil)
-	dialog.input = "hello"
-	dialog.cursorPos = 5
+	dialog.SetInput("hello")
 
 	// Move left
 	dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if dialog.cursorPos != 4 {
-		t.Errorf("Expected cursor at 4 after left, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 4 {
+		t.Errorf("Expected cursor at 4 after left, got %d", dialog.CursorPos())
 	}
 
 	// Move left again
 	dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if dialog.cursorPos != 3 {
-		t.Errorf("Expected cursor at 3 after left, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 3 {
+		t.Errorf("Expected cursor at 3 after left, got %d", dialog.CursorPos())
 	}
 
 	// Move right
 	dialog.Update(tea.KeyMsg{Type: tea.KeyRight})
-	if dialog.cursorPos != 4 {
-		t.Errorf("Expected cursor at 4 after right, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 4 {
+		t.Errorf("Expected cursor at 4 after right, got %d", dialog.CursorPos())
 	}
 
 	// Move to beginning (Ctrl+A)
 	dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlA})
-	if dialog.cursorPos != 0 {
-		t.Errorf("Expected cursor at 0 after Ctrl+A, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 0 {
+		t.Errorf("Expected cursor at 0 after Ctrl+A, got %d", dialog.CursorPos())
 	}
 
 	// Try to move left at beginning
 	dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
-	if dialog.cursorPos != 0 {
-		t.Errorf("Cursor should stay at 0, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 0 {
+		t.Errorf("Cursor should stay at 0, got %d", dialog.CursorPos())
 	}
 
 	// Move to end (Ctrl+E)
 	dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlE})
-	if dialog.cursorPos != 5 {
-		t.Errorf("Expected cursor at 5 after Ctrl+E, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 5 {
+		t.Errorf("Expected cursor at 5 after Ctrl+E, got %d", dialog.CursorPos())
 	}
 
 	// Try to move right at end
 	dialog.Update(tea.KeyMsg{Type: tea.KeyRight})
-	if dialog.cursorPos != 5 {
-		t.Errorf("Cursor should stay at 5, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 5 {
+		t.Errorf("Cursor should stay at 5, got %d", dialog.CursorPos())
 	}
 }
 
 func TestInputDialog_Backspace(t *testing.T) {
 	dialog := NewInputDialog("Test:", nil)
-	dialog.input = "hello"
-	dialog.cursorPos = 5
+	dialog.SetInput("hello")
 
 	// Delete last character
 	dialog.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	if dialog.input != "hell" {
-		t.Errorf("Expected %q after backspace, got %q", "hell", dialog.input)
+	if dialog.Input() != "hell" {
+		t.Errorf("Expected %q after backspace, got %q", "hell", dialog.Input())
 	}
-	if dialog.cursorPos != 4 {
-		t.Errorf("Expected cursor at 4, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 4 {
+		t.Errorf("Expected cursor at 4, got %d", dialog.CursorPos())
 	}
 
 	// Move cursor to middle and backspace
-	dialog.cursorPos = 2
+	dialog.textInput.CursorPos = 2
 	dialog.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	if dialog.input != "hll" {
-		t.Errorf("Expected %q after backspace at position 2, got %q", "hll", dialog.input)
+	if dialog.Input() != "hll" {
+		t.Errorf("Expected %q after backspace at position 2, got %q", "hll", dialog.Input())
 	}
-	if dialog.cursorPos != 1 {
-		t.Errorf("Expected cursor at 1, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 1 {
+		t.Errorf("Expected cursor at 1, got %d", dialog.CursorPos())
 	}
 
 	// Backspace at beginning should do nothing
-	dialog.cursorPos = 0
+	dialog.textInput.CursorPos = 0
 	dialog.Update(tea.KeyMsg{Type: tea.KeyBackspace})
-	if dialog.input != "hll" {
-		t.Errorf("Input should not change when backspace at beginning, got %q", dialog.input)
+	if dialog.Input() != "hll" {
+		t.Errorf("Input should not change when backspace at beginning, got %q", dialog.Input())
 	}
 }
 
 func TestInputDialog_Delete(t *testing.T) {
 	dialog := NewInputDialog("Test:", nil)
-	dialog.input = "hello"
-	dialog.cursorPos = 0
+	dialog.textInput.Value = "hello"
+	dialog.textInput.CursorPos = 0
 
 	// Delete first character
 	dialog.Update(tea.KeyMsg{Type: tea.KeyDelete})
-	if dialog.input != "ello" {
-		t.Errorf("Expected %q after delete, got %q", "ello", dialog.input)
+	if dialog.Input() != "ello" {
+		t.Errorf("Expected %q after delete, got %q", "ello", dialog.Input())
 	}
 
 	// Delete at middle
-	dialog.cursorPos = 2
+	dialog.textInput.CursorPos = 2
 	dialog.Update(tea.KeyMsg{Type: tea.KeyDelete})
-	if dialog.input != "elo" {
-		t.Errorf("Expected %q after delete at position 2, got %q", "elo", dialog.input)
+	if dialog.Input() != "elo" {
+		t.Errorf("Expected %q after delete at position 2, got %q", "elo", dialog.Input())
 	}
 
 	// Delete at end should do nothing
-	dialog.cursorPos = 3
+	dialog.textInput.CursorPos = 3
 	dialog.Update(tea.KeyMsg{Type: tea.KeyDelete})
-	if dialog.input != "elo" {
-		t.Errorf("Input should not change when delete at end, got %q", dialog.input)
+	if dialog.Input() != "elo" {
+		t.Errorf("Input should not change when delete at end, got %q", dialog.Input())
 	}
 }
 
 func TestInputDialog_CtrlU_CtrlK(t *testing.T) {
 	t.Run("Ctrl+U deletes to beginning", func(t *testing.T) {
 		dialog := NewInputDialog("Test:", nil)
-		dialog.input = "hello world"
-		dialog.cursorPos = 6
+		dialog.textInput.Value = "hello world"
+		dialog.textInput.CursorPos = 6
 
 		dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
-		if dialog.input != "world" {
-			t.Errorf("Expected %q after Ctrl+U, got %q", "world", dialog.input)
+		if dialog.Input() != "world" {
+			t.Errorf("Expected %q after Ctrl+U, got %q", "world", dialog.Input())
 		}
-		if dialog.cursorPos != 0 {
-			t.Errorf("Cursor should be at 0, got %d", dialog.cursorPos)
+		if dialog.CursorPos() != 0 {
+			t.Errorf("Cursor should be at 0, got %d", dialog.CursorPos())
 		}
 	})
 
 	t.Run("Ctrl+K deletes to end", func(t *testing.T) {
 		dialog := NewInputDialog("Test:", nil)
-		dialog.input = "hello world"
-		dialog.cursorPos = 6
+		dialog.textInput.Value = "hello world"
+		dialog.textInput.CursorPos = 6
 
 		dialog.Update(tea.KeyMsg{Type: tea.KeyCtrlK})
-		if dialog.input != "hello " {
-			t.Errorf("Expected %q after Ctrl+K, got %q", "hello ", dialog.input)
+		if dialog.Input() != "hello " {
+			t.Errorf("Expected %q after Ctrl+K, got %q", "hello ", dialog.Input())
 		}
-		if dialog.cursorPos != 6 {
-			t.Errorf("Cursor should stay at 6, got %d", dialog.cursorPos)
+		if dialog.CursorPos() != 6 {
+			t.Errorf("Cursor should stay at 6, got %d", dialog.CursorPos())
 		}
 	})
 }
@@ -194,8 +192,7 @@ func TestInputDialog_EnterConfirm(t *testing.T) {
 		return nil
 	})
 
-	dialog.input = "testfile.txt"
-	dialog.cursorPos = 12
+	dialog.SetInput("testfile.txt")
 
 	_, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
@@ -222,7 +219,7 @@ func TestInputDialog_EscCancel(t *testing.T) {
 		return nil
 	})
 
-	dialog.input = "testfile.txt"
+	dialog.SetInput("testfile.txt")
 
 	newDialog, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
@@ -276,8 +273,7 @@ func TestInputDialog_EmptyInputError(t *testing.T) {
 
 func TestInputDialog_View(t *testing.T) {
 	dialog := NewInputDialog("New file:", nil)
-	dialog.input = "test.txt"
-	dialog.cursorPos = 8
+	dialog.SetInput("test.txt")
 
 	view := dialog.View()
 
@@ -317,22 +313,22 @@ func TestInputDialog_UnicodeInput(t *testing.T) {
 	dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ス")})
 	dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("ト")})
 
-	if dialog.input != "テスト" {
-		t.Errorf("Expected input %q, got %q", "テスト", dialog.input)
+	if dialog.Input() != "テスト" {
+		t.Errorf("Expected input %q, got %q", "テスト", dialog.Input())
 	}
-	if dialog.cursorPos != 3 {
-		t.Errorf("Expected cursor at 3, got %d", dialog.cursorPos)
+	if dialog.CursorPos() != 3 {
+		t.Errorf("Expected cursor at 3, got %d", dialog.CursorPos())
 	}
 }
 
 func TestInputDialog_InactiveDoesNotProcess(t *testing.T) {
 	dialog := NewInputDialog("Test:", nil)
 	dialog.active = false
-	dialog.input = "initial"
+	dialog.textInput.Value = "initial"
 
 	dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("x")})
 
-	if dialog.input != "initial" {
+	if dialog.Input() != "initial" {
 		t.Error("Inactive dialog should not process input")
 	}
 }
@@ -363,8 +359,7 @@ func TestInputDialog_LongInputView(t *testing.T) {
 
 	// Create a long input string that exceeds typical display width
 	longInput := "this_is_a_very_long_filename_that_exceeds_the_normal_display_width.txt"
-	dialog.input = longInput
-	dialog.cursorPos = len(longInput)
+	dialog.SetInput(longInput)
 	dialog.width = 50
 
 	view := dialog.View()
@@ -385,8 +380,8 @@ func TestInputDialog_CursorAtMiddleOfLongInput(t *testing.T) {
 
 	// Create a long input string
 	longInput := "this_is_a_very_long_filename_that_exceeds_the_normal_display_width.txt"
-	dialog.input = longInput
-	dialog.cursorPos = len(longInput) / 2
+	dialog.textInput.Value = longInput
+	dialog.textInput.CursorPos = len(longInput) / 2
 	dialog.width = 50
 
 	view := dialog.View()
