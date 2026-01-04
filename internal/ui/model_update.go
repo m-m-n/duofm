@@ -363,16 +363,16 @@ func (m Model) handleOverwriteDialogResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 			} else {
 				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to remove: %v", err))
 			}
-			if m.batchOp != nil {
-				m.cancelBatchOperation()
+			if m.batchOpManager.IsActive() {
+				return m, m.cancelBatchOperation(), true
 			}
 			return m, nil, true
 		}
 		return m, m.executeFileOperation(result.srcPath, result.destPath, result.operation), true
 
 	case OverwriteChoiceCancel:
-		if m.batchOp != nil {
-			m.cancelBatchOperation()
+		if m.batchOpManager.IsActive() {
+			return m, m.cancelBatchOperation(), true
 		}
 		return m, nil, true
 
@@ -684,10 +684,30 @@ func (m Model) handleSystemMessages(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case fileOperationCompleteMsg:
 		return m.handleFileOperationComplete(msg)
 
-	case batchOperationCompleteMsg:
-		m.statusMessage = fmt.Sprintf("%s %d files completed", strings.Title(msg.operation), msg.count)
+	case batchCompleteMsg:
+		// Clear marks and reload panes after batch operation completes
+		m.getActivePane().ClearMarks()
+		m.getActivePane().LoadDirectory()
+		m.getInactivePane().LoadDirectory()
+
+		m.statusMessage = fmt.Sprintf("%s %d files completed", strings.Title(msg.operation), msg.completed)
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second)
+
+	case batchCancelledMsg:
+		// Clear marks and reload panes after cancellation
+		m.getActivePane().ClearMarks()
+		m.getActivePane().LoadDirectory()
+		m.getInactivePane().LoadDirectory()
+
+		m.statusMessage = fmt.Sprintf("%s cancelled (%d completed, %d remaining)",
+			strings.Title(msg.operation), msg.completed, msg.remaining)
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
+
+	case batchNextFileMsg:
+		// Process the next file in the batch
+		return m, m.checkFileConflict(msg.srcPath, msg.destPath, m.batchOpManager.Operation())
 
 	case renameInputResultMsg:
 		return m.handleRenameInputResult(msg)
@@ -856,8 +876,8 @@ func (m Model) handleInputDialogResult(msg inputDialogResultMsg) (tea.Model, tea
 
 // handleFileOperationComplete はファイル操作完了を処理
 func (m Model) handleFileOperationComplete(msg fileOperationCompleteMsg) (tea.Model, tea.Cmd) {
-	if m.batchOp != nil {
-		srcPath := m.batchOp.Files[m.batchOp.CurrentIdx]
+	if m.batchOpManager.IsActive() {
+		srcPath := m.batchOpManager.CurrentFile()
 		return m, m.advanceBatchOperation(true, srcPath)
 	}
 	m.getActivePane().LoadDirectory()
