@@ -23,17 +23,17 @@ type PaneChanger interface {
 // ContextMenuDialog represents a context menu that displays available file operations.
 // It implements the Dialog interface and manages menu items, cursor position, and pagination.
 type ContextMenuDialog struct {
+	BaseDialog
 	items        []MenuItem  // Available menu items
 	cursor       int         // Current cursor position
 	currentPage  int         // Current page number (for pagination)
 	itemsPerPage int         // Maximum items per page (default: 9)
-	active       bool        // Whether dialog is active
-	width        int         // Calculated dialog width
 	minWidth     int         // Minimum dialog width
 	maxWidth     int         // Maximum dialog width
 	pane         *Pane       // Reference to active pane for symlink navigation
 	paneChanger  PaneChanger // Interface for directory changes (for testing)
 	markedFiles  []string    // List of marked file names (for batch operations)
+	styles       DialogStyles
 }
 
 // MenuItem represents a single menu item with an action closure.
@@ -82,11 +82,12 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 		markedFiles = pane.GetMarkedFiles()
 	}
 
+	base := NewBaseDialog(DialogDisplayPane)
 	d := &ContextMenuDialog{
+		BaseDialog:   base,
 		cursor:       0,
 		currentPage:  0,
 		itemsPerPage: 9,
-		active:       true,
 		minWidth:     40,
 		maxWidth:     60,
 		pane:         pane,
@@ -96,6 +97,7 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
 	d.calculateWidth()
+	d.styles = NewDialogStyles(d.Width(), ColorPrimary)
 
 	return d
 }
@@ -103,11 +105,12 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 // NewContextMenuDialogWithMockPane creates a context menu dialog with a mock pane for testing.
 // This allows testing symlink navigation without a real Pane instance.
 func NewContextMenuDialogWithMockPane(entry *fs.FileEntry, sourcePath, destPath string, paneChanger PaneChanger) *ContextMenuDialog {
+	base := NewBaseDialog(DialogDisplayPane)
 	d := &ContextMenuDialog{
+		BaseDialog:   base,
 		cursor:       0,
 		currentPage:  0,
 		itemsPerPage: 9,
-		active:       true,
 		minWidth:     40,
 		maxWidth:     60,
 		pane:         nil,
@@ -116,6 +119,7 @@ func NewContextMenuDialogWithMockPane(entry *fs.FileEntry, sourcePath, destPath 
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
 	d.calculateWidth()
+	d.styles = NewDialogStyles(d.Width(), ColorPrimary)
 
 	return d
 }
@@ -243,7 +247,7 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 
 // Update handles keyboard input
 func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -286,7 +290,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 		case "esc", "ctrl+c":
 			// Cancel and close
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return contextMenuResultMsg{cancelled: true}
 			}
@@ -299,7 +303,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				if selectedItem.Enabled {
 					// Special handling for "compress" - opens format selection submenu
 					if selectedItem.ID == "compress" {
-						d.active = false
+						d.Close()
 						return d, func() tea.Msg {
 							return contextMenuResultMsg{
 								actionID: "compress",
@@ -307,7 +311,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 						}
 					}
 
-					d.active = false
+					d.Close()
 					return d, func() tea.Msg {
 						return contextMenuResultMsg{
 							action:   selectedItem.Action,
@@ -327,7 +331,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				if selectedItem.Enabled {
 					// Special handling for "compress" - opens format selection submenu
 					if selectedItem.ID == "compress" {
-						d.active = false
+						d.Close()
 						return d, func() tea.Msg {
 							return contextMenuResultMsg{
 								actionID: "compress",
@@ -335,7 +339,7 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 						}
 					}
 
-					d.active = false
+					d.Close()
 					return d, func() tea.Msg {
 						return contextMenuResultMsg{
 							action:   selectedItem.Action,
@@ -353,31 +357,21 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the context menu
 func (d *ContextMenuDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
+	width := d.Width()
 
 	// Title with page indicator
 	titleText := "Context Menu"
 	totalPages := d.getTotalPages()
 	if totalPages > 1 {
-		titleText = lipgloss.JoinHorizontal(
-			lipgloss.Center,
-			"Context Menu ",
-			lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(
-				"("+string(rune(d.currentPage+1))+"/"+string(rune(totalPages))+")",
-			),
-		)
+		titleText = fmt.Sprintf("Context Menu (%d/%d)", d.currentPage+1, totalPages)
 	}
 
-	titleStyle := lipgloss.NewStyle().
-		Width(d.width-4).
-		Padding(0, 2).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render(titleText))
+	b.WriteString(d.styles.Title.Render(titleText))
 	b.WriteString("\n\n")
 
 	// Menu items
@@ -386,24 +380,22 @@ func (d *ContextMenuDialog) View() string {
 		itemNumber := i + 1
 		itemText := lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(string(rune('0'+itemNumber))+". "),
+			lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted))).Render(fmt.Sprintf("%d. ", itemNumber)),
 			item.Label,
 		)
 
-		itemStyle := lipgloss.NewStyle().
-			Width(d.width-4).
-			Padding(0, 2)
+		itemStyle := lipgloss.NewStyle().Width(width - 4).Padding(0, 2)
 
 		// Highlight selected item
 		if i == d.cursor {
 			itemStyle = itemStyle.
-				Background(lipgloss.Color("39")).
+				Background(lipgloss.Color(string(ColorPrimary))).
 				Foreground(lipgloss.Color("0"))
 		}
 
 		// Dim disabled items
 		if !item.Enabled {
-			itemStyle = itemStyle.Foreground(lipgloss.Color("240"))
+			itemStyle = itemStyle.Foreground(lipgloss.Color(string(ColorMuted)))
 		}
 
 		b.WriteString(itemStyle.Render(itemText))
@@ -418,30 +410,9 @@ func (d *ContextMenuDialog) View() string {
 		footerText = "[h/l] Page  " + footerText
 	}
 
-	footerStyle := lipgloss.NewStyle().
-		Width(d.width-4).
-		Padding(0, 2).
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(footerStyle.Render(footerText))
+	b.WriteString(d.styles.Footer.Render(footerText))
 
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(d.width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
-}
-
-// IsActive returns whether the dialog is active
-func (d *ContextMenuDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *ContextMenuDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
+	return d.styles.Box.Render(b.String())
 }
 
 // getCurrentPageItems returns items for the current page
@@ -469,11 +440,12 @@ func (d *ContextMenuDialog) calculateWidth() {
 		}
 	}
 
-	d.width = maxLabelWidth + 8 // Padding
-	if d.width < d.minWidth {
-		d.width = d.minWidth
+	width := maxLabelWidth + 8 // Padding
+	if width < d.minWidth {
+		width = d.minWidth
 	}
-	if d.width > d.maxWidth {
-		d.width = d.maxWidth
+	if width > d.maxWidth {
+		width = d.maxWidth
 	}
+	d.SetWidth(width)
 }

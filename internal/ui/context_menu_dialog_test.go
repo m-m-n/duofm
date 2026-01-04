@@ -640,12 +640,13 @@ func TestUpdate_ArrowKeys(t *testing.T) {
 // TestUpdate_LeftRightArrowKeys tests left/right arrow key pagination
 func TestUpdate_LeftRightArrowKeys(t *testing.T) {
 	// Create a dialog with many items to enable pagination
+	base := NewBaseDialog(DialogDisplayPane)
 	dialog := &ContextMenuDialog{
+		BaseDialog:   base,
 		items:        make([]MenuItem, 20), // 20 items, more than one page
 		cursor:       0,
 		currentPage:  0,
 		itemsPerPage: 9,
-		active:       true,
 		minWidth:     40,
 		maxWidth:     60,
 	}
@@ -803,12 +804,13 @@ func TestEnterPhysical_ChainedSymlink(t *testing.T) {
 // TestUpdate_HLKeys tests h/l key pagination
 func TestUpdate_HLKeys(t *testing.T) {
 	// Create a dialog with many items to enable pagination
+	base := NewBaseDialog(DialogDisplayPane)
 	dialog := &ContextMenuDialog{
+		BaseDialog:   base,
 		items:        make([]MenuItem, 20), // 20 items, more than one page
 		cursor:       0,
 		currentPage:  0,
 		itemsPerPage: 9,
-		active:       true,
 		minWidth:     40,
 		maxWidth:     60,
 	}

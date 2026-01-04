@@ -10,18 +10,22 @@ import (
 
 // HelpDialog はヘルプダイアログ
 type HelpDialog struct {
-	active        bool
+	BaseDialog
 	scrollOffset  int
 	contentLines  []string
 	visibleHeight int
+	styles        DialogStyles
 }
 
 // NewHelpDialog は新しいヘルプダイアログを作成
 func NewHelpDialog() *HelpDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(70)
 	d := &HelpDialog{
-		active:        true,
+		BaseDialog:    base,
 		scrollOffset:  0,
 		visibleHeight: 20, // デフォルトの表示行数
+		styles:        NewDialogStyles(70, ColorPrimary),
 	}
 	d.contentLines = d.buildContent()
 	return d
@@ -29,7 +33,7 @@ func NewHelpDialog() *HelpDialog {
 
 // Update はメッセージを処理
 func (d *HelpDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -37,7 +41,7 @@ func (d *HelpDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc", "?", "ctrl+c":
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return dialogResultMsg{
 					result: DialogResult{Cancelled: true},
@@ -92,12 +96,12 @@ func (d *HelpDialog) scrollToEnd() {
 
 // View はダイアログをレンダリング
 func (d *HelpDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := 70
+	width := d.Width()
 
 	// 総ページ数とページ計算
 	totalPages := (len(d.contentLines) + d.visibleHeight - 1) / d.visibleHeight
@@ -112,12 +116,8 @@ func (d *HelpDialog) View() string {
 	// ページインジケータ
 	pageIndicator := fmt.Sprintf("[%d/%d]", currentPage, totalPages)
 	titleWidth := width - 8 - len(pageIndicator)
-	titleStyle := lipgloss.NewStyle().
-		Width(titleWidth).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	pageStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
+	titleStyle := lipgloss.NewStyle().Width(titleWidth).Bold(true).Foreground(lipgloss.Color(string(ColorPrimary)))
+	pageStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 
 	b.WriteString(titleStyle.Render("Help"))
 	b.WriteString(strings.Repeat(" ", width-8-titleWidth-len(pageIndicator)))
@@ -137,20 +137,10 @@ func (d *HelpDialog) View() string {
 		b.WriteString("\n")
 	}
 
-	// フッター
-	footerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
 	b.WriteString("\n")
-	b.WriteString(footerStyle.Render("[j/k: scroll] [Space: page down] [?/Esc: close]"))
+	b.WriteString(d.styles.Footer.Render("[j/k: scroll] [Space: page down] [?/Esc: close]"))
 
-	// ボーダーで囲む
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // buildContent はヘルプダイアログのコンテンツを生成
@@ -306,14 +296,4 @@ func grayscaleToHex(index int) string {
 	// 232: #080808, 233: #121212, ..., 255: #eeeeee
 	gray := 8 + index*10
 	return fmt.Sprintf("#%02x%02x%02x", gray, gray, gray)
-}
-
-// IsActive はダイアログがアクティブかどうかを返す
-func (d *HelpDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *HelpDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
 }

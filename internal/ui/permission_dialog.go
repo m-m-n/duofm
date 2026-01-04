@@ -36,6 +36,7 @@ var dirPresets = []PermissionPreset{
 
 // PermissionDialog is the permission change dialog
 type PermissionDialog struct {
+	BaseDialog
 	targetName      string
 	isDir           bool
 	currentMode     fs.FileMode
@@ -45,9 +46,8 @@ type PermissionDialog struct {
 	showRecursive   bool // true for directories
 	presets         []PermissionPreset
 	errorMsg        string
-	active          bool
-	width           int
 	onConfirm       func(mode string, recursive bool) tea.Cmd
+	styles          DialogStyles
 }
 
 // NewPermissionDialog creates a new permission dialog
@@ -57,7 +57,10 @@ func NewPermissionDialog(targetName string, isDir bool, currentMode fs.FileMode)
 		presets = dirPresets
 	}
 
+	base := NewBaseDialog(DialogDisplayPane)
+	base.SetWidth(50)
 	return &PermissionDialog{
+		BaseDialog:      base,
 		targetName:      targetName,
 		isDir:           isDir,
 		currentMode:     currentMode,
@@ -67,9 +70,8 @@ func NewPermissionDialog(targetName string, isDir bool, currentMode fs.FileMode)
 		showRecursive:   isDir,
 		presets:         presets,
 		errorMsg:        "",
-		active:          true,
-		width:           50,
 		onConfirm:       nil,
+		styles:          NewDialogStyles(50, ColorPrimary),
 	}
 }
 
@@ -80,7 +82,7 @@ func (d *PermissionDialog) SetOnConfirm(callback func(mode string, recursive boo
 
 // Update handles messages
 func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -96,7 +98,7 @@ func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				d.errorMsg = err.Error()
 				return d, nil
 			}
-			d.active = false
+			d.Close()
 			if d.onConfirm != nil {
 				recursive := d.recursiveOption == 1
 				return d, d.onConfirm(d.inputValue, recursive)
@@ -107,7 +109,7 @@ func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 
 		case tea.KeyEsc:
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return permissionDialogCancelMsg{}
 			}
@@ -192,29 +194,21 @@ func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the dialog
 func (d *PermissionDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
 	// Title
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render(fmt.Sprintf("Permissions: %s", d.targetName)))
+	b.WriteString(d.styles.Title.Render(fmt.Sprintf("Permissions: %s", d.targetName)))
 	b.WriteString("\n\n")
 
 	// Current permission
 	currentPerm := formatPermission(d.currentMode)
 	currentSymbolic := fsops.FormatSymbolic(d.currentMode, d.isDir)
-	currentStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
+	currentStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 	b.WriteString(currentStyle.Render(fmt.Sprintf("Current: %s  →  %s", currentPerm, currentSymbolic)))
 	b.WriteString("\n\n")
 
@@ -223,18 +217,12 @@ func (d *PermissionDialog) View() string {
 	b.WriteString("\n\n")
 
 	// Presets
-	presetsStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
+	presetsStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 	b.WriteString(presetsStyle.Render("── Quick Presets ──"))
 	b.WriteString("\n")
 
+	presetStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
 	for _, preset := range d.presets {
-		presetStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("248"))
 		presetLine := fmt.Sprintf("[%d] %s  %s  (%s)", preset.Number, preset.Mode, preset.Symbolic, preset.Description)
 		b.WriteString(presetStyle.Render(presetLine))
 		b.WriteString("\n")
@@ -243,11 +231,7 @@ func (d *PermissionDialog) View() string {
 	// Recursive option (directories only)
 	if d.showRecursive {
 		b.WriteString("\n")
-		applyToStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("240"))
-		b.WriteString(applyToStyle.Render("Apply to:"))
+		b.WriteString(presetsStyle.Render("Apply to:"))
 		b.WriteString("\n")
 
 		thisOnlyIcon := "( )"
@@ -258,10 +242,7 @@ func (d *PermissionDialog) View() string {
 			recursiveIcon = "(●)"
 		}
 
-		optionStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("248"))
+		optionStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("248"))
 		b.WriteString(optionStyle.Render(fmt.Sprintf("  %s This directory only", thisOnlyIcon)))
 		b.WriteString("\n")
 		b.WriteString(optionStyle.Render(fmt.Sprintf("  %s Recursively (all contents)", recursiveIcon)))
@@ -270,36 +251,20 @@ func (d *PermissionDialog) View() string {
 
 	// Error message (if any)
 	if d.errorMsg != "" {
-		errorStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("196"))
 		b.WriteString("\n")
-		b.WriteString(errorStyle.Render(d.errorMsg))
+		b.WriteString(d.styles.Error.Render(d.errorMsg))
 		b.WriteString("\n")
 	}
 
 	// Footer
 	b.WriteString("\n")
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
-
 	if d.showRecursive {
-		b.WriteString(footerStyle.Render("[j/k/Space] Toggle  [Enter] Apply  [Esc] Cancel"))
+		b.WriteString(d.styles.Footer.Render("[j/k/Space] Toggle  [Enter] Apply  [Esc] Cancel"))
 	} else {
-		b.WriteString(footerStyle.Render("[Enter] Apply  [Esc] Cancel"))
+		b.WriteString(d.styles.Footer.Render("[Enter] Apply  [Esc] Cancel"))
 	}
 
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // renderInputField renders the input field with symbolic notation
@@ -346,16 +311,6 @@ func (d *PermissionDialog) renderInputField(width int) string {
 	b.WriteString(inputStyle.Render(inputLine))
 
 	return b.String()
-}
-
-// IsActive returns whether the dialog is active
-func (d *PermissionDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *PermissionDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
 }
 
 // formatPermission converts FileMode to octal string (e.g., 0644 -> "644")

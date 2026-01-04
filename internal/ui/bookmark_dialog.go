@@ -12,11 +12,11 @@ import (
 
 // BookmarkDialog is a dialog for managing bookmarks.
 type BookmarkDialog struct {
+	BaseDialog
 	bookmarks  []config.Bookmark
 	cursor     int
-	active     bool
-	width      int
 	pathExists []bool // Cache for path existence checks
+	styles     DialogStyles
 }
 
 // bookmarkJumpMsg is sent when user wants to jump to a bookmark.
@@ -40,12 +40,14 @@ type bookmarkCloseMsg struct{}
 
 // NewBookmarkDialog creates a new bookmark dialog.
 func NewBookmarkDialog(bookmarks []config.Bookmark) *BookmarkDialog {
+	base := NewBaseDialog(DialogDisplayPane)
+	base.SetWidth(60)
 	d := &BookmarkDialog{
+		BaseDialog: base,
 		bookmarks:  bookmarks,
 		cursor:     0,
-		active:     true,
-		width:      60,
 		pathExists: make([]bool, len(bookmarks)),
+		styles:     NewDialogStyles(60, ColorPrimary),
 	}
 
 	// Check path existence for each bookmark
@@ -59,7 +61,7 @@ func NewBookmarkDialog(bookmarks []config.Bookmark) *BookmarkDialog {
 
 // Update handles keyboard input.
 func (d *BookmarkDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -77,7 +79,7 @@ func (d *BookmarkDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			case "d":
 				if len(d.bookmarks) > 0 {
 					index := d.cursor
-					d.active = false
+					d.Close()
 					return d, func() tea.Msg {
 						return bookmarkDeleteMsg{index: index}
 					}
@@ -87,7 +89,7 @@ func (d *BookmarkDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				if len(d.bookmarks) > 0 {
 					index := d.cursor
 					bookmark := d.bookmarks[index]
-					d.active = false
+					d.Close()
 					return d, func() tea.Msg {
 						return bookmarkEditMsg{index: index, bookmark: bookmark}
 					}
@@ -106,7 +108,7 @@ func (d *BookmarkDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		case tea.KeyEnter:
 			if len(d.bookmarks) > 0 && d.cursor < len(d.pathExists) && d.pathExists[d.cursor] {
 				path := d.bookmarks[d.cursor].Path
-				d.active = false
+				d.Close()
 				return d, func() tea.Msg {
 					return bookmarkJumpMsg{path: path}
 				}
@@ -114,7 +116,7 @@ func (d *BookmarkDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			return d, nil
 
 		case tea.KeyEsc:
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return bookmarkCloseMsg{}
 			}
@@ -146,28 +148,20 @@ func (d *BookmarkDialog) moveCursorUp() {
 
 // View renders the dialog.
 func (d *BookmarkDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
 	// Title
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render("Bookmarks"))
+	b.WriteString(d.styles.Title.Render("Bookmarks"))
 	b.WriteString("\n\n")
 
 	// Bookmark list or empty message
 	if len(d.bookmarks) == 0 {
-		emptyStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("240"))
+		emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 		b.WriteString(emptyStyle.Render("No bookmarks"))
 		b.WriteString("\n")
 	} else {
@@ -181,30 +175,26 @@ func (d *BookmarkDialog) View() string {
 				aliasLine = "\u26a0 " + aliasLine // Warning emoji
 			}
 
-			aliasStyle := lipgloss.NewStyle().
-				Width(width-6).
-				Padding(0, 1)
+			aliasStyle := lipgloss.NewStyle().Width(width - 6).Padding(0, 1)
 
 			if isSelected {
 				aliasStyle = aliasStyle.
-					Background(lipgloss.Color("39")).
+					Background(lipgloss.Color(string(ColorPrimary))).
 					Foreground(lipgloss.Color("0")).
 					Bold(true)
 			} else if !exists {
-				aliasStyle = aliasStyle.Foreground(lipgloss.Color("240"))
+				aliasStyle = aliasStyle.Foreground(lipgloss.Color(string(ColorMuted)))
 			}
 
 			b.WriteString(aliasStyle.Render(aliasLine))
 			b.WriteString("\n")
 
 			// Line 2: Path (wrapped if needed)
-			pathStyle := lipgloss.NewStyle().
-				Width(width-6).
-				Padding(0, 1)
+			pathStyle := lipgloss.NewStyle().Width(width - 6).Padding(0, 1)
 
 			if isSelected {
 				pathStyle = pathStyle.
-					Background(lipgloss.Color("39")).
+					Background(lipgloss.Color(string(ColorPrimary))).
 					Foreground(lipgloss.Color("0"))
 			} else {
 				pathStyle = pathStyle.Foreground(lipgloss.Color("245"))
@@ -223,22 +213,9 @@ func (d *BookmarkDialog) View() string {
 	}
 
 	b.WriteString("\n")
+	b.WriteString(d.styles.Footer.Render("j/k/↑/↓:Move  Enter:Jump  d:Delete  e:Edit  Esc:Close"))
 
-	// Footer with key hints
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(footerStyle.Render("j/k/↑/↓:Move  Enter:Jump  d:Delete  e:Edit  Esc:Close"))
-
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // wrapPath wraps a path to fit within the specified width.
@@ -268,19 +245,4 @@ func (d *BookmarkDialog) wrapPath(path string, maxWidth int) string {
 	}
 
 	return strings.Join(lines, "\n")
-}
-
-// IsActive returns whether the dialog is active.
-func (d *BookmarkDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type.
-func (d *BookmarkDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
-}
-
-// SetWidth sets the dialog width.
-func (d *BookmarkDialog) SetWidth(width int) {
-	d.width = width
 }

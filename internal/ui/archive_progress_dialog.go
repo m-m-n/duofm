@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -11,23 +12,25 @@ import (
 
 // ArchiveProgressDialog はアーカイブ操作の進捗表示ダイアログ
 type ArchiveProgressDialog struct {
+	BaseDialog
 	operation   string                  // "compress" or "extract"
 	archivePath string                  // アーカイブファイルのパス
 	progress    *archive.ProgressUpdate // 現在の進捗情報
-	active      bool                    // ダイアログがアクティブ
-	width       int                     // ダイアログの幅
 	onCancel    func()                  // キャンセル時のコールバック
+	styles      DialogStyles
 }
 
 // NewArchiveProgressDialog は新しい進捗表示ダイアログを作成
 func NewArchiveProgressDialog(operation string, archivePath string) *ArchiveProgressDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(70)
 	return &ArchiveProgressDialog{
+		BaseDialog:  base,
 		operation:   operation,
 		archivePath: archivePath,
 		progress:    nil,
-		active:      true,
-		width:       70,
 		onCancel:    nil,
+		styles:      NewDialogStyles(70, ColorBorder),
 	}
 }
 
@@ -43,12 +46,12 @@ func (d *ArchiveProgressDialog) UpdateProgress(progress *archive.ProgressUpdate)
 
 // Complete は操作完了を通知
 func (d *ArchiveProgressDialog) Complete() {
-	d.active = false
+	d.Close()
 }
 
 // Update はメッセージを処理
 func (d *ArchiveProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -69,24 +72,14 @@ func (d *ArchiveProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログを描画
 func (d *ArchiveProgressDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
+	var b strings.Builder
 
-	progressBarStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("62"))
-
-	infoStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("246"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
+	progressBarStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorBorder)))
+	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
 
 	var title string
 	if d.operation == "compress" {
@@ -95,9 +88,10 @@ func (d *ArchiveProgressDialog) View() string {
 		title = "Extracting Archive"
 	}
 
-	var content string
-	content += titleStyle.Render(title) + "\n"
-	content += infoStyle.Render(d.archivePath) + "\n\n"
+	b.WriteString(d.styles.Title.Render(title))
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render(d.archivePath))
+	b.WriteString("\n\n")
 
 	if d.progress != nil {
 		// プログレスバー
@@ -106,22 +100,13 @@ func (d *ArchiveProgressDialog) View() string {
 		filledWidth := (percentage * barWidth) / 100
 		emptyWidth := barWidth - filledWidth
 
-		bar := progressBarStyle.Render(
-			"[" + string(make([]rune, filledWidth)) + string(make([]rune, emptyWidth)) + "]",
-		)
-		for i := 0; i < filledWidth; i++ {
-			bar = bar[:i+1] + "█" + bar[i+2:]
-		}
-		for i := 0; i < emptyWidth; i++ {
-			bar = bar[:filledWidth+i+1] + "░" + bar[filledWidth+i+2:]
-		}
-
-		content += bar + fmt.Sprintf(" %d%%\n\n", percentage)
+		bar := "[" + strings.Repeat("█", filledWidth) + strings.Repeat("░", emptyWidth) + "]"
+		b.WriteString(progressBarStyle.Render(fmt.Sprintf("%s %d%%", bar, percentage)))
+		b.WriteString("\n\n")
 
 		// ファイル数
-		content += infoStyle.Render(
-			fmt.Sprintf("Files: %d/%d", d.progress.ProcessedFiles, d.progress.TotalFiles),
-		) + "\n"
+		b.WriteString(infoStyle.Render(fmt.Sprintf("Files: %d/%d", d.progress.ProcessedFiles, d.progress.TotalFiles)))
+		b.WriteString("\n")
 
 		// 現在処理中のファイル
 		if d.progress.CurrentFile != "" {
@@ -129,52 +114,31 @@ func (d *ArchiveProgressDialog) View() string {
 			if len(currentFile) > 50 {
 				currentFile = "..." + currentFile[len(currentFile)-47:]
 			}
-			content += infoStyle.Render(fmt.Sprintf("Current: %s", currentFile)) + "\n"
+			b.WriteString(infoStyle.Render(fmt.Sprintf("Current: %s", currentFile)))
+			b.WriteString("\n")
 		}
 
 		// 経過時間
 		elapsed := d.progress.ElapsedTime()
-		content += infoStyle.Render(
-			fmt.Sprintf("Elapsed: %s", formatDuration(elapsed)),
-		) + "\n"
+		b.WriteString(infoStyle.Render(fmt.Sprintf("Elapsed: %s", formatDuration(elapsed))))
+		b.WriteString("\n")
 
 		// 推定残り時間
 		if d.progress.ProcessedFiles > 0 {
 			remaining := d.progress.EstimatedRemaining()
-			content += infoStyle.Render(
-				fmt.Sprintf("Remaining: %s", formatDuration(remaining)),
-			) + "\n"
+			b.WriteString(infoStyle.Render(fmt.Sprintf("Remaining: %s", formatDuration(remaining))))
+			b.WriteString("\n")
 		}
 	} else {
 		// 進捗情報がまだない場合
-		content += infoStyle.Render("Starting...") + "\n"
+		b.WriteString(infoStyle.Render("Starting..."))
+		b.WriteString("\n")
 	}
 
-	content += "\n"
-	content += helpStyle.Render("[Esc] Cancel")
+	b.WriteString("\n")
+	b.WriteString(d.styles.Footer.Render("[Esc] Cancel"))
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(content)
-}
-
-// IsActive はダイアログがアクティブかを返す
-func (d *ArchiveProgressDialog) IsActive() bool {
-	return d.active
-}
-
-// SetActive はダイアログのアクティブ状態を設定
-func (d *ArchiveProgressDialog) SetActive(active bool) {
-	d.active = active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *ArchiveProgressDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }
 
 // formatDuration は時間を MM:SS 形式にフォーマット

@@ -37,6 +37,7 @@ type archiveWarningResultMsg struct {
 
 // ArchiveWarningDialog displays security warnings before extraction
 type ArchiveWarningDialog struct {
+	BaseDialog
 	warningType   ArchiveWarningType
 	archivePath   string
 	archiveSize   int64
@@ -44,40 +45,43 @@ type ArchiveWarningDialog struct {
 	availableSize int64
 	ratio         float64
 	selectedIndex int // 0 = Continue, 1 = Cancel
-	active        bool
-	width         int
+	styles        DialogStyles
 }
 
 // NewCompressionBombWarningDialog creates a dialog for compression bomb warning
 func NewCompressionBombWarningDialog(archivePath string, archiveSize, extractedSize int64, ratio float64) *ArchiveWarningDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(60)
 	return &ArchiveWarningDialog{
+		BaseDialog:    base,
 		warningType:   ArchiveWarningCompressionBomb,
 		archivePath:   archivePath,
 		archiveSize:   archiveSize,
 		extractedSize: extractedSize,
 		ratio:         ratio,
 		selectedIndex: 1, // Default to Cancel for safety
-		active:        true,
-		width:         60,
+		styles:        NewDialogStyles(60, DialogColor("208")), // Orange for warning
 	}
 }
 
 // NewDiskSpaceWarningDialog creates a dialog for disk space warning
 func NewDiskSpaceWarningDialog(archivePath string, requiredSize, availableSize int64) *ArchiveWarningDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(60)
 	return &ArchiveWarningDialog{
+		BaseDialog:    base,
 		warningType:   ArchiveWarningDiskSpace,
 		archivePath:   archivePath,
 		extractedSize: requiredSize,
 		availableSize: availableSize,
 		selectedIndex: 1, // Default to Cancel for safety
-		active:        true,
-		width:         60,
+		styles:        NewDialogStyles(60, DialogColor("208")), // Orange for warning
 	}
 }
 
 // Update handles input messages
 func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -93,7 +97,7 @@ func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		case "shift+tab":
 			d.selectedIndex = (d.selectedIndex + 1) % 2
 		case "enter":
-			d.active = false
+			d.Close()
 			choice := ArchiveWarningCancel
 			if d.selectedIndex == 0 {
 				choice = ArchiveWarningContinue
@@ -106,7 +110,7 @@ func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 		case "esc", "n":
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return archiveWarningResultMsg{
 					warningType: d.warningType,
@@ -115,7 +119,7 @@ func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 		case "y":
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return archiveWarningResultMsg{
 					warningType: d.warningType,
@@ -131,43 +135,22 @@ func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the dialog
 func (d *ArchiveWarningDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
+	width := d.Width()
 
-	// Warning icon and title
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("208")). // Orange/warning color
-		MarginBottom(1)
+	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
+	highlightStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("228")).Bold(true)
+	warningTextStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Italic(true)
 
-	infoStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("246"))
-
-	highlightStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("228")). // Yellow for emphasis
-		Bold(true)
-
-	warningTextStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("245")).
-		Italic(true).
-		MarginTop(1).
-		MarginBottom(1)
-
-	buttonStyle := lipgloss.NewStyle().
-		Padding(0, 2).
-		Background(lipgloss.Color("240")).
-		Foreground(lipgloss.Color("252"))
-
-	selectedButtonStyle := buttonStyle.
-		Background(lipgloss.Color("62")).
-		Foreground(lipgloss.Color("255")).
-		Bold(true)
+	buttonStyle := lipgloss.NewStyle().Padding(0, 2).Background(lipgloss.Color("240")).Foreground(lipgloss.Color("252"))
+	selectedButtonStyle := buttonStyle.Background(lipgloss.Color("62")).Foreground(lipgloss.Color("255")).Bold(true)
 
 	if d.warningType == ArchiveWarningCompressionBomb {
-		b.WriteString(titleStyle.Render("Warning: Large extraction ratio detected"))
+		b.WriteString(d.styles.Title.Render("Warning: Large extraction ratio detected"))
 		b.WriteString("\n\n")
 
 		// Archive size
@@ -179,13 +162,11 @@ func (d *ArchiveWarningDialog) View() string {
 		b.WriteString(infoStyle.Render("Extracted size: "))
 		b.WriteString(highlightStyle.Render(FormatSize(d.extractedSize)))
 		b.WriteString(infoStyle.Render(fmt.Sprintf(" (ratio: 1:%.0f)", d.ratio)))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 
-		b.WriteString(warningTextStyle.Render(
-			"This may indicate a zip bomb or highly compressed data.\nDo you want to continue?",
-		))
+		b.WriteString(warningTextStyle.Render("This may indicate a zip bomb or highly compressed data.\nDo you want to continue?"))
 	} else {
-		b.WriteString(titleStyle.Render("Warning: Insufficient disk space"))
+		b.WriteString(d.styles.Title.Render("Warning: Insufficient disk space"))
 		b.WriteString("\n\n")
 
 		// Required size
@@ -196,54 +177,28 @@ func (d *ArchiveWarningDialog) View() string {
 		// Available size
 		b.WriteString(infoStyle.Render("Available: "))
 		b.WriteString(highlightStyle.Render(FormatSize(d.availableSize)))
-		b.WriteString("\n")
+		b.WriteString("\n\n")
 
-		b.WriteString(warningTextStyle.Render(
-			"Do you want to continue anyway?",
-		))
+		b.WriteString(warningTextStyle.Render("Do you want to continue anyway?"))
 	}
 
 	b.WriteString("\n\n")
 
 	// Buttons
-	continueText := "Continue"
-	cancelText := "Cancel"
-
 	var continueBtn, cancelBtn string
 	if d.selectedIndex == 0 {
-		continueBtn = selectedButtonStyle.Render(continueText)
-		cancelBtn = buttonStyle.Render(cancelText)
+		continueBtn = selectedButtonStyle.Render("Continue")
+		cancelBtn = buttonStyle.Render("Cancel")
 	} else {
-		continueBtn = buttonStyle.Render(continueText)
-		cancelBtn = selectedButtonStyle.Render(cancelText)
+		continueBtn = buttonStyle.Render("Continue")
+		cancelBtn = selectedButtonStyle.Render("Cancel")
 	}
 
 	buttonLine := lipgloss.JoinHorizontal(lipgloss.Center, continueBtn, "  ", cancelBtn)
-	b.WriteString(lipgloss.NewStyle().Width(d.width - 4).Align(lipgloss.Center).Render(buttonLine))
+	b.WriteString(lipgloss.NewStyle().Width(width - 4).Align(lipgloss.Center).Render(buttonLine))
 
 	b.WriteString("\n\n")
+	b.WriteString(d.styles.Footer.Render("[y] Continue  [n/Esc] Cancel  [Tab/Arrow] Switch"))
 
-	// Help text
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241"))
-	b.WriteString(helpStyle.Render("[y] Continue  [n/Esc] Cancel  [Tab/Arrow] Switch"))
-
-	// Box border
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("208")). // Orange border for warning
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(b.String())
-}
-
-// IsActive returns whether the dialog is active
-func (d *ArchiveWarningDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the display type for this dialog
-func (d *ArchiveWarningDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }
