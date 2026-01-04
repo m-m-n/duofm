@@ -384,7 +384,7 @@ func (d *ContextMenuDialog) View() string {
 			item.Label,
 		)
 
-		itemStyle := lipgloss.NewStyle().Width(width - 4).Padding(0, 2)
+		itemStyle := lipgloss.NewStyle().Width(width-4).Padding(0, 2)
 
 		// Highlight selected item
 		if i == d.cursor {

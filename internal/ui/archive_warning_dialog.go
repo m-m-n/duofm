@@ -59,7 +59,7 @@ func NewCompressionBombWarningDialog(archivePath string, archiveSize, extractedS
 		archiveSize:   archiveSize,
 		extractedSize: extractedSize,
 		ratio:         ratio,
-		selectedIndex: 1, // Default to Cancel for safety
+		selectedIndex: 1,                                       // Default to Cancel for safety
 		styles:        NewDialogStyles(60, DialogColor("208")), // Orange for warning
 	}
 }
@@ -74,7 +74,7 @@ func NewDiskSpaceWarningDialog(archivePath string, requiredSize, availableSize i
 		archivePath:   archivePath,
 		extractedSize: requiredSize,
 		availableSize: availableSize,
-		selectedIndex: 1, // Default to Cancel for safety
+		selectedIndex: 1,                                       // Default to Cancel for safety
 		styles:        NewDialogStyles(60, DialogColor("208")), // Orange for warning
 	}
 }

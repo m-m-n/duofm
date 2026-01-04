@@ -160,7 +160,7 @@ func (d *OverwriteDialog) View() string {
 	// Options
 	options := []string{"Overwrite", "Cancel", "Rename"}
 	for i, opt := range options {
-		optStyle := lipgloss.NewStyle().Width(width - 4).Padding(0, 2)
+		optStyle := lipgloss.NewStyle().Width(width-4).Padding(0, 2)
 
 		prefix := fmt.Sprintf("%d. ", i+1)
 		optText := prefix + opt

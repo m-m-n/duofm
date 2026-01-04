@@ -157,7 +157,7 @@ func (d *ArchiveConflictDialog) View() string {
 	// Options
 	options := []string{"Overwrite", "Rename", "Cancel"}
 	for i, opt := range options {
-		optStyle := lipgloss.NewStyle().Width(width - 8).Padding(0, 2)
+		optStyle := lipgloss.NewStyle().Width(width-8).Padding(0, 2)
 
 		prefix := fmt.Sprintf("%d. ", i+1)
 		optText := prefix + opt

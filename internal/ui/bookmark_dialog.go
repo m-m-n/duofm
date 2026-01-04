@@ -175,7 +175,7 @@ func (d *BookmarkDialog) View() string {
 				aliasLine = "\u26a0 " + aliasLine // Warning emoji
 			}
 
-			aliasStyle := lipgloss.NewStyle().Width(width - 6).Padding(0, 1)
+			aliasStyle := lipgloss.NewStyle().Width(width-6).Padding(0, 1)
 
 			if isSelected {
 				aliasStyle = aliasStyle.
@@ -190,7 +190,7 @@ func (d *BookmarkDialog) View() string {
 			b.WriteString("\n")
 
 			// Line 2: Path (wrapped if needed)
-			pathStyle := lipgloss.NewStyle().Width(width - 6).Padding(0, 1)
+			pathStyle := lipgloss.NewStyle().Width(width-6).Padding(0, 1)
 
 			if isSelected {
 				pathStyle = pathStyle.

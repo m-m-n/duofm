@@ -129,7 +129,7 @@ func (d *CompressFormatDialog) View() string {
 		)
 
 		itemStyle := lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 2)
 
 		// Highlight selected item

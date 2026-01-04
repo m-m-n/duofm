@@ -48,12 +48,12 @@ func TestNewTextInput(t *testing.T) {
 
 func TestTextInput_InsertRunes(t *testing.T) {
 	tests := []struct {
-		name        string
-		initial     string
-		cursorPos   int
-		insert      []rune
-		wantValue   string
-		wantCursor  int
+		name       string
+		initial    string
+		cursorPos  int
+		insert     []rune
+		wantValue  string
+		wantCursor int
 	}{
 		{
 			name:       "insert at end",
@@ -311,8 +311,8 @@ func TestTextInput_IsEmpty(t *testing.T) {
 
 func TestTextInput_Len(t *testing.T) {
 	tests := []struct {
-		value    string
-		wantLen  int
+		value   string
+		wantLen int
 	}{
 		{"", 0},
 		{"hello", 5},
