@@ -20,18 +20,21 @@ func (m Model) View() string {
 
 	// 2つのペインを横に並べる（ディスク容量情報付き）
 	// 検索モードまたはシェルコマンドモードの場合はアクティブペインにミニバッファを渡す
+	leftSpace := m.diskSpaceMonitor.LeftSpace()
+	rightSpace := m.diskSpaceMonitor.RightSpace()
+
 	var leftView, rightView string
 	if m.searchState.IsActive || m.shellCommandMode {
 		if m.activePane == LeftPane {
-			leftView = m.leftPane.ViewWithMinibuffer(m.leftDiskSpace, m.minibuffer)
-			rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+			leftView = m.leftPane.ViewWithMinibuffer(leftSpace, m.minibuffer)
+			rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
 		} else {
-			leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
-			rightView = m.rightPane.ViewWithMinibuffer(m.rightDiskSpace, m.minibuffer)
+			leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+			rightView = m.rightPane.ViewWithMinibuffer(rightSpace, m.minibuffer)
 		}
 	} else {
-		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
-		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+		leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+		rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
 	}
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
 
@@ -70,8 +73,10 @@ func (m Model) renderDialogScreen() string {
 	title := titleStyle.Render("duofm " + version.Version)
 
 	// 両方のペインをdimmedスタイルで描画
-	leftView := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
-	rightView := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+	leftSpace := m.diskSpaceMonitor.LeftSpace()
+	rightSpace := m.diskSpaceMonitor.RightSpace()
+	leftView := m.leftPane.ViewDimmedWithDiskSpace(leftSpace)
+	rightView := m.rightPane.ViewDimmedWithDiskSpace(rightSpace)
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftView, rightView)
 
 	// ステータスバー
@@ -128,17 +133,20 @@ func (m Model) renderDialogPane() string {
 	// ステータスバー
 	statusBar := m.renderStatusBar()
 
+	leftSpace := m.diskSpaceMonitor.LeftSpace()
+	rightSpace := m.diskSpaceMonitor.RightSpace()
+
 	var leftView, rightView string
 
 	if m.activePane == LeftPane {
 		// 左ペインをdimmedで描画してダイアログをオーバーレイ
-		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
+		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(leftSpace)
 		leftView = m.overlayDialogOnPane(dimmedLeft, paneWidth, paneHeight)
-		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+		rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
 	} else {
 		// 右ペインをdimmedで描画してダイアログをオーバーレイ
-		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
-		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+		leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(rightSpace)
 		rightView = m.overlayDialogOnPane(dimmedRight, paneWidth, paneHeight)
 	}
 
@@ -154,15 +162,18 @@ func (m Model) renderSortDialogPane() string {
 	title := titleStyle.Render("duofm " + version.Version)
 	statusBar := m.renderStatusBar()
 
+	leftSpace := m.diskSpaceMonitor.LeftSpace()
+	rightSpace := m.diskSpaceMonitor.RightSpace()
+
 	var leftView, rightView string
 
 	if m.activePane == LeftPane {
-		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(m.leftDiskSpace)
+		dimmedLeft := m.leftPane.ViewDimmedWithDiskSpace(leftSpace)
 		leftView = m.overlaySortDialogOnPane(dimmedLeft, paneWidth, paneHeight)
-		rightView = m.rightPane.ViewWithDiskSpace(m.rightDiskSpace)
+		rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
 	} else {
-		leftView = m.leftPane.ViewWithDiskSpace(m.leftDiskSpace)
-		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(m.rightDiskSpace)
+		leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+		dimmedRight := m.rightPane.ViewDimmedWithDiskSpace(rightSpace)
 		rightView = m.overlaySortDialogOnPane(dimmedRight, paneWidth, paneHeight)
 	}
 

@@ -465,18 +465,13 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// ブックマーク削除
 	if result, ok := msg.(bookmarkDeleteMsg); ok {
 		m.dialog = nil
-		newBookmarks, err := removeBookmark(m.bookmarks, result.index)
-		if err != nil {
-			m.statusMessage = fmt.Sprintf("Failed to remove bookmark: %v", err)
-			m.isStatusError = true
-			return m, statusMessageClearCmd(5 * time.Second), true
-		}
-		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
-			m.statusMessage = saveErr.Error()
-			m.isStatusError = true
-			return m, statusMessageClearCmd(5 * time.Second), true
-		}
-		m.bookmarks = newBookmarks
+		cmd := m.bookmarkManager.Delete(result.index)
+		return m, cmd, true
+	}
+
+	// ブックマーク削除完了
+	if result, ok := msg.(bookmarkDeletedMsg); ok {
+		m.bookmarkManager.SetBookmarks(result.bookmarks)
 		m.statusMessage = "Bookmark removed"
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second), true
@@ -485,11 +480,10 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// ブックマーク編集
 	if result, ok := msg.(bookmarkEditMsg); ok {
 		m.dialog = nil
-		m.bookmarkEditIndex = result.index
-		currentBookmarks := m.bookmarks
+		m.bookmarkManager.SetEditIndex(result.index)
 		editIndex := result.index
 		dialog := NewInputDialog("Edit bookmark name:", func(newAlias string) tea.Cmd {
-			return m.handleBookmarkEdit(currentBookmarks, editIndex, newAlias)
+			return m.bookmarkManager.Edit(editIndex, newAlias)
 		})
 		dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
 		dialog.SetInput(result.bookmark.Name)
@@ -506,7 +500,7 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// ブックマーク追加完了
 	if result, ok := msg.(bookmarkAddedMsg); ok {
 		m.dialog = nil
-		m.bookmarks = result.bookmarks
+		m.bookmarkManager.SetBookmarks(result.bookmarks)
 		m.statusMessage = fmt.Sprintf("Bookmarked: %s", result.alias)
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second), true
@@ -515,8 +509,8 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	// ブックマーク編集完了
 	if result, ok := msg.(bookmarkEditedMsg); ok {
 		m.dialog = nil
-		m.bookmarks = result.bookmarks
-		m.bookmarkEditIndex = -1
+		m.bookmarkManager.SetBookmarks(result.bookmarks)
+		m.bookmarkManager.ClearEditIndex()
 		m.statusMessage = fmt.Sprintf("Bookmark updated: %s", result.alias)
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second), true
