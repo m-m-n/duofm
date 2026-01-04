@@ -101,8 +101,9 @@ func TestModelContextMenuDeleteShowsConfirmDialog(t *testing.T) {
 		t.Fatal("context menu should be opened")
 	}
 
-	// Simulate selecting delete (press '3' for delete)
-	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'3'}}
+	// Simulate selecting delete (press '5' for delete - now at index 4)
+	// Menu items: 1=open, 2=open_with, 3=copy, 4=move, 5=delete
+	keyMsg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'5'}}
 	updatedModel, cmd := m.Update(keyMsg)
 	m = updatedModel.(Model)
 

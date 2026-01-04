@@ -129,6 +129,28 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 	items := []MenuItem{}
 	markCount := len(d.markedFiles)
 
+	// Open with xdg-open (disabled when multiple files marked)
+	items = append(items, MenuItem{
+		ID:    "open",
+		Label: "Open",
+		Action: func() error {
+			// Will be handled by Model via openWithXDGMsg
+			return nil
+		},
+		Enabled: markCount == 0,
+	})
+
+	// Open with custom application (always enabled)
+	items = append(items, MenuItem{
+		ID:    "open_with",
+		Label: "Open with ...",
+		Action: func() error {
+			// Will be handled by Model via dialog
+			return nil
+		},
+		Enabled: true,
+	})
+
 	// Determine labels based on mark count
 	var copyLabel, moveLabel, deleteLabel string
 	if markCount > 0 {

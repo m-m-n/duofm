@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  4, // copy, move, delete, compress
+			wantItems:  6, // open, open_with, copy, move, delete, compress
 		},
 		{
 			name: "directory",
@@ -35,7 +36,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  4, // copy, move, delete, compress
+			wantItems:  6, // open, open_with, copy, move, delete, compress
 		},
 		{
 			name: "symlink directory",
@@ -48,7 +49,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  6, // copy, move, delete, compress, enter_logical, enter_physical
+			wantItems:  8, // open, open_with, copy, move, delete, compress, enter_logical, enter_physical
 		},
 		{
 			name: "broken symlink",
@@ -61,7 +62,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  4, // copy, move, delete, compress (no enter_physical for broken symlink)
+			wantItems:  6, // open, open_with, copy, move, delete, compress (no enter_physical for broken symlink)
 		},
 	}
 
@@ -101,12 +102,12 @@ func TestBuildMenuItems_RegularFile(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 4 {
-		t.Fatalf("expected 4 items, got %d", len(dialog.items))
+	if len(dialog.items) != 6 {
+		t.Fatalf("expected 6 items, got %d", len(dialog.items))
 	}
 
 	// Check item IDs
-	expectedIDs := []string{"copy", "move", "delete", "compress"}
+	expectedIDs := []string{"open", "open_with", "copy", "move", "delete", "compress"}
 	for i, expectedID := range expectedIDs {
 		if dialog.items[i].ID != expectedID {
 			t.Errorf("item[%d].ID = %s, want %s", i, dialog.items[i].ID, expectedID)
@@ -129,8 +130,8 @@ func TestBuildMenuItems_Symlink(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 6 {
-		t.Fatalf("expected 6 items, got %d", len(dialog.items))
+	if len(dialog.items) != 8 {
+		t.Fatalf("expected 8 items, got %d", len(dialog.items))
 	}
 
 	// Check that symlink-specific items exist
@@ -268,8 +269,8 @@ func TestGetCurrentPageItems(t *testing.T) {
 
 	items := dialog.getCurrentPageItems()
 
-	if len(items) != 4 {
-		t.Errorf("getCurrentPageItems returned %d items, want 4", len(items))
+	if len(items) != 6 {
+		t.Errorf("getCurrentPageItems returned %d items, want 6", len(items))
 	}
 
 	// All items should be on first page
@@ -382,6 +383,22 @@ func TestUpdate_NavigationJK(t *testing.T) {
 		t.Errorf("after third 'j', cursor = %d, want 3", dialog.cursor)
 	}
 
+	// Press 'j' to continue - should reach item 4
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.cursor != 4 {
+		t.Errorf("after fourth 'j', cursor = %d, want 4", dialog.cursor)
+	}
+
+	// Press 'j' to continue - should reach item 5
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.cursor != 5 {
+		t.Errorf("after fifth 'j', cursor = %d, want 5", dialog.cursor)
+	}
+
 	// Press 'j' at last item - should wrap to 0
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
@@ -394,24 +411,24 @@ func TestUpdate_NavigationJK(t *testing.T) {
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 3 {
-		t.Errorf("after 'k' at first item, cursor = %d, want 3 (wrap)", dialog.cursor)
+	if dialog.cursor != 5 {
+		t.Errorf("after 'k' at first item, cursor = %d, want 5 (wrap)", dialog.cursor)
 	}
 
 	// Press 'k' to move up
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 2 {
-		t.Errorf("after 'k', cursor = %d, want 2", dialog.cursor)
+	if dialog.cursor != 4 {
+		t.Errorf("after 'k', cursor = %d, want 4", dialog.cursor)
 	}
 
 	// Press 'k' again
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 1 {
-		t.Errorf("after second 'k', cursor = %d, want 1", dialog.cursor)
+	if dialog.cursor != 3 {
+		t.Errorf("after second 'k', cursor = %d, want 3", dialog.cursor)
 	}
 }
 
@@ -426,12 +443,14 @@ func TestUpdate_NavigationNumeric(t *testing.T) {
 		key         string
 		shouldClose bool
 	}{
-		{"1", true},  // Valid item
-		{"2", true},  // Valid item
-		{"3", true},  // Valid item
-		{"4", true},  // Valid item (now includes compress)
-		{"5", false}, // Invalid (only 4 items)
-		{"9", false}, // Invalid (only 4 items)
+		{"1", true},  // Valid item (open)
+		{"2", true},  // Valid item (open_with)
+		{"3", true},  // Valid item (copy)
+		{"4", true},  // Valid item (move)
+		{"5", true},  // Valid item (delete)
+		{"6", true},  // Valid item (compress)
+		{"7", false}, // Invalid (only 6 items)
+		{"9", false}, // Invalid (only 6 items)
 	}
 
 	for _, tt := range tests {
@@ -496,9 +515,9 @@ func TestUpdate_Enter(t *testing.T) {
 		t.Error("result.action should not be nil after Enter")
 	}
 
-	// Check actionID is set correctly (first item is "copy")
-	if result.actionID != "copy" {
-		t.Errorf("result.actionID = %s, want 'copy'", result.actionID)
+	// Check actionID is set correctly (first item is "open")
+	if result.actionID != "open" {
+		t.Errorf("result.actionID = %s, want 'open'", result.actionID)
 	}
 }
 
@@ -511,8 +530,8 @@ func TestUpdate_Enter_Delete(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	// Move to delete item (index 2)
-	dialog.cursor = 2
+	// Move to delete item (index 4: open, open_with, copy, move, delete)
+	dialog.cursor = 4
 
 	// Press Enter on delete item
 	_, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEnter})
@@ -543,9 +562,11 @@ func TestUpdate_NumericKey_ActionID(t *testing.T) {
 		key        string
 		expectedID string
 	}{
-		{"1", "copy"},
-		{"2", "move"},
-		{"3", "delete"},
+		{"1", "open"},
+		{"2", "open_with"},
+		{"3", "copy"},
+		{"4", "move"},
+		{"5", "delete"},
 	}
 
 	for _, tt := range tests {
@@ -879,5 +900,140 @@ func TestUpdate_CtrlC(t *testing.T) {
 
 	if result.action != nil {
 		t.Error("result.action should be nil after cancellation")
+	}
+}
+
+// TestContextMenuDialog_OpenMenuItemPresent tests that "Open" menu item appears at position 1
+func TestContextMenuDialog_OpenMenuItemPresent(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/test/source", "/test/dest")
+	items := dialog.items
+
+	if len(items) < 2 {
+		t.Fatal("Expected at least 2 menu items, got", len(items))
+	}
+
+	// "Open" should be at position 0 (displayed as "1.")
+	if items[0].ID != "open" {
+		t.Errorf("Expected first item ID to be 'open', got '%s'", items[0].ID)
+	}
+
+	if items[0].Label != "Open" {
+		t.Errorf("Expected first item label to be 'Open', got '%s'", items[0].Label)
+	}
+}
+
+// TestContextMenuDialog_OpenEnabledWhenNoFilesMarked tests that "Open" is enabled when markCount == 0
+func TestContextMenuDialog_OpenEnabledWhenNoFilesMarked(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	// Create dialog without marked files
+	dialog := NewContextMenuDialog(entry, "/test/source", "/test/dest")
+
+	// "Open" should be at position 0 and enabled
+	if !dialog.items[0].Enabled {
+		t.Error("Expected 'Open' to be enabled when no files are marked")
+	}
+}
+
+// TestContextMenuDialog_OpenDisabledWhenFilesMarked tests that "Open" is disabled when markCount > 0
+func TestContextMenuDialog_OpenDisabledWhenFilesMarked(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	// Create pane with marked files
+	pane := &Pane{}
+	pane.markedFiles = map[string]bool{
+		"file1.txt": true,
+		"file2.txt": true,
+	}
+
+	dialog := NewContextMenuDialogWithPane(entry, "/test/source", "/test/dest", pane)
+
+	// "Open" should be at position 0 and disabled
+	if dialog.items[0].ID != "open" {
+		t.Fatalf("Expected first item to be 'open', got '%s'", dialog.items[0].ID)
+	}
+
+	if dialog.items[0].Enabled {
+		t.Error("Expected 'Open' to be disabled when multiple files are marked")
+	}
+}
+
+// TestContextMenuDialog_OpenWithMenuItemPresent tests that "Open with ..." menu item appears at position 2
+func TestContextMenuDialog_OpenWithMenuItemPresent(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/test/source", "/test/dest")
+	items := dialog.items
+
+	if len(items) < 2 {
+		t.Fatalf("Expected at least 2 menu items, got %d", len(items))
+	}
+
+	// "Open with ..." should be at position 1 (displayed as "2.")
+	if items[1].ID != "open_with" {
+		t.Errorf("Expected second item ID to be 'open_with', got '%s'", items[1].ID)
+	}
+
+	if items[1].Label != "Open with ..." {
+		t.Errorf("Expected second item label to be 'Open with ...', got '%s'", items[1].Label)
+	}
+}
+
+// TestContextMenuDialog_OpenWithAlwaysEnabled tests that "Open with ..." is always enabled
+func TestContextMenuDialog_OpenWithAlwaysEnabled(t *testing.T) {
+	tests := []struct {
+		name        string
+		markedCount int
+	}{
+		{"no marked files", 0},
+		{"one marked file", 1},
+		{"multiple marked files", 3},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry := &fs.FileEntry{
+				Name:  "test.txt",
+				IsDir: false,
+			}
+
+			var pane *Pane
+			if tt.markedCount > 0 {
+				pane := &Pane{}
+				pane.markedFiles = make(map[string]bool)
+				for i := 0; i < tt.markedCount; i++ {
+					pane.markedFiles[fmt.Sprintf("file%d.txt", i)] = true
+				}
+			}
+
+			dialog := NewContextMenuDialogWithPane(entry, "/test/source", "/test/dest", pane)
+
+			// "Open with ..." should be at position 1 and always enabled
+			if len(dialog.items) < 2 {
+				t.Fatalf("Expected at least 2 items, got %d", len(dialog.items))
+			}
+
+			if dialog.items[1].ID != "open_with" {
+				t.Fatalf("Expected second item to be 'open_with', got '%s'", dialog.items[1].ID)
+			}
+
+			if !dialog.items[1].Enabled {
+				t.Errorf("Expected 'Open with ...' to be enabled with %d marked files", tt.markedCount)
+			}
+		})
 	}
 }
