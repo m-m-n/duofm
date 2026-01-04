@@ -39,34 +39,52 @@ type ArchiveOperationState struct {
 
 // Model はアプリケーション全体の状態を保持
 type Model struct {
-	leftPane           *Pane
-	rightPane          *Pane
-	leftPath           string
-	rightPath          string
-	activePane         PanePosition
-	dialog             Dialog
-	width              int
-	height             int
-	ready              bool
-	lastDiskSpaceCheck time.Time                  // 最後のディスク容量チェック時刻
-	leftDiskSpace      uint64                     // 左ペインのディスク空き容量
-	rightDiskSpace     uint64                     // 右ペインのディスク空き容量
-	pendingAction      func() error               // 確認待ちのアクション（コンテキストメニューの削除用）
-	statusMessage      string                     // ステータスバーに表示するメッセージ
-	isStatusError      bool                       // エラーメッセージかどうか
-	searchState        SearchState                // 検索状態
-	minibuffer         *Minibuffer                // ミニバッファ
-	ctrlCPending       bool                       // Ctrl+Cが1回押された状態かどうか
-	batchOp            *BatchOperation            // Active batch operation (nil if none)
-	sortDialog         *SortDialog                // ソートダイアログ（nil = 非表示）
-	shellCommandMode   bool                       // シェルコマンドモードかどうか
-	keybindingMap      *KeybindingMap             // キーバインドマップ
-	configWarnings     []string                   // 設定ファイルの警告
-	theme              *Theme                     // カラーテーマ
-	bookmarks          []config.Bookmark          // ブックマークリスト
-	bookmarkEditIndex  int                        // 編集中のブックマークインデックス
-	archiveOp          *ArchiveOperationState     // アーカイブ操作の状態
-	archiveController  *archive.ArchiveController // アーカイブコントローラー
+	// Pane management
+	leftPane   *Pane
+	rightPane  *Pane
+	leftPath   string
+	rightPath  string
+	activePane PanePosition
+
+	// UI state
+	dialog   Dialog
+	width    int
+	height   int
+	ready    bool
+
+	// Disk space monitoring (delegated)
+	diskSpaceMonitor *DiskSpaceMonitor
+
+	// Status bar
+	statusMessage  string   // ステータスバーに表示するメッセージ
+	isStatusError  bool     // エラーメッセージかどうか
+	configWarnings []string // 設定ファイルの警告
+
+	// Search and minibuffer
+	searchState SearchState // 検索状態
+	minibuffer  *Minibuffer // ミニバッファ
+
+	// Input state
+	ctrlCPending     bool // Ctrl+Cが1回押された状態かどうか
+	shellCommandMode bool // シェルコマンドモードかどうか
+
+	// Dialogs
+	sortDialog *SortDialog // ソートダイアログ（nil = 非表示）
+
+	// Operations
+	pendingAction func() error    // 確認待ちのアクション（コンテキストメニューの削除用）
+	batchOp       *BatchOperation // Active batch operation (nil if none)
+
+	// Configuration
+	keybindingMap *KeybindingMap // キーバインドマップ
+	theme         *Theme         // カラーテーマ
+
+	// Bookmarks (delegated)
+	bookmarkManager *BookmarkManager
+
+	// Archive operations
+	archiveOp         *ArchiveOperationState     // アーカイブ操作の状態
+	archiveController *archive.ArchiveController // アーカイブコントローラー
 }
 
 // PanePosition はペインの位置を表す
@@ -108,15 +126,8 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 	}
 
 	// ブックマークを読み込み
-	var bookmarks []config.Bookmark
-	configPath, configErr := config.GetConfigPath()
-	if configErr != nil {
-		warnings = append(warnings, fmt.Sprintf("Warning: failed to get config path: %v", configErr))
-	} else {
-		var bookmarkWarnings []string
-		bookmarks, bookmarkWarnings = config.LoadBookmarks(configPath)
-		warnings = append(warnings, bookmarkWarnings...)
-	}
+	bookmarkManager, bookmarkWarnings := NewBookmarkManager()
+	warnings = append(warnings, bookmarkWarnings...)
 
 	return Model{
 		leftPane:          nil, // Updateで初期化
@@ -126,13 +137,13 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		activePane:        LeftPane,
 		dialog:            nil,
 		ready:             false,
+		diskSpaceMonitor:  NewDiskSpaceMonitor(),
 		searchState:       SearchState{Mode: SearchModeNone},
 		minibuffer:        NewMinibuffer(),
 		keybindingMap:     keybindingMap,
 		configWarnings:    warnings,
 		theme:             theme,
-		bookmarks:         bookmarks,
-		bookmarkEditIndex: -1,
+		bookmarkManager:   bookmarkManager,
 		archiveController: archive.NewArchiveController(),
 	}
 }
@@ -180,19 +191,15 @@ func (m *Model) switchToPane(pos PanePosition) {
 
 // updateDiskSpace はディスク容量を更新
 func (m *Model) updateDiskSpace() {
+	leftPath := ""
+	rightPath := ""
 	if m.leftPane != nil {
-		if freeBytes, _, err := fs.GetDiskSpace(m.leftPane.Path()); err == nil {
-			m.leftDiskSpace = freeBytes
-		}
+		leftPath = m.leftPane.Path()
 	}
-
 	if m.rightPane != nil {
-		if freeBytes, _, err := fs.GetDiskSpace(m.rightPane.Path()); err == nil {
-			m.rightDiskSpace = freeBytes
-		}
+		rightPath = m.rightPane.Path()
 	}
-
-	m.lastDiskSpaceCheck = time.Now()
+	m.diskSpaceMonitor.Update(leftPath, rightPath)
 }
 
 // startShellCommandMode はシェルコマンドモードを開始する
@@ -625,65 +632,6 @@ type batchOperationCompleteMsg struct {
 	count     int
 }
 
-// handleAddBookmark はブックマーク追加処理
-func (m *Model) handleAddBookmark(currentBookmarks []config.Bookmark, path, alias string) tea.Cmd {
-	return func() tea.Msg {
-		newBookmarks, err := config.AddBookmark(currentBookmarks, alias, path)
-		if err != nil {
-			if err == config.ErrEmptyAlias {
-				return showStatusMsg{message: "Bookmark name cannot be empty", isError: true}
-			}
-			if err == config.ErrDuplicatePath {
-				return showStatusMsg{message: "Already bookmarked", isError: false}
-			}
-			return showStatusMsg{message: fmt.Sprintf("Failed to add bookmark: %v", err), isError: true}
-		}
-
-		// 設定ファイルに保存
-		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
-			return showStatusMsg{message: saveErr.Error(), isError: true}
-		}
-
-		return bookmarkAddedMsg{bookmarks: newBookmarks, alias: alias}
-	}
-}
-
-// handleBookmarkEdit はブックマーク編集処理
-func (m *Model) handleBookmarkEdit(currentBookmarks []config.Bookmark, index int, newAlias string) tea.Cmd {
-	return func() tea.Msg {
-		if index < 0 || index >= len(currentBookmarks) {
-			return showStatusMsg{message: "Invalid bookmark index", isError: true}
-		}
-
-		newBookmarks, err := config.UpdateBookmarkAlias(currentBookmarks, index, newAlias)
-		if err != nil {
-			if err == config.ErrEmptyAlias {
-				return showStatusMsg{message: "Bookmark name cannot be empty", isError: true}
-			}
-			return showStatusMsg{message: fmt.Sprintf("Failed to edit bookmark: %v", err), isError: true}
-		}
-
-		// 設定ファイルに保存
-		if saveErr := saveBookmarksToConfig(newBookmarks); saveErr != nil {
-			return showStatusMsg{message: saveErr.Error(), isError: true}
-		}
-
-		return bookmarkEditedMsg{bookmarks: newBookmarks, alias: newAlias}
-	}
-}
-
-// saveBookmarksToConfig saves bookmarks to the configuration file.
-// Returns an error with a user-friendly message if saving fails.
-func saveBookmarksToConfig(bookmarks []config.Bookmark) error {
-	configPath, err := config.GetConfigPath()
-	if err != nil {
-		return fmt.Errorf("failed to get config path: %w", err)
-	}
-	if err := config.SaveBookmarks(configPath, bookmarks); err != nil {
-		return fmt.Errorf("failed to save bookmarks: %w", err)
-	}
-	return nil
-}
 
 // showStatusMsg is a message to show a status message
 type showStatusMsg struct {

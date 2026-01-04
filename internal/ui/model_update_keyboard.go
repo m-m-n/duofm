@@ -212,7 +212,7 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionBookmark:
-		m.dialog = NewBookmarkDialog(m.bookmarks)
+		m.dialog = NewBookmarkDialog(m.bookmarkManager.Bookmarks())
 		return m, nil
 
 	case ActionAddBookmark:
@@ -419,16 +419,15 @@ func (m Model) handleRenameUI() (tea.Model, tea.Cmd) {
 func (m Model) handleAddBookmarkUI() (tea.Model, tea.Cmd) {
 	currentPath := m.getActivePane().Path()
 
-	if isPathBookmarked(m.bookmarks, currentPath) {
+	if isPathBookmarked(m.bookmarkManager.Bookmarks(), currentPath) {
 		m.statusMessage = "Already bookmarked"
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second)
 	}
 
 	defaultAlias := defaultAliasFromPath(currentPath)
-	currentBookmarks := m.bookmarks
 	dialog := NewInputDialog("Bookmark name:", func(alias string) tea.Cmd {
-		return m.handleAddBookmark(currentBookmarks, currentPath, alias)
+		return m.bookmarkManager.Add(currentPath, alias)
 	})
 	dialog.SetEmptyErrorMsg("Bookmark name cannot be empty")
 	dialog.SetInput(defaultAlias)

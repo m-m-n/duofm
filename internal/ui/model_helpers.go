@@ -56,11 +56,6 @@ func moveFile(src, dest string) error {
 
 // Config helper functions
 
-// removeBookmark removes a bookmark from the list
-func removeBookmark(bookmarks []config.Bookmark, index int) ([]config.Bookmark, error) {
-	return config.RemoveBookmark(bookmarks, index)
-}
-
 // isPathBookmarked checks if a path is already bookmarked
 func isPathBookmarked(bookmarks []config.Bookmark, path string) bool {
 	return config.IsPathBookmarked(bookmarks, path)

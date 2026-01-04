@@ -408,13 +408,13 @@ func TestRefreshBothPanes(t *testing.T) {
 	})
 
 	t.Run("RefreshBothPanesでディスク容量が更新される", func(t *testing.T) {
-		m.leftDiskSpace = 0
-		m.rightDiskSpace = 0
+		// Reset disk space by creating a fresh monitor
+		m.diskSpaceMonitor = NewDiskSpaceMonitor()
 
 		_ = m.RefreshBothPanes()
 
 		// Disk space should be updated
-		if m.leftDiskSpace == 0 && m.rightDiskSpace == 0 {
+		if m.diskSpaceMonitor.LeftSpace() == 0 && m.diskSpaceMonitor.RightSpace() == 0 {
 			t.Log("Disk space might be 0 on some filesystems, skipping verification")
 		}
 	})
