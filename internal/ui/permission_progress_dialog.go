@@ -11,25 +11,27 @@ import (
 
 // PermissionProgressDialog はパーミッション変更操作の進捗表示ダイアログ
 type PermissionProgressDialog struct {
+	BaseDialog
 	totalFiles     int
 	processedFiles int
 	currentFile    string
 	startTime      time.Time
-	active         bool
-	width          int
 	onCancel       func()
+	styles         DialogStyles
 }
 
 // NewPermissionProgressDialog は新しい進捗表示ダイアログを作成
 func NewPermissionProgressDialog(totalFiles int) *PermissionProgressDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(70)
 	return &PermissionProgressDialog{
+		BaseDialog:     base,
 		totalFiles:     totalFiles,
 		processedFiles: 0,
 		currentFile:    "",
 		startTime:      time.Now(),
-		active:         true,
-		width:          70,
 		onCancel:       nil,
+		styles:         NewDialogStyles(70, ColorBorder),
 	}
 }
 
@@ -46,12 +48,12 @@ func (d *PermissionProgressDialog) UpdateProgress(processed int, currentFile str
 
 // Complete は操作完了を通知
 func (d *PermissionProgressDialog) Complete() {
-	d.active = false
+	d.Close()
 }
 
 // Update はメッセージを処理
 func (d *PermissionProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -59,7 +61,6 @@ func (d *PermissionProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEsc, tea.KeyCtrlC:
-			// Esc or Ctrl+Cでキャンセル
 			if d.onCancel != nil {
 				d.onCancel()
 			}
@@ -72,27 +73,15 @@ func (d *PermissionProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログを描画
 func (d *PermissionProgressDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
+	var b strings.Builder
 
-	progressBarStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("62"))
-
-	infoStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("246"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
-
-	var content string
-	content += titleStyle.Render("Changing Permissions") + "\n\n"
+	// Title
+	b.WriteString(d.styles.Title.Render("Changing Permissions"))
+	b.WriteString("\n\n")
 
 	// プログレスバー
 	percentage := 0
@@ -104,56 +93,34 @@ func (d *PermissionProgressDialog) View() string {
 	filledWidth := (percentage * barWidth) / 100
 	emptyWidth := barWidth - filledWidth
 
-	// プログレスバーを構築
+	progressStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorBorder)))
 	bar := strings.Repeat("▓", filledWidth) + strings.Repeat("░", emptyWidth)
-	content += progressBarStyle.Render(fmt.Sprintf("[%s] %d%%", bar, percentage)) + "\n\n"
+	b.WriteString(progressStyle.Render(fmt.Sprintf("[%s] %d%%", bar, percentage)))
+	b.WriteString("\n\n")
 
 	// ファイル数
-	content += infoStyle.Render(
-		fmt.Sprintf("Progress: %d / %d files", d.processedFiles, d.totalFiles),
-	) + "\n"
+	infoStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("246"))
+	b.WriteString(infoStyle.Render(fmt.Sprintf("Progress: %d / %d files", d.processedFiles, d.totalFiles)))
+	b.WriteString("\n")
 
 	// 現在処理中のファイル
 	if d.currentFile != "" {
 		currentFile := d.currentFile
-		// 長いパスは省略
 		maxPathLen := 60
 		if len(currentFile) > maxPathLen {
 			currentFile = "..." + currentFile[len(currentFile)-(maxPathLen-3):]
 		}
-		content += infoStyle.Render(fmt.Sprintf("Current: %s", currentFile)) + "\n"
+		b.WriteString(infoStyle.Render(fmt.Sprintf("Current: %s", currentFile)))
+		b.WriteString("\n")
 	}
 
 	// 経過時間
 	elapsed := time.Since(d.startTime)
-	content += "\n"
-	content += infoStyle.Render(
-		fmt.Sprintf("Elapsed: %s", formatDuration(elapsed)),
-	) + "\n"
+	b.WriteString("\n")
+	b.WriteString(infoStyle.Render(fmt.Sprintf("Elapsed: %s", formatDuration(elapsed))))
+	b.WriteString("\n\n")
 
-	content += "\n"
-	content += helpStyle.Render("[Ctrl+C] Cancel")
+	b.WriteString(d.styles.Footer.Render("[Ctrl+C] Cancel"))
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(content)
-}
-
-// IsActive はダイアログがアクティブかを返す
-func (d *PermissionProgressDialog) IsActive() bool {
-	return d.active
-}
-
-// SetActive はダイアログのアクティブ状態を設定
-func (d *PermissionProgressDialog) SetActive(active bool) {
-	d.active = active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *PermissionProgressDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }

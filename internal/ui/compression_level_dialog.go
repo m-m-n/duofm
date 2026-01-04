@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -9,23 +10,25 @@ import (
 
 // CompressionLevelDialog は圧縮レベル選択ダイアログ
 type CompressionLevelDialog struct {
-	selectedLevel int  // 選択された圧縮レベル (0-9)
-	active        bool // ダイアログがアクティブ
-	width         int  // ダイアログの幅
+	BaseDialog
+	selectedLevel int // 選択された圧縮レベル (0-9)
+	styles        DialogStyles
 }
 
 // NewCompressionLevelDialog は新しい圧縮レベル選択ダイアログを作成
 func NewCompressionLevelDialog() *CompressionLevelDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(60)
 	return &CompressionLevelDialog{
+		BaseDialog:    base,
 		selectedLevel: 6, // デフォルト: Normal (推奨)
-		active:        true,
-		width:         60,
+		styles:        NewDialogStyles(60, ColorBorder),
 	}
 }
 
 // Update はメッセージを処理
 func (d *CompressionLevelDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -33,21 +36,18 @@ func (d *CompressionLevelDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyEsc:
-			// Escapeでキャンセル
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return compressionLevelResultMsg{level: 6, cancelled: true}
 			}
 
 		case tea.KeyEnter:
-			// Enterで確定
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return compressionLevelResultMsg{level: d.selectedLevel, cancelled: false}
 			}
 
 		case tea.KeyRunes:
-			// j/k で上下移動、0-9で直接選択
 			switch msg.String() {
 			case "j":
 				if d.selectedLevel < 9 {
@@ -68,33 +68,25 @@ func (d *CompressionLevelDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログを描画
 func (d *CompressionLevelDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
+	var b strings.Builder
 
-	levelStyle := lipgloss.NewStyle().
-		Padding(0, 2)
+	// Title
+	b.WriteString(d.styles.Title.Render("Select Compression Level"))
+	b.WriteString("\n\n")
 
+	// Level list
 	selectedStyle := lipgloss.NewStyle().
 		Padding(0, 2).
-		Background(lipgloss.Color("62")).
+		Background(lipgloss.Color(string(ColorBorder))).
 		Foreground(lipgloss.Color("230")).
 		Bold(true)
 
-	descStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241"))
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
-
-	var content string
-	content += titleStyle.Render("Select Compression Level") + "\n\n"
+	levelStyle := lipgloss.NewStyle().Padding(0, 2)
+	descStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 
 	levels := []struct {
 		level int
@@ -115,35 +107,14 @@ func (d *CompressionLevelDialog) View() string {
 	for _, l := range levels {
 		line := fmt.Sprintf("Level %d", l.level)
 		if d.selectedLevel == l.level {
-			content += selectedStyle.Render("→ "+line) + " " + descStyle.Render(l.desc) + "\n"
+			b.WriteString(selectedStyle.Render("→ "+line) + " " + descStyle.Render(l.desc) + "\n")
 		} else {
-			content += levelStyle.Render("  "+line) + " " + descStyle.Render(l.desc) + "\n"
+			b.WriteString(levelStyle.Render("  "+line) + " " + descStyle.Render(l.desc) + "\n")
 		}
 	}
 
-	content += "\n"
-	content += helpStyle.Render("[j/k] Navigate  [0-9] Direct select  [Enter] Confirm  [Esc] Use default (6)")
+	b.WriteString("\n")
+	b.WriteString(d.styles.Footer.Render("[j/k] Navigate  [0-9] Direct select  [Enter] Confirm  [Esc] Use default (6)"))
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(content)
-}
-
-// IsActive はダイアログがアクティブかを返す
-func (d *CompressionLevelDialog) IsActive() bool {
-	return d.active
-}
-
-// SetActive はダイアログのアクティブ状態を設定
-func (d *CompressionLevelDialog) SetActive(active bool) {
-	d.active = active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *CompressionLevelDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }

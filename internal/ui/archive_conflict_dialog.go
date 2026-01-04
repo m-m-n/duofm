@@ -30,14 +30,14 @@ type archiveConflictResultMsg struct {
 
 // ArchiveConflictDialog displays conflict resolution options for archive creation
 type ArchiveConflictDialog struct {
+	BaseDialog
 	archivePath  string    // Full path to the archive
 	filename     string    // Archive filename
 	destDir      string    // Destination directory
 	existingMod  time.Time // Modification time of existing file
 	existingSize int64     // Size of existing file
 	cursor       int       // Current selection (0-2)
-	active       bool      // Whether dialog is active
-	width        int       // Dialog width
+	styles       DialogStyles
 }
 
 // NewArchiveConflictDialog creates a new archive conflict resolution dialog
@@ -53,21 +53,23 @@ func NewArchiveConflictDialog(archivePath string) *ArchiveConflictDialog {
 		existingSize = info.Size()
 	}
 
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(55)
 	return &ArchiveConflictDialog{
+		BaseDialog:   base,
 		archivePath:  archivePath,
 		filename:     filename,
 		destDir:      destDir,
 		existingMod:  existingMod,
 		existingSize: existingSize,
 		cursor:       0,
-		active:       true,
-		width:        55,
+		styles:       NewDialogStyles(55, DialogColor("208")), // Orange for warning
 	}
 }
 
 // Update handles keyboard input
 func (d *ArchiveConflictDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -89,23 +91,23 @@ func (d *ArchiveConflictDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			return d, nil
 
 		case "1":
-			d.active = false
+			d.Close()
 			return d, d.createResultCmd(ArchiveConflictOverwrite)
 
 		case "2":
-			d.active = false
+			d.Close()
 			return d, d.createResultCmd(ArchiveConflictRename)
 
 		case "3":
-			d.active = false
+			d.Close()
 			return d, d.createResultCmd(ArchiveConflictCancel)
 
 		case "enter":
-			d.active = false
+			d.Close()
 			return d, d.createResultCmd(ArchiveConflictChoice(d.cursor))
 
 		case "esc", "ctrl+c":
-			d.active = false
+			d.Close()
 			return d, d.createResultCmd(ArchiveConflictCancel)
 		}
 	}
@@ -126,54 +128,36 @@ func (d *ArchiveConflictDialog) createResultCmd(choice ArchiveConflictChoice) te
 
 // View renders the dialog
 func (d *ArchiveConflictDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
-	// Title style
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2).
-		Bold(true).
-		Foreground(lipgloss.Color("208")) // Orange for warning
-	b.WriteString(titleStyle.Render("Archive already exists"))
+	// Title
+	b.WriteString(d.styles.Title.Render("Archive already exists"))
 	b.WriteString("\n\n")
 
 	// Filename
 	filenameStyle := lipgloss.NewStyle().Bold(true)
-	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
+	mutedStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 
-	messageStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2)
-
-	b.WriteString(messageStyle.Render(
-		fmt.Sprintf("File: %s", filenameStyle.Render(d.filename)),
-	))
+	b.WriteString(fmt.Sprintf("File: %s", filenameStyle.Render(d.filename)))
 	b.WriteString("\n")
-	b.WriteString(messageStyle.Render(mutedStyle.Render(truncatePathForDialog(d.destDir, width-12))))
+	b.WriteString(mutedStyle.Render(truncatePathForDialog(d.destDir, width-12)))
 	b.WriteString("\n\n")
 
 	// Existing file info
-	infoStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2).
-		Foreground(lipgloss.Color("246"))
-
 	sizeStr := formatFileSizeForDialog(d.existingSize)
 	timeStr := formatModTimeForDialog(d.existingMod)
-	b.WriteString(infoStyle.Render(fmt.Sprintf("Existing: %s   %s", sizeStr, mutedStyle.Render(timeStr))))
+	b.WriteString(d.styles.Body.Render(fmt.Sprintf("Existing: %s   %s", sizeStr, mutedStyle.Render(timeStr))))
 	b.WriteString("\n\n")
 
 	// Options
 	options := []string{"Overwrite", "Rename", "Cancel"}
 	for i, opt := range options {
-		optStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 2)
+		optStyle := lipgloss.NewStyle().Width(width - 8).Padding(0, 2)
 
 		prefix := fmt.Sprintf("%d. ", i+1)
 		optText := prefix + opt
@@ -189,32 +173,9 @@ func (d *ArchiveConflictDialog) View() string {
 	}
 
 	b.WriteString("\n")
+	b.WriteString(d.styles.Footer.Render("[j/k] Navigate  [1-3] Select  [Enter] Confirm  [Esc] Cancel"))
 
-	// Footer
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 2).
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(footerStyle.Render("[j/k] Navigate  [1-3] Select  [Enter] Confirm  [Esc] Cancel"))
-
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("208")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
-}
-
-// IsActive returns whether the dialog is active
-func (d *ArchiveConflictDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *ArchiveConflictDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }
 
 // formatFileSizeForDialog formats bytes into human-readable size

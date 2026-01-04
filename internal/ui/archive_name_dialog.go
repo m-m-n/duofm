@@ -4,32 +4,33 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
 // ArchiveNameDialog はアーカイブ名入力ダイアログ
 type ArchiveNameDialog struct {
+	BaseDialog
 	title     string     // ダイアログタイトル
 	textInput *TextInput // reusable text input component
-	active    bool       // ダイアログがアクティブ
-	width     int        // ダイアログの幅
 	errorMsg  string     // バリデーションエラーメッセージ
+	styles    DialogStyles
 }
 
 // NewArchiveNameDialog は新しいアーカイブ名入力ダイアログを作成
 func NewArchiveNameDialog(defaultName string) *ArchiveNameDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(60)
 	return &ArchiveNameDialog{
-		title:     "Archive Name",
-		textInput: NewTextInput(defaultName),
-		active:    true,
-		width:     60,
-		errorMsg:  "",
+		BaseDialog: base,
+		title:      "Archive Name",
+		textInput:  NewTextInput(defaultName),
+		errorMsg:   "",
+		styles:     NewDialogStyles(60, ColorBorder),
 	}
 }
 
 // Update はメッセージを処理
 func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -41,7 +42,7 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyEsc:
 			// Escapeでキャンセル
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return archiveNameResultMsg{cancelled: true}
 			}
@@ -64,7 +65,7 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return archiveNameResultMsg{name: name, cancelled: false}
 			}
@@ -82,65 +83,33 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログを描画
 func (d *ArchiveNameDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
+	var b strings.Builder
+	width := d.Width()
 
-	inputStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(0, 1).
-		Width(d.width - 6)
-
-	errorStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("196")).
-		MarginTop(1)
-
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
-
-	var content string
-	content += titleStyle.Render(d.title) + "\n\n"
+	// Title
+	b.WriteString(d.styles.Title.Render(d.title))
+	b.WriteString("\n\n")
 
 	// 入力フィールド（カーソル表示）
-	inputText := d.textInput.RenderWithCursor(d.width - 10)
-	content += inputStyle.Render(inputText) + "\n"
+	inputWidth := width - 8
+	inputText := d.textInput.RenderWithCursor(inputWidth - 2)
+	b.WriteString(d.styles.Input.Width(inputWidth).Render(inputText))
+	b.WriteString("\n")
 
 	// エラーメッセージ
 	if d.errorMsg != "" {
-		content += errorStyle.Render("✗ "+d.errorMsg) + "\n"
+		b.WriteString("\n")
+		b.WriteString(d.styles.Error.Render("✗ " + d.errorMsg))
 	}
 
-	content += helpStyle.Render("[Enter] Confirm  [Esc] Cancel")
+	b.WriteString("\n")
+	b.WriteString(d.styles.Footer.Render("[Enter] Confirm  [Esc] Cancel"))
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("62")).
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(content)
-}
-
-// IsActive はダイアログがアクティブかを返す
-func (d *ArchiveNameDialog) IsActive() bool {
-	return d.active
-}
-
-// SetActive はダイアログのアクティブ状態を設定
-func (d *ArchiveNameDialog) SetActive(active bool) {
-	d.active = active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *ArchiveNameDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
+	return d.styles.Box.Render(b.String())
 }
 
 // Input returns the current input value.

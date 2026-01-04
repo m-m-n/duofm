@@ -12,10 +12,9 @@ import (
 
 // RenameInputDialog is an input dialog with real-time validation for rename operations
 type RenameInputDialog struct {
+	BaseDialog
 	title         string
 	textInput     *TextInput      // reusable text input component
-	active        bool
-	width         int
 	destPath      string          // Destination directory
 	srcPath       string          // Source file path
 	operation     string          // "copy" or "move"
@@ -23,6 +22,7 @@ type RenameInputDialog struct {
 	hasError      bool
 	errorMessage  string
 	suggestedName string
+	styles        DialogStyles
 }
 
 // renameInputResultMsg is sent when the rename dialog is confirmed or cancelled
@@ -43,17 +43,19 @@ func NewRenameInputDialog(destPath, srcPath, operation string) *RenameInputDialo
 	filename := filepath.Base(srcPath)
 	suggested := suggestRename(filename, existingFiles)
 
+	base := NewBaseDialog(DialogDisplayPane)
+	base.SetWidth(50)
 	return &RenameInputDialog{
+		BaseDialog:    base,
 		title:         "New name:",
 		textInput:     NewTextInput(suggested),
-		active:        true,
-		width:         50,
 		destPath:      destPath,
 		srcPath:       srcPath,
 		operation:     operation,
 		existingFiles: existingFiles,
 		hasError:      false,
 		suggestedName: suggested,
+		styles:        NewDialogStyles(50, ColorPrimary),
 	}
 }
 
@@ -136,7 +138,7 @@ func (d *RenameInputDialog) validateInput() {
 
 // Update handles keyboard input
 func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -147,7 +149,7 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			if d.hasError {
 				return d, nil // Do nothing if error
 			}
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return renameInputResultMsg{
 					newName:   d.textInput.Value,
@@ -158,7 +160,7 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 
 		case tea.KeyEsc:
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return renameInputResultMsg{
 					cancelled: true,
@@ -183,20 +185,15 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the dialog
 func (d *RenameInputDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
 	// Title
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render(d.title))
+	b.WriteString(d.styles.Title.Render(d.title))
 	b.WriteString("\n\n")
 
 	// Input field
@@ -206,36 +203,20 @@ func (d *RenameInputDialog) View() string {
 
 	// Error message (if any)
 	if d.hasError {
-		errorStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("196"))
 		b.WriteString("\n")
-		b.WriteString(errorStyle.Render(d.errorMessage))
+		b.WriteString(d.styles.Error.Render(d.errorMessage))
 	}
 
 	b.WriteString("\n")
 
 	// Footer
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
-
 	if d.hasError {
-		b.WriteString(footerStyle.Render("Esc: Cancel"))
+		b.WriteString(d.styles.Footer.Render("Esc: Cancel"))
 	} else {
-		b.WriteString(footerStyle.Render("Enter: Confirm  Esc: Cancel"))
+		b.WriteString(d.styles.Footer.Render("Enter: Confirm  Esc: Cancel"))
 	}
 
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // renderInputField renders the input field
@@ -250,16 +231,6 @@ func (d *RenameInputDialog) renderInputField(width int) string {
 		BorderForeground(lipgloss.Color("240"))
 
 	return fieldStyle.Render(d.textInput.RenderWithCursor(width - 2))
-}
-
-// IsActive returns whether the dialog is active
-func (d *RenameInputDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *RenameInputDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
 }
 
 // Input returns the current input value.

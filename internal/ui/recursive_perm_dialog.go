@@ -11,6 +11,7 @@ import (
 
 // RecursivePermDialog is a two-step dialog for recursive permission changes
 type RecursivePermDialog struct {
+	BaseDialog
 	targetName   string
 	step         int    // 0: dir input, 1: file input
 	dirMode      string // directory permission (from step 0)
@@ -18,14 +19,16 @@ type RecursivePermDialog struct {
 	currentInput string
 	cursorPos    int
 	errorMsg     string
-	active       bool
-	width        int
 	onConfirm    func(dirMode, fileMode string) tea.Cmd
+	styles       DialogStyles
 }
 
 // NewRecursivePermDialog creates a new recursive permission dialog
 func NewRecursivePermDialog(targetName string) *RecursivePermDialog {
+	base := NewBaseDialog(DialogDisplayPane)
+	base.SetWidth(50)
 	return &RecursivePermDialog{
+		BaseDialog:   base,
 		targetName:   targetName,
 		step:         0,
 		dirMode:      "",
@@ -33,9 +36,8 @@ func NewRecursivePermDialog(targetName string) *RecursivePermDialog {
 		currentInput: "",
 		cursorPos:    0,
 		errorMsg:     "",
-		active:       true,
-		width:        50,
 		onConfirm:    nil,
+		styles:       NewDialogStyles(50, ColorPrimary),
 	}
 }
 
@@ -46,7 +48,7 @@ func (d *RecursivePermDialog) SetOnConfirm(callback func(dirMode, fileMode strin
 
 // Update handles messages
 func (d *RecursivePermDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -74,7 +76,7 @@ func (d *RecursivePermDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 			// If we're on step 1 (file permission), execute operation
 			d.fileMode = d.currentInput
-			d.active = false
+			d.Close()
 			if d.onConfirm != nil {
 				return d, d.onConfirm(d.dirMode, d.fileMode)
 			}
@@ -84,7 +86,7 @@ func (d *RecursivePermDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 
 		case tea.KeyEsc:
-			d.active = false
+			d.Close()
 			return d, func() tea.Msg {
 				return recursivePermDialogCancelMsg{}
 			}
@@ -143,31 +145,36 @@ func (d *RecursivePermDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View renders the dialog
 func (d *RecursivePermDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
-	width := d.width
+	width := d.Width()
 
 	// Title with step indicator
-	titleStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-
 	stepText := fmt.Sprintf("Recursive Permissions (%d/2)", d.step+1)
-	b.WriteString(titleStyle.Render(stepText))
+	b.WriteString(d.styles.Title.Render(stepText))
 	b.WriteString("\n\n")
 
 	// Step-specific content
+	labelStyle := lipgloss.NewStyle().
+		Width(width-4).
+		Padding(0, 1).
+		Foreground(lipgloss.Color("248"))
+
+	presetsStyle := lipgloss.NewStyle().
+		Width(width-4).
+		Padding(0, 1).
+		Foreground(lipgloss.Color(string(ColorMuted)))
+
+	presetStyle := lipgloss.NewStyle().
+		Width(width-4).
+		Padding(0, 1).
+		Foreground(lipgloss.Color("248"))
+
 	if d.step == 0 {
 		// Step 1: Directory permissions
-		labelStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("248"))
 		b.WriteString(labelStyle.Render("Permissions for DIRECTORIES:"))
 		b.WriteString("\n\n")
 
@@ -176,31 +183,19 @@ func (d *RecursivePermDialog) View() string {
 		b.WriteString("\n\n")
 
 		// Directory presets
-		presetsStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("240"))
 		b.WriteString(presetsStyle.Render("── Quick Presets ──"))
 		b.WriteString("\n")
 
 		for _, preset := range dirPresets {
-			presetStyle := lipgloss.NewStyle().
-				Width(width-4).
-				Padding(0, 1).
-				Foreground(lipgloss.Color("248"))
 			presetLine := fmt.Sprintf("[%d] %s  %s  (%s)", preset.Number, preset.Mode, preset.Symbolic, preset.Description)
 			b.WriteString(presetStyle.Render(presetLine))
 			b.WriteString("\n")
 		}
 	} else {
 		// Step 2: File permissions
-		infoStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("248"))
-		b.WriteString(infoStyle.Render("Permissions for FILES:"))
+		b.WriteString(labelStyle.Render("Permissions for FILES:"))
 		b.WriteString("\n")
-		b.WriteString(infoStyle.Render(fmt.Sprintf("(Directories will use: %s)", d.dirMode)))
+		b.WriteString(labelStyle.Render(fmt.Sprintf("(Directories will use: %s)", d.dirMode)))
 		b.WriteString("\n\n")
 
 		// Input field
@@ -208,18 +203,10 @@ func (d *RecursivePermDialog) View() string {
 		b.WriteString("\n\n")
 
 		// File presets
-		presetsStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("240"))
 		b.WriteString(presetsStyle.Render("── Quick Presets ──"))
 		b.WriteString("\n")
 
 		for _, preset := range filePresets {
-			presetStyle := lipgloss.NewStyle().
-				Width(width-4).
-				Padding(0, 1).
-				Foreground(lipgloss.Color("248"))
 			presetLine := fmt.Sprintf("[%d] %s  %s  (%s)", preset.Number, preset.Mode, preset.Symbolic, preset.Description)
 			b.WriteString(presetStyle.Render(presetLine))
 			b.WriteString("\n")
@@ -228,36 +215,20 @@ func (d *RecursivePermDialog) View() string {
 
 	// Error message (if any)
 	if d.errorMsg != "" {
-		errorStyle := lipgloss.NewStyle().
-			Width(width-4).
-			Padding(0, 1).
-			Foreground(lipgloss.Color("196"))
 		b.WriteString("\n")
-		b.WriteString(errorStyle.Render(d.errorMsg))
+		b.WriteString(d.styles.Error.Render(d.errorMsg))
 		b.WriteString("\n")
 	}
 
 	// Footer
 	b.WriteString("\n")
-	footerStyle := lipgloss.NewStyle().
-		Width(width-4).
-		Padding(0, 1).
-		Foreground(lipgloss.Color("240"))
-
 	if d.step == 0 {
-		b.WriteString(footerStyle.Render("[Enter] Next  [Esc] Cancel"))
+		b.WriteString(d.styles.Footer.Render("[Enter] Next  [Esc] Cancel"))
 	} else {
-		b.WriteString(footerStyle.Render("[Enter] Apply  [Esc] Cancel"))
+		b.WriteString(d.styles.Footer.Render("[Enter] Apply  [Esc] Cancel"))
 	}
 
-	// Border
-	boxStyle := lipgloss.NewStyle().
-		Width(width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // renderInputField renders the input field with symbolic notation
@@ -304,14 +275,4 @@ func (d *RecursivePermDialog) renderInputField(width int, isDir bool) string {
 	b.WriteString(inputStyle.Render(inputLine))
 
 	return b.String()
-}
-
-// IsActive returns whether the dialog is active
-func (d *RecursivePermDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType returns the dialog display type
-func (d *RecursivePermDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
 }

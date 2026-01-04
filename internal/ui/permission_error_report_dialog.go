@@ -10,31 +10,33 @@ import (
 
 // PermissionErrorReportDialog はパーミッション変更のエラーレポートダイアログ
 type PermissionErrorReportDialog struct {
+	BaseDialog
 	successCount int
 	failureCount int
 	errors       []fs.PermissionError
 	scrollOffset int
-	active       bool
-	width        int
 	visibleLines int
+	styles       DialogStyles
 }
 
 // NewPermissionErrorReportDialog は新しいエラーレポートダイアログを作成
 func NewPermissionErrorReportDialog(successCount, failureCount int, errors []fs.PermissionError) *PermissionErrorReportDialog {
+	base := NewBaseDialog(DialogDisplayScreen)
+	base.SetWidth(70)
 	return &PermissionErrorReportDialog{
+		BaseDialog:   base,
 		successCount: successCount,
 		failureCount: failureCount,
 		errors:       errors,
 		scrollOffset: 0,
-		active:       true,
-		width:        70,
 		visibleLines: 10, // デフォルトの可視行数
+		styles:       NewDialogStyles(70, ColorDanger),
 	}
 }
 
 // Update はメッセージを処理
 func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -43,7 +45,7 @@ func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyEnter, tea.KeyEsc:
 			// Enter or Esc で閉じる
-			d.active = false
+			d.Close()
 			return d, nil
 
 		case tea.KeyRunes:
@@ -89,14 +91,9 @@ func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログを描画
 func (d *PermissionErrorReportDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
-
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39")).
-		MarginBottom(1)
 
 	successStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("10"))
@@ -111,12 +108,8 @@ func (d *PermissionErrorReportDialog) View() string {
 		Foreground(lipgloss.Color("203")).
 		Italic(true)
 
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("241")).
-		MarginTop(1)
-
 	var content string
-	content += titleStyle.Render("Permission Change Report") + "\n\n"
+	content += d.styles.Title.Render("Permission Change Report") + "\n\n"
 
 	// Success/Failure counts
 	content += successStyle.Render(fmt.Sprintf("Success: %d files", d.successCount)) + "\n"
@@ -174,28 +167,8 @@ func (d *PermissionErrorReportDialog) View() string {
 	if len(d.errors) > d.visibleLines {
 		helpText = "[j/k] Scroll  [PgUp/PgDn] Page  " + helpText
 	}
-	content += helpStyle.Render(helpText)
+	content += d.styles.Footer.Render(helpText)
 
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("9")).
-		Padding(1, 2).
-		Width(d.width)
-
-	return boxStyle.Render(content)
+	return d.styles.Box.Render(content)
 }
 
-// IsActive はダイアログがアクティブかを返す
-func (d *PermissionErrorReportDialog) IsActive() bool {
-	return d.active
-}
-
-// SetActive はダイアログのアクティブ状態を設定
-func (d *PermissionErrorReportDialog) SetActive(active bool) {
-	d.active = active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *PermissionErrorReportDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayScreen
-}

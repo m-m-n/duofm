@@ -9,21 +9,23 @@ import (
 
 // SortDialog はソート設定を変更するためのダイアログ
 type SortDialog struct {
+	BaseDialog
 	config         SortConfig // 現在の選択
 	originalConfig SortConfig // キャンセル時の復元用
 	focusedRow     int        // 0: Sort by, 1: Order
-	active         bool
-	width          int
+	styles         DialogStyles
 }
 
 // NewSortDialog は新しいソートダイアログを作成
 func NewSortDialog(current SortConfig) *SortDialog {
+	base := NewBaseDialog(DialogDisplayPane)
+	base.SetWidth(36)
 	return &SortDialog{
+		BaseDialog:     base,
 		config:         current,
 		originalConfig: current,
 		focusedRow:     0,
-		active:         true,
-		width:          36,
+		styles:         NewDialogStyles(36, ColorPrimary),
 	}
 }
 
@@ -43,11 +45,11 @@ func (d *SortDialog) HandleKey(key string) (confirmed bool, cancelled bool) {
 			d.focusedRow = 0
 		}
 	case "enter":
-		d.active = false
+		d.Close()
 		return true, false
 	case "esc", "q":
 		d.config = d.originalConfig
-		d.active = false
+		d.Close()
 		return false, true
 	}
 	return false, false
@@ -89,19 +91,9 @@ func (d *SortDialog) OriginalConfig() SortConfig {
 	return d.originalConfig
 }
 
-// IsActive はダイアログがアクティブかどうかを返す
-func (d *SortDialog) IsActive() bool {
-	return d.active
-}
-
-// DisplayType はダイアログの表示タイプを返す
-func (d *SortDialog) DisplayType() DialogDisplayType {
-	return DialogDisplayPane
-}
-
 // Update はbubbletea互換のUpdate実装
 func (d *SortDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
-	if !d.active {
+	if !d.IsActive() {
 		return d, nil
 	}
 
@@ -132,17 +124,14 @@ func (d *SortDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 // View はダイアログをレンダリング
 func (d *SortDialog) View() string {
-	if !d.active {
+	if !d.IsActive() {
 		return ""
 	}
 
 	var b strings.Builder
 
 	// タイトル
-	titleStyle := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("39"))
-	b.WriteString(titleStyle.Render("Sort"))
+	b.WriteString(d.styles.Title.Render("Sort"))
 	b.WriteString("\n\n")
 
 	// Sort by 行
@@ -154,20 +143,11 @@ func (d *SortDialog) View() string {
 	b.WriteString("\n\n")
 
 	// ヘルプテキスト
-	helpStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240"))
-	b.WriteString(helpStyle.Render("h/l:change  j/k:row"))
+	b.WriteString(d.styles.Footer.Render("h/l:change  j/k:row"))
 	b.WriteString("\n")
-	b.WriteString(helpStyle.Render("Enter:OK  Esc:cancel"))
+	b.WriteString(d.styles.Footer.Render("Enter:OK  Esc:cancel"))
 
-	// ボックススタイル
-	boxStyle := lipgloss.NewStyle().
-		Width(d.width).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("39")).
-		Padding(1, 2)
-
-	return boxStyle.Render(b.String())
+	return d.styles.Box.Render(b.String())
 }
 
 // renderSortByRow はSort by行をレンダリング
