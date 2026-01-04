@@ -141,10 +141,23 @@ func TestPermissionDialogEscape(t *testing.T) {
 	var dialog Dialog = NewPermissionDialog("test.txt", false, 0644)
 
 	// Press Escape
-	dialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	dialog, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
 	if dialog.IsActive() {
 		t.Error("Dialog should be inactive after Escape")
+	}
+
+	// CRITICAL: Verify cancel message is returned
+	if cmd == nil {
+		t.Fatal("Esc key should return a cancel message command, got nil - this will cause the freeze bug")
+	}
+
+	// Execute the command to get the message
+	msg := cmd()
+
+	// Verify the message is permissionDialogCancelMsg
+	if _, ok := msg.(permissionDialogCancelMsg); !ok {
+		t.Errorf("Expected permissionDialogCancelMsg, got %T", msg)
 	}
 }
 

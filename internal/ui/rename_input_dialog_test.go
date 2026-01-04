@@ -194,9 +194,18 @@ func TestRenameInputDialogEscape(t *testing.T) {
 
 	_, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
-	// Should return nil (cancel)
-	if cmd != nil {
-		t.Error("Esc should return nil command")
+	// Should return cancel message
+	if cmd == nil {
+		t.Error("Esc should return cancel message command")
+	} else {
+		msg := cmd()
+		result, ok := msg.(renameInputResultMsg)
+		if !ok {
+			t.Errorf("message type = %T, want renameInputResultMsg", msg)
+		}
+		if !result.cancelled {
+			t.Error("result.cancelled should be true")
+		}
 	}
 	if d.active {
 		t.Error("dialog should be inactive after Esc")

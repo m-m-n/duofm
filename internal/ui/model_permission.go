@@ -241,8 +241,26 @@ func (m *Model) executeBatchPermissionChangeWithProgress(paths []string, mode st
 	}
 }
 
+// permissionDialogCancelMsg is sent when PermissionDialog is cancelled with Esc
+type permissionDialogCancelMsg struct{}
+
+// recursivePermDialogCancelMsg is sent when RecursivePermDialog is cancelled with Esc
+type recursivePermDialogCancelMsg struct{}
+
 // handlePermissionMessages handles permission-related messages
 func (m Model) handlePermissionMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
+	// Handle permission dialog cancellation
+	if _, ok := msg.(permissionDialogCancelMsg); ok {
+		m.dialog = nil
+		return m, nil, true
+	}
+
+	// Handle recursive permission dialog cancellation
+	if _, ok := msg.(recursivePermDialogCancelMsg); ok {
+		m.dialog = nil
+		return m, nil, true
+	}
+
 	if completeMsg, ok := msg.(permissionOperationCompleteMsg); ok {
 		newModel, cmd := m.handlePermissionOperationComplete(completeMsg)
 		return newModel.(Model), cmd, true

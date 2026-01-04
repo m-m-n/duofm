@@ -96,10 +96,23 @@ func TestRecursivePermDialog_Cancellation(t *testing.T) {
 		d := NewRecursivePermDialog("testdir")
 
 		// Press Esc at step 1
-		newDialog, _ := d.Update(tea.KeyMsg{Type: tea.KeyEsc})
+		newDialog, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
 		if newDialog.IsActive() {
 			t.Error("Expected dialog to be inactive after Esc at step 1")
+		}
+
+		// CRITICAL: Verify cancel message is returned
+		if cmd == nil {
+			t.Fatal("Esc key should return a cancel message command, got nil - this will cause the freeze bug")
+		}
+
+		// Execute the command to get the message
+		msg := cmd()
+
+		// Verify the message is recursivePermDialogCancelMsg
+		if _, ok := msg.(recursivePermDialogCancelMsg); !ok {
+			t.Errorf("Expected recursivePermDialogCancelMsg, got %T", msg)
 		}
 	})
 
@@ -111,10 +124,23 @@ func TestRecursivePermDialog_Cancellation(t *testing.T) {
 		d.Update(tea.KeyMsg{Type: tea.KeyEnter})
 
 		// Press Esc at step 2
-		newDialog, _ := d.Update(tea.KeyMsg{Type: tea.KeyEsc})
+		newDialog, cmd := d.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
 		if newDialog.IsActive() {
 			t.Error("Expected dialog to be inactive after Esc at step 2")
+		}
+
+		// CRITICAL: Verify cancel message is returned
+		if cmd == nil {
+			t.Fatal("Esc key should return a cancel message command, got nil - this will cause the freeze bug")
+		}
+
+		// Execute the command to get the message
+		msg := cmd()
+
+		// Verify the message is recursivePermDialogCancelMsg
+		if _, ok := msg.(recursivePermDialogCancelMsg); !ok {
+			t.Errorf("Expected recursivePermDialogCancelMsg, got %T", msg)
 		}
 	})
 }

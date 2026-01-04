@@ -190,7 +190,8 @@ Changes MUST flow from specification to implementation, never the reverse. If im
 1. Self-review changes
 2. Run all tests and linting
 3. Verify implementation matches specification
-4. Commit with descriptive messages
+4. **For dialog changes**: Review against [Dialog Checklist](#dialog-code-review-checklist)
+5. Commit with descriptive messages
 
 ### 5. Integration Phase
 1. Merge feature branch to main
@@ -227,6 +228,7 @@ internal/
 - All business logic
 - File system operations (use temporary directories)
 - UI component logic (mock rendering where possible)
+- **Dialog implementations** (see [Dialog Best Practices](#implementing-dialogs))
 
 **Test structure:**
 ```go
@@ -246,6 +248,56 @@ func TestFeature(t *testing.T) {
         })
     }
 }
+```
+
+### Implementing Dialogs
+
+Dialogs in duofm follow the Bubble Tea framework with a **message-based cancellation pattern**. Improper implementation can cause the application to become unresponsive.
+
+**Quick Checklist for Dialog Implementation:**
+- [ ] Dialog sends cancellation message on Esc (NOT nil)
+- [ ] Model has handler for cancellation message
+- [ ] Handler sets `m.dialog = nil`
+- [ ] Unit tests cover Esc key behavior
+- [ ] Integration tests verify Model clears dialog
+
+**Required Pattern:**
+
+```go
+// 1. Define cancellation message
+type myDialogCancelMsg struct{}
+
+// 2. Implement Esc handling in Dialog.Update()
+case tea.KeyEsc:
+	d.active = false
+	return d, func() tea.Msg {
+		return myDialogCancelMsg{}  // MUST return message, not nil
+	}
+
+// 3. Add handler in Model.Update()
+case myDialogCancelMsg:
+	m.dialog = nil  // CRITICAL: Clear dialog
+	return m, nil
+```
+
+**For detailed guidelines, see:**
+- [Dialog Best Practices Guide](development/DIALOG_BEST_PRACTICES.md)
+- Reference implementation: `internal/ui/confirm_dialog.go`
+
+**Common Mistake to Avoid:**
+
+```go
+// ❌ WRONG: Returns nil, dialog not cleared from Model
+case tea.KeyEsc:
+	d.active = false
+	return d, nil  // BUG: Application will freeze
+
+// ✅ CORRECT: Returns cancel message
+case tea.KeyEsc:
+	d.active = false
+	return d, func() tea.Msg {
+		return myDialogCancelMsg{}
+	}
 ```
 
 ### Commit Messages
@@ -279,6 +331,30 @@ refactor: simplify UI rendering logic
 - Test edge cases and error conditions
 - Use table-driven tests for multiple scenarios
 - Keep tests fast and independent
+
+### Dialog Code Review Checklist
+
+When reviewing PRs that add or modify dialogs, verify:
+
+**Dialog Implementation:**
+- [ ] Dialog sends message on Esc (not `return d, nil`)
+- [ ] `d.active = false` is set before returning cancel message
+- [ ] Inactive dialog ignores input (early return if `!d.active`)
+- [ ] `View()` returns empty string when `!d.active`
+
+**Model Integration:**
+- [ ] Model has handler for cancellation message
+- [ ] Handler clears `m.dialog = nil`
+- [ ] If using result message, handler checks `cancelled` flag
+
+**Testing:**
+- [ ] Unit test verifies Esc key deactivates and returns message
+- [ ] Unit test verifies inactive dialog ignores input
+- [ ] Integration test verifies Model clears dialog on cancel
+
+**Documentation:**
+- [ ] Complex dialogs have godoc comments
+- [ ] If new pattern used, update Dialog Best Practices guide
 
 ## Questions or Suggestions?
 
