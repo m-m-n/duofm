@@ -26,12 +26,13 @@ type RenameInputDialog struct {
 	suggestedName string
 }
 
-// renameInputResultMsg is sent when the rename dialog is confirmed
+// renameInputResultMsg is sent when the rename dialog is confirmed or cancelled
 type renameInputResultMsg struct {
 	newName   string
 	srcPath   string
 	destPath  string
 	operation string
+	cancelled bool // True if cancelled with Esc
 }
 
 // NewRenameInputDialog creates a new rename input dialog
@@ -160,10 +161,14 @@ func (d *RenameInputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 
 		case tea.KeyEsc:
 			d.active = false
-			return d, nil
+			return d, func() tea.Msg {
+				return renameInputResultMsg{
+					cancelled: true,
+				}
+			}
 
 		case tea.KeyRunes:
-			// 文字入力
+			// Character input
 			runes := []rune(d.input)
 			newRunes := make([]rune, 0, len(runes)+len(msg.Runes))
 			newRunes = append(newRunes, runes[:d.cursorPos]...)
@@ -244,7 +249,7 @@ func (d *RenameInputDialog) View() string {
 	var b strings.Builder
 	width := d.width
 
-	// タイトル
+	// Title
 	titleStyle := lipgloss.NewStyle().
 		Width(width-4).
 		Padding(0, 1).
@@ -253,12 +258,12 @@ func (d *RenameInputDialog) View() string {
 	b.WriteString(titleStyle.Render(d.title))
 	b.WriteString("\n\n")
 
-	// 入力フィールド
+	// Input field
 	inputWidth := width - 8
 	b.WriteString(d.renderInputField(inputWidth))
 	b.WriteString("\n")
 
-	// エラーメッセージ（あれば）
+	// Error message (if any)
 	if d.hasError {
 		errorStyle := lipgloss.NewStyle().
 			Width(width-4).
@@ -270,7 +275,7 @@ func (d *RenameInputDialog) View() string {
 
 	b.WriteString("\n")
 
-	// フッター
+	// Footer
 	footerStyle := lipgloss.NewStyle().
 		Width(width-4).
 		Padding(0, 1).
@@ -282,7 +287,7 @@ func (d *RenameInputDialog) View() string {
 		b.WriteString(footerStyle.Render("Enter: Confirm  Esc: Cancel"))
 	}
 
-	// ボーダーで囲む
+	// Border
 	boxStyle := lipgloss.NewStyle().
 		Width(width).
 		Border(lipgloss.RoundedBorder()).
@@ -292,12 +297,12 @@ func (d *RenameInputDialog) View() string {
 	return boxStyle.Render(b.String())
 }
 
-// renderInputField は入力フィールドをレンダリング
+// renderInputField renders the input field
 func (d *RenameInputDialog) renderInputField(width int) string {
 	runes := []rune(d.input)
 	displayInput := d.input
 
-	// 表示可能な範囲を計算
+	// Calculate displayable range
 	cursorDisplayPos := d.cursorPos
 	startPos := 0
 
@@ -313,7 +318,7 @@ func (d *RenameInputDialog) renderInputField(width int) string {
 		cursorDisplayPos = d.cursorPos - startPos
 	}
 
-	// カーソル付きで表示文字列を構築
+	// Build display string with cursor
 	displayRunes := []rune(displayInput)
 	var result strings.Builder
 	for i, r := range displayRunes {
@@ -327,7 +332,7 @@ func (d *RenameInputDialog) renderInputField(width int) string {
 		result.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
 	}
 
-	// 入力フィールドのスタイル
+	// Input field style
 	fieldStyle := lipgloss.NewStyle().
 		Width(width).
 		Padding(0, 1).

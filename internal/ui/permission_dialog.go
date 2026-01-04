@@ -101,11 +101,16 @@ func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				recursive := d.recursiveOption == 1
 				return d, d.onConfirm(d.inputValue, recursive)
 			}
-			return d, nil
+			// Defensive: if onConfirm is nil, send cancel message to avoid freeze
+			return d, func() tea.Msg {
+				return permissionDialogCancelMsg{}
+			}
 
 		case tea.KeyEsc:
 			d.active = false
-			return d, nil
+			return d, func() tea.Msg {
+				return permissionDialogCancelMsg{}
+			}
 
 		case tea.KeyTab:
 			// Toggle recursive option (directories only)

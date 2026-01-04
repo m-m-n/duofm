@@ -78,11 +78,16 @@ func (d *RecursivePermDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			if d.onConfirm != nil {
 				return d, d.onConfirm(d.dirMode, d.fileMode)
 			}
-			return d, nil
+			// Defensive: if onConfirm is nil, send cancel message to avoid freeze
+			return d, func() tea.Msg {
+				return recursivePermDialogCancelMsg{}
+			}
 
 		case tea.KeyEsc:
 			d.active = false
-			return d, nil
+			return d, func() tea.Msg {
+				return recursivePermDialogCancelMsg{}
+			}
 
 		case tea.KeyBackspace:
 			if len(d.currentInput) > 0 {

@@ -224,13 +224,31 @@ func TestInputDialog_EscCancel(t *testing.T) {
 
 	dialog.input = "testfile.txt"
 
-	dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	newDialog, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyEsc})
 
 	if confirmCalled {
 		t.Error("Confirm callback should not be called on cancel")
 	}
-	if dialog.active {
+	if newDialog.IsActive() {
 		t.Error("Dialog should be inactive after cancel")
+	}
+
+	// CRITICAL: Verify cancel message is returned
+	if cmd == nil {
+		t.Fatal("Esc key should return a command, got nil - this will cause the freeze bug")
+	}
+
+	// Execute the command to get the message
+	msg := cmd()
+
+	// Verify the message is inputDialogResultMsg with cancelled=true
+	resultMsg, ok := msg.(inputDialogResultMsg)
+	if !ok {
+		t.Fatalf("Expected inputDialogResultMsg, got %T", msg)
+	}
+
+	if !resultMsg.cancelled {
+		t.Error("Expected cancelled=true in inputDialogResultMsg")
 	}
 }
 

@@ -838,6 +838,11 @@ func (m Model) handleShellCommandFinished(msg shellCommandFinishedMsg) (tea.Mode
 func (m Model) handleInputDialogResult(msg inputDialogResultMsg) (tea.Model, tea.Cmd) {
 	m.dialog = nil
 
+	// If cancelled, do nothing (just clear dialog)
+	if msg.cancelled {
+		return m, nil
+	}
+
 	if msg.err != nil {
 		m.statusMessage = msg.err.Error()
 		m.isStatusError = true
@@ -870,6 +875,11 @@ func (m Model) handleFileOperationComplete(msg fileOperationCompleteMsg) (tea.Mo
 // handleRenameInputResult はリネーム入力ダイアログの結果を処理
 func (m Model) handleRenameInputResult(msg renameInputResultMsg) (tea.Model, tea.Cmd) {
 	m.dialog = nil
+
+	// Handle cancellation
+	if msg.cancelled {
+		return m, nil
+	}
 
 	newDestPath := filepath.Join(msg.destPath, msg.newName)
 
