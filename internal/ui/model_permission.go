@@ -303,6 +303,9 @@ func (m Model) handlePermissionMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 
 // handlePermissionOperationComplete handles permission operation completion
 func (m Model) handlePermissionOperationComplete(msg permissionOperationCompleteMsg) (tea.Model, tea.Cmd) {
+	// Clear dialog reference to prevent freeze after confirmation
+	m.dialog = nil
+
 	if msg.success {
 		m.statusMessage = fmt.Sprintf("Permission changed: %s", filepath.Base(msg.path))
 		m.isStatusError = false
@@ -410,7 +413,8 @@ func (m Model) handleRecursivePermissionComplete(msg recursivePermissionComplete
 		return m, nil
 	}
 
-	// All successful
+	// All successful - clear dialog reference to prevent freeze after confirmation
+	m.dialog = nil
 	m.statusMessage = fmt.Sprintf("Recursive permissions changed: %d files successful", msg.successCount)
 	m.isStatusError = false
 	return m, statusMessageClearCmd(3 * time.Second)
@@ -418,10 +422,9 @@ func (m Model) handleRecursivePermissionComplete(msg recursivePermissionComplete
 
 // handleBatchPermissionComplete handles batch permission operation completion
 func (m Model) handleBatchPermissionComplete(msg batchPermissionCompleteMsg) (tea.Model, tea.Cmd) {
-	// Close progress dialog if it exists
-	if _, ok := m.dialog.(*PermissionProgressDialog); ok {
-		m.dialog = nil
-	}
+	// Clear dialog reference unconditionally to prevent freeze after confirmation
+	// This handles both PermissionDialog (small batches) and PermissionProgressDialog (large batches)
+	m.dialog = nil
 
 	// Clear marks after batch operation (even if some failed)
 	m.getActivePane().ClearMarks()

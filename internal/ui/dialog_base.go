@@ -83,17 +83,17 @@ const (
 func NewDialogStyles(width int, borderColor DialogColor) DialogStyles {
 	return DialogStyles{
 		Title: lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 1).
 			Bold(true).
 			Foreground(lipgloss.Color(string(ColorPrimary))),
 
 		Body: lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 1),
 
 		Footer: lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 1).
 			Foreground(lipgloss.Color(string(ColorMuted))),
 
@@ -104,7 +104,7 @@ func NewDialogStyles(width int, borderColor DialogColor) DialogStyles {
 			Padding(1, 2),
 
 		Error: lipgloss.NewStyle().
-			Width(width - 4).
+			Width(width-4).
 			Padding(0, 1).
 			Foreground(lipgloss.Color(string(ColorDanger))),
 

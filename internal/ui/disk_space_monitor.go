@@ -9,10 +9,10 @@ import (
 // DiskSpaceMonitor monitors disk space for both panes.
 // It caches disk space values and refreshes them periodically.
 type DiskSpaceMonitor struct {
-	leftSpace      uint64    // Free space in left pane's filesystem
-	rightSpace     uint64    // Free space in right pane's filesystem
-	lastCheckTime  time.Time // Time of last disk space check
-	checkInterval  time.Duration
+	leftSpace     uint64    // Free space in left pane's filesystem
+	rightSpace    uint64    // Free space in right pane's filesystem
+	lastCheckTime time.Time // Time of last disk space check
+	checkInterval time.Duration
 }
 
 // NewDiskSpaceMonitor creates a new disk space monitor with default settings.

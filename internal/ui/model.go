@@ -26,10 +26,10 @@ type Model struct {
 	activePane PanePosition
 
 	// UI state
-	dialog   Dialog
-	width    int
-	height   int
-	ready    bool
+	dialog Dialog
+	width  int
+	height int
+	ready  bool
 
 	// Disk space monitoring (delegated)
 	diskSpaceMonitor *DiskSpaceMonitor
@@ -51,8 +51,8 @@ type Model struct {
 	sortDialog *SortDialog // ソートダイアログ（nil = 非表示）
 
 	// Operations
-	pendingAction   func() error           // 確認待ちのアクション（コンテキストメニューの削除用）
-	batchOpManager  *BatchOperationManager // Batch copy/move manager (delegated)
+	pendingAction  func() error           // 確認待ちのアクション（コンテキストメニューの削除用）
+	batchOpManager *BatchOperationManager // Batch copy/move manager (delegated)
 
 	// Configuration
 	keybindingMap *KeybindingMap // キーバインドマップ
@@ -545,7 +545,6 @@ func (m *Model) advanceBatchOperation(success bool, srcPath string) tea.Cmd {
 func (m *Model) cancelBatchOperation() tea.Cmd {
 	return m.batchOpManager.Cancel()
 }
-
 
 // showStatusMsg is a message to show a status message
 type showStatusMsg struct {

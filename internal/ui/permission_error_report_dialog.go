@@ -171,4 +171,3 @@ func (d *PermissionErrorReportDialog) View() string {
 
 	return d.styles.Box.Render(content)
 }
-
