@@ -73,6 +73,41 @@ func (m Model) handleContextMenuResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 	activePane := m.getActivePane()
 	markedFiles := activePane.GetMarkedFiles()
 
+	// Open with xdg-open
+	if result.actionID == "open" {
+		entry := activePane.SelectedEntry()
+		if entry != nil {
+			// Support parent directory (..) per US4
+			var target string
+			if entry.IsParentDir() {
+				target = ".."
+			} else {
+				target = entry.Name
+			}
+			return m, openWithXDG(target, activePane.Path()), true
+		}
+		return m, nil, true
+	}
+
+	// Open with custom application
+	if result.actionID == "open_with" {
+		entry := activePane.SelectedEntry()
+		var files []string
+
+		if len(markedFiles) > 0 {
+			// Use marked files
+			files = markedFiles
+		} else if entry != nil && !entry.IsParentDir() {
+			// Use selected file
+			files = []string{entry.Name}
+		} else {
+			return m, nil, true
+		}
+
+		m.dialog = NewOpenWithDialog(files, activePane.Path())
+		return m, nil, true
+	}
+
 	// 削除の場合は確認ダイアログを表示
 	if result.actionID == "delete" {
 		if len(markedFiles) > 0 {
@@ -198,6 +233,36 @@ func (m Model) handleDialogMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 			duration = 5 * time.Second
 		}
 		return m, statusMessageClearCmd(duration), true
+	}
+
+	// Open with xdg-open finished
+	if result, ok := msg.(openWithFinishedMsg); ok {
+		if result.err != nil {
+			// Check if it's "command not found" error
+			errStr := result.err.Error()
+			if strings.Contains(errStr, "executable file not found") || strings.Contains(errStr, "not found") {
+				m.statusMessage = "Cannot open file: xdg-open not found. Install xdg-utils package."
+			} else {
+				m.statusMessage = fmt.Sprintf("Failed to open file: %v", result.err)
+			}
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second), true
+		}
+		m.statusMessage = "Opened with xdg-open"
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second), true
+	}
+
+	// Open with custom application result
+	if result, ok := msg.(openWithDialogResultMsg); ok {
+		m.dialog = nil
+
+		if result.cancelled {
+			return m, nil, true
+		}
+
+		// Launch custom application
+		return m, openWithCustom(result.application, result.files, result.workDir), true
 	}
 
 	return m, nil, false

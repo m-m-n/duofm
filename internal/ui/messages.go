@@ -126,3 +126,22 @@ type recursivePermissionCompleteMsg struct {
 	successCount int
 	errors       []fs.PermissionError
 }
+
+// openWithXDGMsg notifies to open file with xdg-open
+type openWithXDGMsg struct {
+	file    string // file path
+	workDir string // working directory
+}
+
+// openWithFinishedMsg notifies the completion of open operation
+type openWithFinishedMsg struct {
+	err error // error if any
+}
+
+// openWithDialogResultMsg notifies the result of open with dialog
+type openWithDialogResultMsg struct {
+	application string   // application name with options
+	files       []string // files to open
+	workDir     string   // working directory
+	cancelled   bool     // true if cancelled
+}

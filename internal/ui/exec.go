@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -70,4 +72,59 @@ func executeShellCommand(command, workDir string) tea.Cmd {
 	return tea.ExecProcess(shellCmd, func(err error) tea.Msg {
 		return shellCommandFinishedMsg{err: err}
 	})
+}
+
+// openWithXDG launches xdg-open with the specified file in background
+func openWithXDG(file, workDir string) tea.Cmd {
+	return func() tea.Msg {
+		cmd := exec.Command("xdg-open", file)
+		cmd.Dir = workDir
+
+		// Start process in background (don't wait for completion)
+		err := cmd.Start()
+		if err != nil {
+			return openWithFinishedMsg{err: err}
+		}
+
+		// Reap process in background to avoid zombies
+		go func() {
+			_ = cmd.Wait() // Ignore error - we only care about successful launch
+		}()
+
+		return openWithFinishedMsg{err: nil}
+	}
+}
+
+// openWithCustom launches a custom application with files in background
+func openWithCustom(application string, files []string, workDir string) tea.Cmd {
+	return func() tea.Msg {
+		// Parse application string (may include options)
+		parts := strings.Fields(application)
+		if len(parts) == 0 {
+			return openWithFinishedMsg{err: fmt.Errorf("application field cannot be empty")}
+		}
+
+		// First element is command, rest are options
+		command := parts[0]
+		args := parts[1:]
+
+		// Append files as separate arguments
+		args = append(args, files...)
+
+		cmd := exec.Command(command, args...)
+		cmd.Dir = workDir
+
+		// Start process in background (don't wait for completion)
+		err := cmd.Start()
+		if err != nil {
+			return openWithFinishedMsg{err: err}
+		}
+
+		// Reap process in background to avoid zombies
+		go func() {
+			_ = cmd.Wait() // Ignore error - we only care about successful launch
+		}()
+
+		return openWithFinishedMsg{err: nil}
+	}
 }
