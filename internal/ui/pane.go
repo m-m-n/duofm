@@ -349,3 +349,38 @@ func (p *Pane) GetPendingPath() string {
 func hasHiddenPrefix(name string) bool {
 	return strings.HasPrefix(name, ".")
 }
+
+// calculateCursorAfterDeletion calculates the optimal cursor position after file deletion.
+//
+// Parameters:
+//   - deletedIndex: The reference position for cursor calculation
+//   - For single file deletion: The cursor position before deletion
+//   - For multiple file deletion: The smallest index among marked files (first marked file)
+//
+// Returns:
+//   - int: The new cursor position (0-indexed), guaranteed to be within valid bounds [0, len(entries)-1]
+//
+// Behavior:
+//   - If deletedIndex is still valid (< len(entries)): Returns deletedIndex (next file takes its place)
+//   - If deletedIndex >= len(entries): Returns last entry index (len(entries)-1)
+//   - If entries is empty: Returns 0 (defensive fallback)
+//   - Negative deletedIndex is clamped to 0 (defensive)
+func (p *Pane) calculateCursorAfterDeletion(deletedIndex int) int {
+	// Defensive: handle negative index
+	if deletedIndex < 0 {
+		deletedIndex = 0
+	}
+
+	// If deletedIndex is still valid (there are files after the deleted position)
+	if deletedIndex < len(p.entries) {
+		return deletedIndex
+	}
+
+	// If we're beyond the end, go to last entry
+	if len(p.entries) > 0 {
+		return len(p.entries) - 1
+	}
+
+	// Empty directory (should not happen, but handle gracefully)
+	return 0
+}
