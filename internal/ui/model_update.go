@@ -490,27 +490,66 @@ func (m Model) executeDeleteOperation() Model {
 	markedFiles := activePane.GetMarkedFiles()
 
 	if len(markedFiles) > 0 {
+		// Find the smallest index among marked files (first marked file position)
+		minMarkedIndex := -1
+		for i, entry := range activePane.entries {
+			if activePane.markedFiles[entry.Name] {
+				if minMarkedIndex == -1 || i < minMarkedIndex {
+					minMarkedIndex = i
+				}
+			}
+		}
+
+		// Delete multiple files
 		var deleteErr error
+		successCount := 0
 		for _, name := range markedFiles {
 			fullPath := filepath.Join(activePane.Path(), name)
 			if err := deleteFile(fullPath); err != nil {
 				deleteErr = err
 				break
 			}
+			successCount++
 		}
+
+		// Only reload and clear marks if at least one file was deleted successfully
+		if successCount > 0 {
+			activePane.ClearMarks()
+			activePane.LoadDirectory()
+
+			// Calculate and set new cursor position based on first marked file position
+			if minMarkedIndex >= 0 {
+				newCursor := activePane.calculateCursorAfterDeletion(minMarkedIndex)
+				activePane.SetCursor(newCursor)
+				activePane.EnsureCursorVisible()
+			}
+		}
+
+		// Show error dialog if any deletion failed
 		if deleteErr != nil {
-			m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", deleteErr))
+			if successCount > 0 {
+				m.dialog = NewErrorDialog(fmt.Sprintf("Partially failed to delete: %v (deleted %d of %d files)", deleteErr, successCount, len(markedFiles)))
+			} else {
+				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", deleteErr))
+			}
 		}
-		activePane.ClearMarks()
-		activePane.LoadDirectory()
 	} else {
 		entry := activePane.SelectedEntry()
 		if entry != nil && !entry.IsParentDir() {
+			// Remember cursor position before deletion
+			cursorBeforeDeletion := activePane.cursor
+
 			fullPath := filepath.Join(activePane.Path(), entry.Name)
 			if err := deleteFile(fullPath); err != nil {
 				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
+				// Don't reload or adjust cursor on error for single file
 			} else {
 				activePane.LoadDirectory()
+
+				// Calculate and set new cursor position
+				newCursor := activePane.calculateCursorAfterDeletion(cursorBeforeDeletion)
+				activePane.SetCursor(newCursor)
+				activePane.EnsureCursorVisible()
 			}
 		}
 	}
