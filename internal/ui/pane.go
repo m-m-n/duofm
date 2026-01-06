@@ -133,9 +133,58 @@ func (p *Pane) MoveCursorUp() {
 	}
 }
 
+// MoveCursorPageDown moves cursor down by one page (visible lines)
+func (p *Pane) MoveCursorPageDown() {
+	if len(p.entries) == 0 {
+		return
+	}
+
+	visibleLines := p.getVisibleLines()
+	newCursor := p.cursor + visibleLines
+
+	// Clamp to valid range
+	if newCursor >= len(p.entries) {
+		newCursor = len(p.entries) - 1
+	}
+
+	if newCursor != p.cursor && newCursor >= 0 {
+		p.cursor = newCursor
+		p.adjustScroll()
+	}
+}
+
+// MoveCursorPageUp moves cursor up by one page (visible lines)
+func (p *Pane) MoveCursorPageUp() {
+	if len(p.entries) == 0 {
+		return
+	}
+
+	visibleLines := p.getVisibleLines()
+	newCursor := p.cursor - visibleLines
+
+	// Clamp to valid range
+	if newCursor < 0 {
+		newCursor = 0
+	}
+
+	if newCursor != p.cursor {
+		p.cursor = newCursor
+		p.adjustScroll()
+	}
+}
+
+// getVisibleLines returns the number of lines visible in the pane
+func (p *Pane) getVisibleLines() int {
+	visibleLines := p.height - 4 // header(2) + border(1) + status(1) = 4
+	if visibleLines < 1 {
+		return 1 // Minimum 1 line
+	}
+	return visibleLines
+}
+
 // adjustScroll はスクロール位置を調整
 func (p *Pane) adjustScroll() {
-	visibleLines := p.height - 4 // ヘッダー2行 + ボーダー1行 = 3行を除く
+	visibleLines := p.getVisibleLines()
 
 	// カーソルが表示範囲外に出たらスクロール
 	if p.cursor < p.scrollOffset {

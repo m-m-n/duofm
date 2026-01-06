@@ -1,7 +1,7 @@
 package config
 
 // DefaultKeybindings returns the default keybindings map.
-// All 28 actions are defined with their default key assignments.
+// All 32 actions are defined with their default key assignments.
 func DefaultKeybindings() map[string][]string {
 	return map[string][]string{
 		// Navigation
@@ -10,6 +10,8 @@ func DefaultKeybindings() map[string][]string {
 		"move_left":  {"H", "Left"},
 		"move_right": {"L", "Right"},
 		"enter":      {"Enter"},
+		"page_down":  {"Ctrl+D", "PageDown"},
+		"page_up":    {"Ctrl+U", "PageUp"},
 
 		// File operations
 		"copy":          {"C"},
@@ -65,6 +67,8 @@ func AllActions() []string {
 		"move_left",
 		"move_right",
 		"enter",
+		"page_down",
+		"page_up",
 		"copy",
 		"move",
 		"delete",

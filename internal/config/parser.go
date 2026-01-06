@@ -17,6 +17,8 @@ var specialKeyMap = map[string]string{
 	"down":      "down",
 	"left":      "left",
 	"right":     "right",
+	"pageup":    "pgup",
+	"pagedown":  "pgdown",
 }
 
 // functionKeyRegex matches function keys like F1, F5, F12.
