@@ -73,7 +73,7 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 	b.WriteString("\n")
 
 	// ファイルリスト（ミニバッファ表示時は1行少なく）
-	visibleLines := p.height - 4 // ヘッダー2行 + ボーダー1行 = 3行
+	visibleLines := p.getVisibleLines()
 	if minibuffer != nil && minibuffer.IsVisible() {
 		visibleLines-- // ミニバッファ分1行減らす
 	}

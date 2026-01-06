@@ -3,7 +3,7 @@ package ui
 // Action represents a user action that can be triggered by a keybinding.
 type Action int
 
-// Action constants for all 28 actions plus ActionNone.
+// Action constants for all 32 actions plus ActionNone.
 const (
 	ActionNone Action = iota
 	// Navigation
@@ -12,6 +12,8 @@ const (
 	ActionMoveLeft
 	ActionMoveRight
 	ActionEnter
+	ActionPageDown
+	ActionPageUp
 	// File operations
 	ActionCopy
 	ActionMove
@@ -58,6 +60,8 @@ var actionNames = map[Action]string{
 	ActionMoveLeft:       "move_left",
 	ActionMoveRight:      "move_right",
 	ActionEnter:          "enter",
+	ActionPageDown:       "page_down",
+	ActionPageUp:         "page_up",
 	ActionCopy:           "copy",
 	ActionMove:           "move",
 	ActionDelete:         "delete",
@@ -95,6 +99,8 @@ var nameToAction = map[string]Action{
 	"move_left":       ActionMoveLeft,
 	"move_right":      ActionMoveRight,
 	"enter":           ActionEnter,
+	"page_down":       ActionPageDown,
+	"page_up":         ActionPageUp,
 	"copy":            ActionCopy,
 	"move":            ActionMove,
 	"delete":          ActionDelete,

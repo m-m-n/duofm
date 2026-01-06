@@ -51,9 +51,9 @@ func (d *HelpDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			d.scrollDown(1)
 		case "k", "up":
 			d.scrollUp(1)
-		case " ":
+		case " ", "ctrl+d", "pgdown":
 			d.scrollDown(d.visibleHeight)
-		case "shift+space":
+		case "shift+space", "ctrl+u", "pgup":
 			d.scrollUp(d.visibleHeight)
 		case "g":
 			d.scrollOffset = 0

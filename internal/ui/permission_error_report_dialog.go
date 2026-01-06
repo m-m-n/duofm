@@ -66,7 +66,7 @@ func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-		case tea.KeyPgDown:
+		case tea.KeyCtrlD, tea.KeyPgDown:
 			// Page Down
 			maxOffset := len(d.errors) - d.visibleLines
 			if maxOffset < 0 {
@@ -77,7 +77,7 @@ func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				d.scrollOffset = maxOffset
 			}
 
-		case tea.KeyPgUp:
+		case tea.KeyCtrlU, tea.KeyPgUp:
 			// Page Up
 			d.scrollOffset -= d.visibleLines
 			if d.scrollOffset < 0 {

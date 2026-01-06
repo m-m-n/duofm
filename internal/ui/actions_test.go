@@ -14,6 +14,8 @@ func TestAction_String(t *testing.T) {
 		{ActionNone, "none"},
 		{ActionMoveDown, "move_down"},
 		{ActionMoveUp, "move_up"},
+		{ActionPageDown, "page_down"},
+		{ActionPageUp, "page_up"},
 		{ActionQuit, "quit"},
 	}
 
@@ -145,6 +147,8 @@ func TestActionFromName(t *testing.T) {
 		}{
 			{"move_down", ActionMoveDown},
 			{"move_up", ActionMoveUp},
+			{"page_down", ActionPageDown},
+			{"page_up", ActionPageUp},
 			{"quit", ActionQuit},
 			{"help", ActionHelp},
 			{"copy", ActionCopy},
@@ -238,4 +242,45 @@ func TestKeybindingMap_UnknownActionInConfig(t *testing.T) {
 	if km.GetAction("q") != ActionQuit {
 		t.Error("Known action should be mapped correctly")
 	}
+}
+
+func TestPageScrollActions(t *testing.T) {
+	t.Run("page_down and page_up in DefaultKeybindingMap", func(t *testing.T) {
+		km := DefaultKeybindingMap()
+
+		tests := []struct {
+			key      string
+			expected Action
+		}{
+			{"ctrl+d", ActionPageDown},
+			{"pgdown", ActionPageDown},
+			{"ctrl+u", ActionPageUp},
+			{"pgup", ActionPageUp},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.key, func(t *testing.T) {
+				got := km.GetAction(tt.key)
+				if got != tt.expected {
+					t.Errorf("GetAction(%q) = %v, want %v", tt.key, got, tt.expected)
+				}
+			})
+		}
+	})
+
+	t.Run("page_down and page_up action conversion", func(t *testing.T) {
+		if ActionPageDown.String() != "page_down" {
+			t.Errorf("ActionPageDown.String() = %q, want %q", ActionPageDown.String(), "page_down")
+		}
+		if ActionPageUp.String() != "page_up" {
+			t.Errorf("ActionPageUp.String() = %q, want %q", ActionPageUp.String(), "page_up")
+		}
+
+		if ActionFromName("page_down") != ActionPageDown {
+			t.Errorf("ActionFromName(page_down) = %v, want %v", ActionFromName("page_down"), ActionPageDown)
+		}
+		if ActionFromName("page_up") != ActionPageUp {
+			t.Errorf("ActionFromName(page_up) = %v, want %v", ActionFromName("page_up"), ActionPageUp)
+		}
+	})
 }

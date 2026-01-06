@@ -145,6 +145,14 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		m.getActivePane().MoveCursorUp()
 		return m, nil
 
+	case ActionPageDown:
+		m.getActivePane().MoveCursorPageDown()
+		return m, nil
+
+	case ActionPageUp:
+		m.getActivePane().MoveCursorPageUp()
+		return m, nil
+
 	case ActionMoveLeft:
 		return m.handleMoveLeft()
 
