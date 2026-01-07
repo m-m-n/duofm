@@ -67,6 +67,7 @@ graph TB
 - Parent directory navigation with `..`
 - Cursor position remembered when navigating to parent directory
 - Browser-like directory history with forward/back navigation (Alt+←/Alt+→ or [/])
+- Page scrolling with Ctrl+D/U and PageUp/PageDown keys
 
 #### Directory History
 - Independent history stack for each pane (up to 100 entries)
@@ -210,6 +211,8 @@ Press `@` to show context menu with:
 - New directory
 - Compress (with format selection)
 - Extract archive (for archive files)
+- Open file (with external application)
+- Open with (custom command)
 - Symlink-specific options (logical/physical path)
 - Supports marked files for batch operations
 - Number keys 1-9 for direct selection
@@ -268,7 +271,7 @@ Press `@` to show context menu with:
 Press `?` for help dialog with:
 - Complete keybinding reference
 - Grouped by category
-- Scrollable with j/k, Space/Shift+Space
+- Scrollable with j/k, Space/Shift+Space, Ctrl+D/U, PageUp/PageDown
 - Color palette reference (256 colors with hex values)
 - Page indicator for scroll position
 
@@ -314,6 +317,7 @@ All dialogs follow consistent UI patterns:
 - Scrollable keybinding reference
 - Color palette with hex values
 - Page indicators
+- Scrollable with page up/down keys
 
 #### Sort Dialog
 - Two-row selection interface
@@ -369,6 +373,8 @@ All dialogs follow consistent UI patterns:
 | K / Up | Move cursor up |
 | H / Left | Left pane / Parent directory |
 | L / Right | Right pane / Parent directory |
+| Ctrl+D / PageDown | Scroll down one page |
+| Ctrl+U / PageUp | Scroll up one page |
 | Enter | Enter directory / View file |
 | ~ | Go to home directory |
 | - | Go to previous directory |
@@ -432,6 +438,8 @@ All dialogs follow consistent UI patterns:
 [keybindings]
 move_down = ["J", "Down"]
 move_up = ["K", "Up"]
+page_down = ["Ctrl+D", "PageDown"]
+page_up = ["Ctrl+U", "PageUp"]
 copy = ["C"]
 delete = ["D"]
 help = ["?"]
@@ -529,6 +537,9 @@ east_asian_ambiguous_width = 1
 - Efficient sorting with directory-first ordering
 - History limited to 100 entries per pane
 - No performance degradation with 1000+ files
+- Page scroll response time < 50ms
+- Single file permission change < 50ms
+- Recursive permission processing > 500 files/second
 
 ## Security Considerations
 

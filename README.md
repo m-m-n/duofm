@@ -4,46 +4,54 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 
 ## Features
 
-### Core
-- **Dual-pane interface**: Navigate two directories side-by-side
-- **Vim-style keybindings**: Familiar hjkl navigation with arrow key support
-- **File operations**: Copy, move, delete, rename files and directories
-- **Permission editing**: Change file/directory permissions (chmod) with Shift+P, including recursive mode
-- **File creation**: Create new files (N) and directories (Shift+N)
-- **Multi-file marking**: Select multiple files with Space for batch operations
-- **Symbolic link support**: Display targets, detect broken links, navigate to physical/logical paths
-- **Overwrite handling**: Smart conflict resolution with overwrite, skip, or rename options
-- **Archive operations**: Create and extract tar, tar.gz, tar.bz2, tar.xz, zip, and 7z archives (Linux only)
+- **Core File Management**
+  - Dual-pane interface: Navigate two directories side-by-side
+  - Vim-style keybindings: Familiar hjkl navigation with arrow key support
+  - File operations: Copy, move, delete, rename files and directories
+  - Permission editing: Change permissions (chmod) with Shift+P, including recursive mode
+  - File creation: Create new files (N) and directories (Shift+N)
+  - Multi-file marking: Select multiple files with Space for batch operations
+  - Symbolic link support: Display targets, detect broken links, navigate to physical/logical paths
+  - Overwrite handling: Smart conflict resolution with overwrite, skip, or rename options
 
-### Navigation
-- **Search & Filter**: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
-- **Directory history**: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
-- **Hidden files**: Toggle visibility with `Ctrl+H`
-- **Quick navigation**: Home (`~`), previous directory (`-`), sync panes (`=`)
-- **Sort options**: By name, size, or date with live preview
-- **Bookmarks**: Save and jump to frequently used directories (`B`/`Shift+B`)
-- **Smart cursor**: Remember position when navigating to parent directory
-- **Refresh**: Reload directory contents with F5 or Ctrl+R
+- **Navigation & Search**
+  - Search & Filter: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
+  - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
+  - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
+  - Hidden files: Toggle visibility with `Ctrl+H`
+  - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
+  - Sort options: By name, size, or date with live preview
+  - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
+  - Smart cursor: Remember position when navigating to parent directory
+  - Refresh: Reload directory contents with F5 or Ctrl+R
 
-### Display
-- **Three display modes**: Minimal, Basic (size+date), Detail (permissions+owner)
-- **Unicode support**: Proper display for Japanese, Chinese, Korean and emoji
-- **East Asian Width**: Configurable width for ambiguous characters
-- **Context menu**: Press `@` for visual action selection with number key shortcuts
-- **Help system**: Press `?` for scrollable keybinding reference with color palette
-- **Dialog overlays**: Dimmed background keeps file list visible during dialogs
+- **Archive Operations** (Linux only)
+  - Create archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
+  - Extract archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
+  - Smart extraction: Adapts to archive structure
+  - Compression levels: Choose from 0-9 for supported formats
+  - Security checks: Zip bomb detection, disk space validation
 
-### Integration
-- **External viewer**: Open files with $PAGER (`V` key or `Enter`)
-- **External editor**: Edit files with $EDITOR (`E` key)
-- **Shell commands**: Execute commands with `!` key in current directory
-- **Working directory**: External apps open in file's directory
+- **Display & UI**
+  - Three display modes: Minimal, Basic (size+date), Detail (permissions+owner)
+  - Unicode support: Proper display for Japanese, Chinese, Korean and emoji
+  - East Asian Width: Configurable width for ambiguous characters
+  - Context menu: Press `@` for visual action selection with number key shortcuts
+  - Help system: Press `?` for scrollable keybinding reference with color palette
+  - Dialog overlays: Dimmed background keeps file list visible during dialogs
 
-### Customization
-- **Configuration file**: `~/.config/duofm/config.toml` (auto-generated)
-- **Custom keybindings**: Remap any key with modifier support (Ctrl, Shift, Alt)
-- **Color theme**: Full 256-color customization for all UI elements
-- **Bookmarks**: Persisted in configuration file with edit/delete support
+- **External Integration**
+  - External viewer: Open files with $PAGER (`V` key or `Enter`)
+  - External editor: Edit files with $EDITOR (`E` key)
+  - Shell commands: Execute commands with `!` key in current directory
+  - Context menu actions: Open and "Open with" for custom applications
+  - Working directory: External apps open in file's directory
+
+- **Customization**
+  - Configuration file: `~/.config/duofm/config.toml` (auto-generated)
+  - Custom keybindings: Remap any key with modifier support (Ctrl, Shift, Alt)
+  - Color theme: Full 256-color customization for all UI elements
+  - Bookmarks: Persisted in configuration file with edit/delete support
 
 ## Screenshots
 
