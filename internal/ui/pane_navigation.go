@@ -470,15 +470,17 @@ func (p *Pane) NavigateHistoryBack() error {
 		return nil // 履歴がない場合は何もしない
 	}
 
-	// 履歴ナビゲーションではpreviousPathを更新しない（独立動作）
-	// また、addToHistoryも呼ばない（履歴ナビゲーション自体は記録しない）
+	// previousPath を更新して - キーで戻れるようにする
+	// addToHistoryは呼ばない（履歴ナビゲーション自体は記録しない）
 	oldPath := p.path // エラー時の復元用
+	p.previousPath = p.path
 	p.path = path
 
 	// ディレクトリが存在するか確認
 	if err := p.LoadDirectory(); err != nil {
 		// エラーの場合はパスと履歴位置を元に戻す（ナビゲーションをキャンセル）
 		p.path = oldPath
+		p.previousPath = "" // エラー時はpreviousPathもリセット
 		p.history.NavigateForward()
 		return err
 	}
@@ -495,15 +497,17 @@ func (p *Pane) NavigateHistoryForward() error {
 		return nil // 履歴がない場合は何もしない
 	}
 
-	// 履歴ナビゲーションではpreviousPathを更新しない（独立動作）
-	// また、addToHistoryも呼ばない（履歴ナビゲーション自体は記録しない）
+	// previousPath を更新して - キーで戻れるようにする
+	// addToHistoryは呼ばない（履歴ナビゲーション自体は記録しない）
 	oldPath := p.path // エラー時の復元用
+	p.previousPath = p.path
 	p.path = path
 
 	// ディレクトリが存在するか確認
 	if err := p.LoadDirectory(); err != nil {
 		// エラーの場合はパスと履歴位置を元に戻す（ナビゲーションをキャンセル）
 		p.path = oldPath
+		p.previousPath = "" // エラー時はpreviousPathもリセット
 		p.history.NavigateBack()
 		return err
 	}
@@ -522,7 +526,8 @@ func (p *Pane) NavigateHistoryBackAsync() tea.Cmd {
 	p.pendingCursorTarget = ""
 
 	// 履歴ナビゲーションでは addToHistory を呼ばない（isHistoryNavigation=trueで識別）
-	// 履歴ナビゲーションでは previousPath を更新しない（- キーとは独立動作）
+	// previousPath を更新して - キーで戻れるようにする
+	p.previousPath = p.path
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
@@ -541,7 +546,8 @@ func (p *Pane) NavigateHistoryForwardAsync() tea.Cmd {
 	p.pendingCursorTarget = ""
 
 	// 履歴ナビゲーションでは addToHistory を呼ばない（isHistoryNavigation=trueで識別）
-	// 履歴ナビゲーションでは previousPath を更新しない（- キーとは独立動作）
+	// previousPath を更新して - キーで戻れるようにする
+	p.previousPath = p.path
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
