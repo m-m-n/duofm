@@ -2846,3 +2846,110 @@ func TestPane_InactivePane(t *testing.T) {
 		t.Error("View should not be empty for inactive pane")
 	}
 }
+
+// TestHistoryNavigationUpdatesPreviousPath tests that history navigation
+// ([ and ]) updates previousPath so that - key can return to the directory
+// before history navigation was used.
+func TestHistoryNavigationUpdatesPreviousPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	dirA := filepath.Join(tmpDir, "dirA")
+	dirB := filepath.Join(tmpDir, "dirB")
+	os.Mkdir(dirA, 0755)
+	os.Mkdir(dirB, 0755)
+
+	pane, err := NewPane(LeftPane, dirA, 40, 20, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane failed: %v", err)
+	}
+
+	t.Run("NavigateHistoryBack updates previousPath", func(t *testing.T) {
+		// Setup: A -> B (history: [A, B], current=B, previousPath=A)
+		pane.path = dirA
+		pane.previousPath = ""
+		pane.history = NewDirectoryHistory()
+		pane.history.AddToHistory(dirA)
+
+		// Move to B
+		pane.recordPreviousPath()
+		pane.path = dirB
+		pane.history.AddToHistory(dirB)
+
+		// Verify state before history navigation
+		if pane.path != dirB {
+			t.Fatalf("path = %s, want %s", pane.path, dirB)
+		}
+		if pane.previousPath != dirA {
+			t.Fatalf("previousPath = %s, want %s", pane.previousPath, dirA)
+		}
+
+		// Use [ to go back to A
+		pane.NavigateHistoryBack()
+
+		// After history back: path=A, previousPath should be B (so - can return to B)
+		if pane.path != dirA {
+			t.Errorf("after history back, path = %s, want %s", pane.path, dirA)
+		}
+		if pane.previousPath != dirB {
+			t.Errorf("after history back, previousPath = %s, want %s (so - key can return to B)", pane.previousPath, dirB)
+		}
+
+		// Now - key should toggle to B
+		pane.NavigateToPrevious()
+		if pane.path != dirB {
+			t.Errorf("after - key, path = %s, want %s", pane.path, dirB)
+		}
+	})
+
+	t.Run("NavigateHistoryForward updates previousPath", func(t *testing.T) {
+		// Reset state
+		pane.path = dirA
+		pane.previousPath = ""
+		pane.history = NewDirectoryHistory()
+		pane.history.AddToHistory(dirA)
+		pane.history.AddToHistory(dirB)
+		pane.path = dirB
+
+		// Go back first
+		pane.NavigateHistoryBack()
+		if pane.path != dirA {
+			t.Fatalf("after back, path = %s, want %s", pane.path, dirA)
+		}
+
+		// previousPath should now be B (from the back operation)
+		if pane.previousPath != dirB {
+			t.Fatalf("after back, previousPath = %s, want %s", pane.previousPath, dirB)
+		}
+
+		// Now go forward to B
+		pane.NavigateHistoryForward()
+		if pane.path != dirB {
+			t.Errorf("after forward, path = %s, want %s", pane.path, dirB)
+		}
+
+		// previousPath should now be A (from the forward operation)
+		if pane.previousPath != dirA {
+			t.Errorf("after forward, previousPath = %s, want %s", pane.previousPath, dirA)
+		}
+	})
+
+	t.Run("NavigateHistoryBackAsync updates previousPath", func(t *testing.T) {
+		// Reset state
+		pane.path = dirB
+		pane.previousPath = dirA
+		pane.history = NewDirectoryHistory()
+		pane.history.AddToHistory(dirA)
+		pane.history.AddToHistory(dirB)
+
+		// Use async back
+		pane.NavigateHistoryBackAsync()
+
+		// path changes immediately in async version
+		if pane.path != dirA {
+			t.Errorf("after async back, path = %s, want %s", pane.path, dirA)
+		}
+		// previousPath should be updated to B
+		if pane.previousPath != dirB {
+			t.Errorf("after async back, previousPath = %s, want %s", pane.previousPath, dirB)
+		}
+	})
+}
