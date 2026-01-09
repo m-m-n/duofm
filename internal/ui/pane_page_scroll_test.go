@@ -251,9 +251,9 @@ func TestGetVisibleLines(t *testing.T) {
 		{"Normal height", 24, 20},
 		{"Small height", 10, 6},
 		{"Very small height", 5, 1},
-		{"Minimum height", 4, 1},     // height - 4 = 0, clamped to 1
-		{"Tiny height", 3, 1},        // height - 4 = -1, clamped to 1
-		{"Extremely tiny", 1, 1},     // height - 4 = -3, clamped to 1
+		{"Minimum height", 4, 1}, // height - 4 = 0, clamped to 1
+		{"Tiny height", 3, 1},    // height - 4 = -1, clamped to 1
+		{"Extremely tiny", 1, 1}, // height - 4 = -3, clamped to 1
 	}
 
 	for _, tt := range tests {

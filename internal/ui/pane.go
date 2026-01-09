@@ -55,6 +55,7 @@ type Pane struct {
 	theme               *Theme           // カラーテーマ
 	pendingCursorTarget string           // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
 	history             DirectoryHistory // ディレクトリ履歴（ブラウザ風のback/forward）
+	gitBranch           string           // 現在のGitブランチ名（Git管理外では空文字列）
 }
 
 // NewPane は新しいペインを作成
@@ -113,6 +114,9 @@ func (p *Pane) LoadDirectory() error {
 	p.scrollOffset = 0
 	// Clear marks on directory change
 	p.markedFiles = make(map[string]bool)
+
+	// Gitブランチを更新
+	p.gitBranch = fs.GetGitBranch(p.path)
 
 	return nil
 }

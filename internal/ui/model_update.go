@@ -8,6 +8,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/sakura/duofm/internal/archive"
+	"github.com/sakura/duofm/internal/fs"
 )
 
 // Update はメッセージを処理してモデルを更新
@@ -916,6 +917,9 @@ func (m Model) handleDirectoryLoadComplete(msg directoryLoadCompleteMsg) (tea.Mo
 	targetPane.scrollOffset = 0
 	targetPane.adjustScroll()
 	targetPane.pendingPath = ""
+
+	// Gitブランチを更新
+	targetPane.gitBranch = fs.GetGitBranch(targetPane.path)
 
 	if !msg.isHistoryNavigation {
 		targetPane.addToHistory()

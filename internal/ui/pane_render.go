@@ -28,17 +28,8 @@ func (p *Pane) ViewWithMinibuffer(diskSpace uint64, minibuffer *Minibuffer) stri
 func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 	var b strings.Builder
 
-	// パス表示（ホームディレクトリは ~ に置換）
-	displayPath := p.formatPath()
-	// 隠しファイル表示中は [H] インジケーターを追加
-	if p.showHidden {
-		displayPath = "[H] " + displayPath
-	}
-	// フィルタ適用中はインジケーターを追加
-	if p.IsFiltered() {
-		filterIndicator := p.formatFilterIndicator()
-		displayPath = filterIndicator + " " + displayPath
-	}
+	// ヘッダー1行目: パス + Gitブランチ
+	headerLine1 := p.renderHeaderLine1()
 	pathStyle := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
@@ -50,7 +41,7 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 		pathStyle = pathStyle.Foreground(p.theme.PathFgInactive)
 	}
 
-	b.WriteString(pathStyle.Render(displayPath))
+	b.WriteString(pathStyle.Render(headerLine1))
 	b.WriteString("\n")
 
 	// ヘッダー2行目（マーク情報と空き容量、またはローディング）
@@ -130,6 +121,100 @@ func (p *Pane) formatPath() string {
 		return "~" + strings.TrimPrefix(p.path, home)
 	}
 	return p.path
+}
+
+// renderHeaderLine1 はヘッダー1行目（パス + Gitブランチ）をレンダリング
+func (p *Pane) renderHeaderLine1() string {
+	// パス表示（ホームディレクトリは ~ に置換）
+	displayPath := p.formatPath()
+
+	// 隠しファイル表示中は [H] インジケーターを追加
+	if p.showHidden {
+		displayPath = "[H] " + displayPath
+	}
+
+	// フィルタ適用中はインジケーターを追加
+	if p.IsFiltered() {
+		filterIndicator := p.formatFilterIndicator()
+		displayPath = filterIndicator + " " + displayPath
+	}
+
+	// ブランチ表示がない場合はパスのみ返す
+	if p.gitBranch == "" {
+		return displayPath
+	}
+
+	// ブランチ表示を構築 [branch]
+	branchDisplay := "[" + p.gitBranch + "]"
+
+	// 利用可能な幅を計算（パディング分を除く）
+	availableWidth := p.width - 4 // 左右パディング(1+1) + 余白
+
+	pathWidth := runewidth.StringWidth(displayPath)
+	branchWidth := runewidth.StringWidth(branchDisplay)
+
+	// パスとブランチの間に最低1スペース必要
+	minTotalWidth := pathWidth + 1 + branchWidth
+
+	if minTotalWidth <= availableWidth {
+		// 十分なスペースがある場合: パス + パディング + ブランチ
+		padding := availableWidth - pathWidth - branchWidth
+		return displayPath + strings.Repeat(" ", padding) + branchDisplay
+	}
+
+	// スペースが不足する場合: パスを切り詰めてブランチを優先
+	// 最小限必要: ブランチ幅 + 1スペース + 切り詰め記号(...)分
+	maxPathWidth := availableWidth - branchWidth - 1
+	if maxPathWidth < 4 {
+		// パス表示スペースが極端に狭い場合はブランチのみ
+		return branchDisplay
+	}
+
+	// パスを切り詰め
+	truncatedPath := truncateStringWithEllipsis(displayPath, maxPathWidth)
+	truncatedPathWidth := runewidth.StringWidth(truncatedPath)
+	padding := availableWidth - truncatedPathWidth - branchWidth
+	if padding < 1 {
+		padding = 1
+	}
+
+	return truncatedPath + strings.Repeat(" ", padding) + branchDisplay
+}
+
+// truncateStringWithEllipsis は文字列を指定幅に切り詰め、省略記号(...)を追加する
+// 文字列が指定幅に収まる場合は切り詰めずにそのまま返す
+func truncateStringWithEllipsis(s string, maxWidth int) string {
+	// 文字列の実際の表示幅を計算
+	stringWidth := runewidth.StringWidth(s)
+
+	// 文字列が指定幅に収まる場合は切り詰め不要
+	if stringWidth <= maxWidth {
+		return s
+	}
+
+	// 極端に狭い場合は省略記号のみ
+	if maxWidth <= 3 {
+		return "..."[:maxWidth]
+	}
+
+	currentWidth := 0
+	var result strings.Builder
+	ellipsis := "..."
+	ellipsisWidth := 3
+
+	targetWidth := maxWidth - ellipsisWidth
+
+	for _, r := range s {
+		rw := runewidth.RuneWidth(r)
+		if currentWidth+rw > targetWidth {
+			break
+		}
+		result.WriteRune(r)
+		currentWidth += rw
+	}
+
+	result.WriteString(ellipsis)
+	return result.String()
 }
 
 // renderHeaderLine2 はヘッダー2行目（マーク情報と空き容量）をレンダリング
@@ -319,12 +404,8 @@ func (p *Pane) formatDetailEntry(entry fs.FileEntry, nameWidth int) string {
 func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	var b strings.Builder
 
-	// パス表示（暗いスタイル）
-	displayPath := p.formatPath()
-	// 隠しファイル表示中は [H] インジケーターを追加
-	if p.showHidden {
-		displayPath = "[H] " + displayPath
-	}
+	// ヘッダー1行目（パス + Gitブランチ、暗いスタイル）
+	headerLine1 := p.renderHeaderLine1()
 	pathStyle := lipgloss.NewStyle().
 		Width(p.width-2).
 		Padding(0, 1).
@@ -332,7 +413,7 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 		Background(p.theme.DimmedBg).
 		Foreground(p.theme.DimmedFg)
 
-	b.WriteString(pathStyle.Render(displayPath))
+	b.WriteString(pathStyle.Render(headerLine1))
 	b.WriteString("\n")
 
 	// ヘッダー2行目（マーク情報と空き容量）
