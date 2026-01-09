@@ -351,6 +351,13 @@ All dialogs follow consistent UI patterns:
 
 - Dynamic version from build-time ldflags
 - Displayed in toolbar and `--version` CLI option
+- Build-time version injection via -ldflags
+
+### Git Branch Display
+
+- Shows active Git branch in status bar when in a Git repository
+- Updates when navigating between directories
+- Indicator appears in right side of status bar
 
 ### Special Features
 

@@ -39,6 +39,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Context menu: Press `@` for visual action selection with number key shortcuts
   - Help system: Press `?` for scrollable keybinding reference with color palette
   - Dialog overlays: Dimmed background keeps file list visible during dialogs
+  - Git branch display: Shows active branch in status bar when in Git repository
 
 - **External Integration**
   - External viewer: Open files with $PAGER (`V` key or `Enter`)
