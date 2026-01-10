@@ -40,6 +40,11 @@ func (m Model) handleCustomMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return newModel, cmd, true
 	}
 
+	// Path Jump関連メッセージ
+	if newModel, cmd, handled := m.handlePathJumpMessages(msg); handled {
+		return newModel, cmd, true
+	}
+
 	// アーカイブ関連メッセージ
 	if newModel, cmd, handled := m.handleArchiveMessages(msg); handled {
 		return newModel, cmd, true
@@ -619,6 +624,24 @@ func (m Model) handleBookmarkMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		m.statusMessage = fmt.Sprintf("Bookmark updated: %s", result.alias)
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second), true
+	}
+
+	return m, nil, false
+}
+
+// handlePathJumpMessages はPath Jump関連のメッセージを処理する
+func (m Model) handlePathJumpMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
+	// Path Jumpジャンプ
+	if result, ok := msg.(pathJumpResultMsg); ok {
+		m.dialog = nil
+		cmd := m.getActivePane().ChangeDirectoryAsync(result.path)
+		return m, cmd, true
+	}
+
+	// Path Jumpキャンセル
+	if _, ok := msg.(pathJumpCancelMsg); ok {
+		m.dialog = nil
+		return m, nil, true
 	}
 
 	return m, nil, false

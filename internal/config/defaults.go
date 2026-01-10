@@ -56,6 +56,9 @@ func DefaultKeybindings() map[string][]string {
 
 		// Permission edit
 		"permission": {"P", "Shift+P"},
+
+		// Path navigation
+		"path_jump": {"Ctrl+J"},
 	}
 }
 
@@ -97,5 +100,6 @@ func AllActions() []string {
 		"bookmark",
 		"add_bookmark",
 		"permission",
+		"path_jump",
 	}
 }

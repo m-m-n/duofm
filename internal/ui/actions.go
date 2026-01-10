@@ -50,6 +50,8 @@ const (
 	ActionAddBookmark
 	// Permission edit
 	ActionPermission
+	// Path navigation
+	ActionPathJump
 )
 
 // actionNames maps Action values to their string names.
@@ -90,6 +92,7 @@ var actionNames = map[Action]string{
 	ActionBookmark:       "bookmark",
 	ActionAddBookmark:    "add_bookmark",
 	ActionPermission:     "permission",
+	ActionPathJump:       "path_jump",
 }
 
 // nameToAction maps string names to Action values.
@@ -129,6 +132,7 @@ var nameToAction = map[string]Action{
 	"bookmark":        ActionBookmark,
 	"add_bookmark":    ActionAddBookmark,
 	"permission":      ActionPermission,
+	"path_jump":       ActionPathJump,
 }
 
 // String returns the string name of the action.

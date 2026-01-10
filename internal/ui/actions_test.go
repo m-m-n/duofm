@@ -244,6 +244,30 @@ func TestKeybindingMap_UnknownActionInConfig(t *testing.T) {
 	}
 }
 
+func TestActionPathJump(t *testing.T) {
+	t.Run("ActionFromName returns ActionPathJump", func(t *testing.T) {
+		got := ActionFromName("path_jump")
+		if got != ActionPathJump {
+			t.Errorf("ActionFromName(\"path_jump\") = %v, want %v", got, ActionPathJump)
+		}
+	})
+
+	t.Run("ActionPathJump.String returns path_jump", func(t *testing.T) {
+		got := ActionPathJump.String()
+		if got != "path_jump" {
+			t.Errorf("ActionPathJump.String() = %q, want %q", got, "path_jump")
+		}
+	})
+
+	t.Run("DefaultKeybindingMap maps Ctrl+J to ActionPathJump", func(t *testing.T) {
+		km := DefaultKeybindingMap()
+		got := km.GetAction("ctrl+j")
+		if got != ActionPathJump {
+			t.Errorf("GetAction(\"ctrl+j\") = %v, want %v", got, ActionPathJump)
+		}
+	})
+}
+
 func TestPageScrollActions(t *testing.T) {
 	t.Run("page_down and page_up in DefaultKeybindingMap", func(t *testing.T) {
 		km := DefaultKeybindingMap()
