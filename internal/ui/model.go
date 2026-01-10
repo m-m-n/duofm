@@ -44,8 +44,12 @@ type Model struct {
 	minibuffer  *Minibuffer // ミニバッファ
 
 	// Input state
-	ctrlCPending     bool // Ctrl+Cが1回押された状態かどうか
-	shellCommandMode bool // シェルコマンドモードかどうか
+	ctrlCPending         bool // Ctrl+Cが1回押された状態かどうか
+	shellCommandMode     bool // シェルコマンドモードかどうか
+	historySearching     bool // 履歴検索モードかどうか
+	historySearchPattern string
+	shellHistory         *ShellHistory
+	historySearcher      *HistorySearcher
 
 	// Dialogs
 	sortDialog *SortDialog // ソートダイアログ（nil = 非表示）
@@ -77,11 +81,12 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil)
+	return NewModelWithConfig(nil, nil, nil, 0)
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string) Model {
+// historyLimit: 0=無効、>0=履歴エントリ数上限
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -107,6 +112,20 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 	bookmarkManager, bookmarkWarnings := NewBookmarkManager()
 	warnings = append(warnings, bookmarkWarnings...)
 
+	// シェルコマンド履歴を初期化
+	var shellHistory *ShellHistory
+	if historyLimit > 0 {
+		historyPath, err := getHistoryPath()
+		if err != nil {
+			warnings = append(warnings, fmt.Sprintf("Warning: could not get history path: %v", err))
+		} else {
+			shellHistory = NewShellHistory(historyPath, historyLimit)
+			if err := shellHistory.Load(); err != nil {
+				warnings = append(warnings, fmt.Sprintf("Warning: could not load history: %v", err))
+			}
+		}
+	}
+
 	return Model{
 		leftPane:         nil, // Updateで初期化
 		rightPane:        nil, // Updateで初期化
@@ -124,7 +143,22 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		bookmarkManager:  bookmarkManager,
 		batchOpManager:   NewBatchOperationManager(),
 		archiveOpManager: NewArchiveOperationManager(),
+		shellHistory:     shellHistory,
 	}
+}
+
+// getHistoryPath returns the shell command history file path.
+func getHistoryPath() (string, error) {
+	// Use XDG_CONFIG_HOME or fall back to ~/.config
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		configDir = filepath.Join(home, ".config")
+	}
+	return filepath.Join(configDir, "duofm", "history"), nil
 }
 
 // Init はBubble Teaの初期化
