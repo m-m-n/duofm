@@ -73,6 +73,16 @@ func (m Model) handleSearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 // handleShellCommandInput はシェルコマンドモードの入力を処理
 func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Handle Ctrl+R for history search
+	if msg.Type == tea.KeyCtrlR {
+		return m.handleHistorySearch()
+	}
+
+	// In history search mode, handle input differently
+	if m.historySearching {
+		return m.handleHistorySearchInput(msg)
+	}
+
 	switch msg.Type {
 	case tea.KeyEnter:
 		command := m.minibuffer.Input()
@@ -84,6 +94,12 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		workDir := m.getActivePane().Path()
 		m.shellCommandMode = false
 		m.minibuffer.Hide()
+
+		// Add to history before executing
+		if m.shellHistory != nil && m.shellHistory.IsEnabled() {
+			m.shellHistory.Add(command)
+		}
+
 		return m, executeShellCommand(command, workDir)
 
 	case tea.KeyEsc, tea.KeyCtrlC:
@@ -97,9 +113,118 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// handleHistorySearch handles Ctrl+R press in shell command mode
+func (m Model) handleHistorySearch() (tea.Model, tea.Cmd) {
+	// If history is disabled or not initialized, do nothing
+	if m.shellHistory == nil || !m.shellHistory.IsEnabled() {
+		return m, nil
+	}
+
+	if !m.historySearching {
+		// Start history search mode
+		m.historySearching = true
+		m.historySearchPattern = ""
+		m.historySearcher = NewHistorySearcher(m.shellHistory)
+		m.minibuffer.SetPrompt("(bck-i-search): ")
+		m.minibuffer.Clear()
+	} else {
+		// Already in search mode - move to next match
+		if m.historySearcher != nil {
+			next := m.historySearcher.Next()
+			if next != "" {
+				m.minibuffer.SetInput(next)
+			}
+		}
+	}
+
+	return m, nil
+}
+
+// handleHistorySearchInput handles input during history search mode
+func (m Model) handleHistorySearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyEnter:
+		// Execute the selected command
+		command := m.minibuffer.Input()
+		m.historySearching = false
+		m.historySearchPattern = ""
+		m.historySearcher = nil
+		m.shellCommandMode = false
+		m.minibuffer.Hide()
+
+		if command == "" {
+			return m, nil
+		}
+
+		workDir := m.getActivePane().Path()
+
+		// Add to history before executing
+		if m.shellHistory != nil && m.shellHistory.IsEnabled() {
+			m.shellHistory.Add(command)
+		}
+
+		return m, executeShellCommand(command, workDir)
+
+	case tea.KeyEsc, tea.KeyCtrlC:
+		// Cancel history search, return to shell command mode
+		m.historySearching = false
+		m.historySearchPattern = ""
+		m.historySearcher = nil
+		m.minibuffer.SetPrompt("!: ")
+		m.minibuffer.Clear()
+		return m, nil
+
+	case tea.KeyBackspace:
+		// Handle backspace - update search pattern
+		if len(m.historySearchPattern) > 0 {
+			runes := []rune(m.historySearchPattern)
+			m.historySearchPattern = string(runes[:len(runes)-1])
+		}
+		m.updateHistorySearch()
+		return m, nil
+
+	case tea.KeyRunes:
+		// Regular input - update search pattern
+		m.historySearchPattern += string(msg.Runes)
+		m.updateHistorySearch()
+		return m, nil
+
+	case tea.KeySpace:
+		// Space input - update search pattern
+		m.historySearchPattern += " "
+		m.updateHistorySearch()
+		return m, nil
+
+	default:
+		return m, nil
+	}
+}
+
+// updateHistorySearch updates the history search based on current pattern
+func (m *Model) updateHistorySearch() {
+	if m.historySearcher == nil {
+		return
+	}
+
+	m.historySearcher.SetPattern(m.historySearchPattern)
+
+	// Get current match and display it
+	current := m.historySearcher.Current()
+	if current != "" {
+		m.minibuffer.SetInput(current)
+	} else {
+		// No match - clear input but keep showing pattern being typed
+		m.minibuffer.SetInput("")
+	}
+}
+
 // handleCtrlC はCtrl+Cのダブルプレスを処理
 func (m Model) handleCtrlC() (tea.Model, tea.Cmd) {
 	if m.ctrlCPending {
+		// Close shell history before quitting
+		if m.shellHistory != nil {
+			m.shellHistory.Close()
+		}
 		return m, tea.Quit
 	}
 	m.ctrlCPending = true
@@ -119,6 +244,10 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionQuit:
+		// Close shell history before quitting
+		if m.shellHistory != nil {
+			m.shellHistory.Close()
+		}
 		return m, tea.Quit
 
 	case ActionHelp:

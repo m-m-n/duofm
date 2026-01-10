@@ -318,3 +318,92 @@ func containsHelper(s, substr string) bool {
 	}
 	return false
 }
+
+// Tests for HistoryLimit configuration
+func TestLoadConfig_HistoryLimitDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default history_limit should be 20000
+	if cfg.HistoryLimit != 20000 {
+		t.Errorf("HistoryLimit = %d, want 20000", cfg.HistoryLimit)
+	}
+}
+
+func TestLoadConfig_HistoryLimitExplicit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `history_limit = 5000
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.HistoryLimit != 5000 {
+		t.Errorf("HistoryLimit = %d, want 5000", cfg.HistoryLimit)
+	}
+}
+
+func TestLoadConfig_HistoryLimitZero(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `history_limit = 0
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// history_limit = 0 should disable history
+	if cfg.HistoryLimit != 0 {
+		t.Errorf("HistoryLimit = %d, want 0", cfg.HistoryLimit)
+	}
+}
+
+func TestLoadConfig_HistoryLimitFileNotExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "nonexistent", "config.toml")
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default history_limit should be 20000
+	if cfg.HistoryLimit != 20000 {
+		t.Errorf("HistoryLimit = %d, want 20000", cfg.HistoryLimit)
+	}
+}

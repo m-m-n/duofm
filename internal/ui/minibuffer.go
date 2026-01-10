@@ -58,6 +58,13 @@ func (m *Minibuffer) Input() string {
 	return m.input
 }
 
+// SetInput sets the input text from external source and moves cursor to end.
+// This is used for history search to display selected commands.
+func (m *Minibuffer) SetInput(input string) {
+	m.input = input
+	m.cursorPos = len([]rune(input))
+}
+
 // IsVisible returns whether the minibuffer is visible
 func (m *Minibuffer) IsVisible() bool {
 	return m.visible
