@@ -45,8 +45,9 @@ func main() {
 		cfg, warnings = config.LoadConfig(configPath)
 	} else {
 		cfg = &config.Config{
-			Keybindings: config.DefaultKeybindings(),
-			Colors:      config.DefaultColors(),
+			Keybindings:  config.DefaultKeybindings(),
+			Colors:       config.DefaultColors(),
+			HistoryLimit: config.DefaultHistoryLimit,
 		}
 	}
 
@@ -61,7 +62,7 @@ func main() {
 	theme := ui.NewTheme(cfg.Colors)
 
 	p := tea.NewProgram(
-		ui.NewModelWithConfig(keybindingMap, theme, warnings),
+		ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit),
 		tea.WithAltScreen(),       // 代替画面バッファを使用
 		tea.WithMouseCellMotion(), // マウスサポート（将来用）
 	)

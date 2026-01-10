@@ -168,6 +168,7 @@ func (d *HelpDialog) buildContent() []string {
 	lines = append(lines, "  Space          : mark/unmark file")
 	lines = append(lines, "  @              : show context menu")
 	lines = append(lines, "  !              : execute shell command")
+	lines = append(lines, "  Ctrl+R (in !) : search command history")
 	lines = append(lines, "")
 	lines = append(lines, "Display & Search")
 	lines = append(lines, "  I              : toggle info mode")
