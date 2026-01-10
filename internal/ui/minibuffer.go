@@ -32,6 +32,11 @@ func (m *Minibuffer) SetPrompt(prompt string) {
 	m.prompt = prompt
 }
 
+// Prompt returns the current prompt text
+func (m *Minibuffer) Prompt() string {
+	return m.prompt
+}
+
 // SetWidth sets the display width
 func (m *Minibuffer) SetWidth(width int) {
 	m.width = width
@@ -197,10 +202,7 @@ func (m *Minibuffer) View() string {
 		if m.cursorPos > availableWidth-1 {
 			startPos = m.cursorPos - availableWidth + 1
 		}
-		endPos := startPos + availableWidth
-		if endPos > len(runes) {
-			endPos = len(runes)
-		}
+		endPos := min(startPos+availableWidth, len(runes))
 		displayInput = string(runes[startPos:endPos])
 		cursorDisplayPos = m.cursorPos - startPos
 	}

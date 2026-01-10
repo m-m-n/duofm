@@ -83,6 +83,14 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleHistorySearchInput(msg)
 	}
 
+	// Handle Up/Down arrow keys for history navigation
+	if msg.Type == tea.KeyUp {
+		return m.handleHistoryUp()
+	}
+	if msg.Type == tea.KeyDown {
+		return m.handleHistoryDown()
+	}
+
 	switch msg.Type {
 	case tea.KeyEnter:
 		command := m.minibuffer.Input()
@@ -113,6 +121,59 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// handleHistoryUp handles Up arrow key for history navigation in shell command mode
+func (m Model) handleHistoryUp() (tea.Model, tea.Cmd) {
+	// Check if history is enabled and non-empty
+	if m.shellHistory == nil || !m.shellHistory.IsEnabled() {
+		return m, nil
+	}
+
+	commands := m.shellHistory.Commands()
+	if len(commands) == 0 {
+		return m, nil
+	}
+
+	// If this is the first navigation (historyIndex == -1), save current input
+	if m.historyIndex == -1 {
+		m.historyEditBuf = m.minibuffer.Input()
+	}
+
+	// Navigate to older command if not at the oldest
+	if m.historyIndex < len(commands)-1 {
+		m.historyIndex++
+		m.minibuffer.SetInput(commands[m.historyIndex])
+	}
+
+	return m, nil
+}
+
+// handleHistoryDown handles Down arrow key for history navigation in shell command mode
+func (m Model) handleHistoryDown() (tea.Model, tea.Cmd) {
+	// If not navigating history, do nothing
+	if m.historyIndex < 0 {
+		return m, nil
+	}
+
+	// Navigate to newer command
+	m.historyIndex--
+
+	if m.historyIndex == -1 {
+		// Restore original input
+		m.minibuffer.SetInput(m.historyEditBuf)
+	} else {
+		// Show command at new index (defensive check for nil shellHistory)
+		if m.shellHistory == nil {
+			return m, nil
+		}
+		commands := m.shellHistory.Commands()
+		if m.historyIndex < len(commands) {
+			m.minibuffer.SetInput(commands[m.historyIndex])
+		}
+	}
+
+	return m, nil
+}
+
 // handleHistorySearch handles Ctrl+R press in shell command mode
 func (m Model) handleHistorySearch() (tea.Model, tea.Cmd) {
 	// If history is disabled or not initialized, do nothing
@@ -125,7 +186,7 @@ func (m Model) handleHistorySearch() (tea.Model, tea.Cmd) {
 		m.historySearching = true
 		m.historySearchPattern = ""
 		m.historySearcher = NewHistorySearcher(m.shellHistory)
-		m.minibuffer.SetPrompt("(bck-i-search): ")
+		m.minibuffer.SetPrompt("(reverse-i-search)'': ")
 		m.minibuffer.Clear()
 	} else {
 		// Already in search mode - move to next match
@@ -207,6 +268,9 @@ func (m *Model) updateHistorySearch() {
 	}
 
 	m.historySearcher.SetPattern(m.historySearchPattern)
+
+	// Update prompt to show current pattern (bash-style format)
+	m.minibuffer.SetPrompt("(reverse-i-search)'" + m.historySearchPattern + "': ")
 
 	// Get current match and display it
 	current := m.historySearcher.Current()
