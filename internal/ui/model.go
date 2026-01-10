@@ -50,6 +50,8 @@ type Model struct {
 	historySearchPattern string
 	shellHistory         *ShellHistory
 	historySearcher      *HistorySearcher
+	historyIndex         int    // History navigation position: -1=at input, 0+=history positions
+	historyEditBuf       string // Preserve original input before navigation
 
 	// Dialogs
 	sortDialog *SortDialog // ソートダイアログ（nil = 非表示）
@@ -218,6 +220,8 @@ func (m *Model) updateDiskSpace() {
 // startShellCommandMode はシェルコマンドモードを開始する
 func (m *Model) startShellCommandMode() {
 	m.shellCommandMode = true
+	m.historyIndex = -1   // Reset navigation position
+	m.historyEditBuf = "" // Clear edit buffer
 	m.minibuffer.SetPrompt("!: ")
 	m.minibuffer.Clear()
 	m.minibuffer.SetWidth(m.getActivePane().width)

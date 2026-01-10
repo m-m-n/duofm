@@ -31,6 +31,11 @@ func (hs *HistorySearcher) SetPattern(pattern string) {
 	hs.matchIndex = 0
 }
 
+// Pattern returns the current search pattern.
+func (hs *HistorySearcher) Pattern() string {
+	return hs.pattern
+}
+
 // Current returns the currently matched command, or empty string if no match.
 func (hs *HistorySearcher) Current() string {
 	if len(hs.matches) == 0 || hs.matchIndex < 0 || hs.matchIndex >= len(hs.matches) {
