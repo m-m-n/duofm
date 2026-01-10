@@ -421,6 +421,10 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 
 	case ActionPermission:
 		return m.handlePermission()
+
+	case ActionPathJump:
+		m.dialog = NewPathJumpDialog()
+		return m, nil
 	}
 
 	return m, nil

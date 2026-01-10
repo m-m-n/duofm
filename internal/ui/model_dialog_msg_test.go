@@ -668,6 +668,121 @@ func TestModelUpdateMessageTypes(t *testing.T) {
 	})
 }
 
+// === Path Jump Dialog Tests ===
+
+func TestActionPathJump_OpensDialog(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press Ctrl+J
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlJ}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be PathJumpDialog
+	if m.dialog == nil {
+		t.Fatal("dialog should not be nil after Ctrl+J")
+	}
+
+	_, isPathJumpDialog := m.dialog.(*PathJumpDialog)
+	if !isPathJumpDialog {
+		t.Error("dialog should be PathJumpDialog")
+	}
+}
+
+func TestPathJumpResultMsg_ChangesDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, "target")
+	if err := os.Mkdir(targetDir, 0755); err != nil {
+		t.Fatalf("Failed to create target directory: %v", err)
+	}
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set PathJumpDialog
+	m.dialog = NewPathJumpDialog()
+
+	// Send pathJumpResultMsg
+	resultMsg := pathJumpResultMsg{path: targetDir}
+	updatedModel, cmd := m.Update(resultMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be cleared
+	if m.dialog != nil {
+		t.Error("dialog should be nil after pathJumpResultMsg")
+	}
+
+	// Should return a command to change directory
+	if cmd == nil {
+		t.Error("pathJumpResultMsg should return a command to change directory")
+	}
+}
+
+func TestPathJumpCancelMsg_ClearsDialog(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Set PathJumpDialog
+	m.dialog = NewPathJumpDialog()
+
+	// Send pathJumpCancelMsg
+	cancelMsg := pathJumpCancelMsg{}
+	updatedModel, _ = m.Update(cancelMsg)
+	m = updatedModel.(Model)
+
+	// Dialog should be cleared
+	if m.dialog != nil {
+		t.Error("dialog should be nil after pathJumpCancelMsg")
+	}
+}
+
+func TestPathJumpDialog_NavigationWorksAfterClose(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model := NewModel()
+	model.leftPath = tmpDir
+	model.rightPath = tmpDir
+	msg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Open and close dialog
+	m.dialog = NewPathJumpDialog()
+	cancelMsg := pathJumpCancelMsg{}
+	updatedModel, _ = m.Update(cancelMsg)
+	m = updatedModel.(Model)
+
+	// Get initial cursor position
+	initialCursor := m.getActivePane().cursor
+
+	// Try to navigate with j key
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Cursor should have moved (navigation works)
+	if m.getActivePane().cursor == initialCursor && len(m.getActivePane().entries) > 1 {
+		t.Error("navigation should work after dialog close - cursor didn't move")
+	}
+}
+
 func TestModelUpdateMoreMessages(t *testing.T) {
 	tmpDir := t.TempDir()
 	os.WriteFile(filepath.Join(tmpDir, "test.txt"), []byte("test"), 0644)
