@@ -390,7 +390,7 @@ func TestModelRenderMethods(t *testing.T) {
 
 func TestModelInitWithWarnings(t *testing.T) {
 	t.Run("calls Init without panic", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"})
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0)
 		cmd := model.Init()
 		// Init returns nil
 		if cmd != nil {
@@ -399,7 +399,7 @@ func TestModelInitWithWarnings(t *testing.T) {
 	})
 
 	t.Run("configWarnings are stored", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"})
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0)
 		if len(model.configWarnings) != 1 {
 			t.Errorf("Expected 1 warning, got %d", len(model.configWarnings))
 		}
