@@ -14,6 +14,7 @@
       "Bash(wc:*)",
       "Bash(make:*)",
       "Bash(mkdir:*)",
+      "Bash(echo:*)",
       "Bash(grep:*)"
     ],
     "ask": [
