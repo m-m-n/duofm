@@ -28,6 +28,7 @@ type rawConfig struct {
 // LoadConfig loads the configuration from the specified path.
 // If the file does not exist, returns default configuration.
 // If parsing fails, returns default configuration with a warning.
+// Missing configuration items are automatically merged into the file.
 func LoadConfig(path string) (*Config, []string) {
 	var warnings []string
 
@@ -41,6 +42,11 @@ func LoadConfig(path string) (*Config, []string) {
 	if _, err := toml.DecodeFile(path, &raw); err != nil {
 		warnings = append(warnings, fmt.Sprintf("Warning: config parse error, using defaults: %v", err))
 		return defaultConfig(), warnings
+	}
+
+	// Merge missing configuration items into the file
+	if err := MergeConfig(path, &raw); err != nil {
+		warnings = append(warnings, fmt.Sprintf("Warning: failed to merge config: %v", err))
 	}
 
 	// Start with defaults
