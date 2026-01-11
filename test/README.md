@@ -2,6 +2,123 @@
 
 This document provides guidelines for AI agents when writing and executing tests for duofm.
 
+## Test Strategy Overview
+
+### Current Coverage Status
+
+| Package | Coverage | Target | Priority |
+|---------|----------|--------|----------|
+| `internal/fs` | 87.9% | 95%+ | High |
+| `internal/archive` | 80.8% | 90%+ | High |
+| `internal/ui` | 79.4% | 85%+ | Medium |
+| `internal/config` | 74.6% | 80%+ | Low |
+| **Total** | **80.0%** | 85%+ | - |
+
+### Quality Principles
+
+**Coverage numbers are secondary to test depth on critical paths.**
+
+For a file manager that performs destructive operations (delete, move, overwrite), the priority is:
+1. **Error handling coverage** over happy path coverage
+2. **Edge case coverage** over percentage metrics
+3. **Security tests** for path traversal, symlinks, and archive extraction
+
+## Priority Areas for 100% Coverage
+
+### 1. Critical Path Functions (MUST be 100%)
+
+These functions perform destructive or security-sensitive operations:
+
+```
+internal/fs/
+├── operations.go
+│   ├── CopyFile()      - Currently tested, verify overwrite cases
+│   ├── MoveFile()      - Add EXDEV (cross-device) fallback test
+│   ├── DeleteFile()    - Add permission denied cases
+│   └── Delete()        - Recursive delete edge cases
+├── symlink.go
+│   └── All functions   - Symlink escape prevention
+└── permissions.go
+    └── All functions   - Permission modification safety
+
+internal/archive/
+├── smart_extractor.go
+│   ├── Extract()       - Path traversal, zip bombs
+│   └── GetArchiveMetadata() - Currently 44.4%, needs improvement
+└── security.go
+    └── All functions   - Currently good, extend to hardlinks
+```
+
+### 2. High-Value Missing Tests
+
+| Function | File | Current | Issue |
+|----------|------|---------|-------|
+| `handleContextMenuResult` | model_update.go | 35.9% | Menu branch coverage |
+| `extract` | smart_extractor.go | 53.1% | Error handling |
+| `GetArchiveMetadata` | smart_extractor.go | 44.4% | Edge cases |
+| `Delete` | bookmark_manager.go | 42.9% | Error propagation |
+
+### 3. Commonly Overlooked Test Cases
+
+Based on security review and second opinion analysis:
+
+#### File Operations
+- [ ] Cross-device move (`rename` fails with EXDEV) and copy+delete fallback
+- [ ] Destination already exists (file vs directory, case sensitivity)
+- [ ] Permission denied with clean error propagation (no partial corruption)
+- [ ] Partial failure during recursive copy (cleanup behavior)
+- [ ] Long paths, Unicode filenames, reserved names
+
+#### Symlink Handling
+- [ ] Copy/move symlink without following target
+- [ ] Delete symlink without deleting target
+- [ ] Symlink pointing outside destination during extraction
+
+#### Archive Extraction
+- [ ] Windows-style backslash paths in archives
+- [ ] Hardlink entries in tar archives
+- [ ] Zip bombs with high compression ratio
+- [ ] Interrupted extraction cleanup
+
+#### UI Operations
+- [ ] Confirmation dialogs for destructive operations
+- [ ] Overwrite/skip/rename conflict resolution
+- [ ] Error message display and recovery
+
+### 4. Test Depth Requirements
+
+For each critical function, ensure tests cover:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Test Coverage Depth                   │
+├─────────────────────────────────────────────────────────┤
+│ Level 1: Happy Path                                      │
+│   └── Normal operation with valid input                  │
+│                                                          │
+│ Level 2: Input Validation                                │
+│   ├── Empty input                                        │
+│   ├── Nil/null values                                    │
+│   └── Invalid format                                     │
+│                                                          │
+│ Level 3: Edge Cases                                      │
+│   ├── Boundary values                                    │
+│   ├── Unicode/special characters                         │
+│   └── Maximum sizes                                      │
+│                                                          │
+│ Level 4: Error Conditions                                │
+│   ├── Permission denied                                  │
+│   ├── Disk full                                          │
+│   ├── File not found                                     │
+│   └── Concurrent access                                  │
+│                                                          │
+│ Level 5: Security                                        │
+│   ├── Path traversal attempts                            │
+│   ├── Symlink attacks                                    │
+│   └── Resource exhaustion                                │
+└─────────────────────────────────────────────────────────┘
+```
+
 ## Test Framework
 
 - **Unit Tests**: Go standard `testing` package
@@ -233,3 +350,55 @@ test_error_handling() {
 3. **Terminal compatibility**: Some key combinations (like `Alt+Arrow`) may not work in all terminals. Always test with alternative keys when available.
 
 4. **Cleanup**: The `run_test` helper automatically cleans up tmux sessions, but individual tests should still call `stop_duofm`.
+
+## Test Quality Checklist
+
+Before considering a function fully tested, verify:
+
+### Unit Tests
+- [ ] Happy path with valid input
+- [ ] Empty/nil input handling
+- [ ] Boundary values (0, max, negative)
+- [ ] Error return values are tested
+- [ ] Error messages are meaningful
+
+### File Operation Tests
+- [ ] Source file doesn't exist
+- [ ] Destination already exists
+- [ ] Permission denied (read/write/execute)
+- [ ] Cross-device operation (if applicable)
+- [ ] Symlink handling
+
+### UI Tests
+- [ ] Initial state verification
+- [ ] State after user action
+- [ ] Emitted commands are correct (not just non-nil)
+- [ ] Error state display
+- [ ] Recovery from error state
+
+### Security Tests
+- [ ] Path traversal prevention
+- [ ] Symlink escape prevention
+- [ ] Resource limits enforced
+- [ ] Input sanitization
+
+## Metrics and Goals
+
+### Coverage Targets by Priority
+
+| Priority | Package | Current | Target | Gap |
+|----------|---------|---------|--------|-----|
+| P0 | fs/operations.go | ~85% | 100% | Critical functions |
+| P0 | archive/security.go | ~90% | 100% | Security functions |
+| P1 | fs/symlink.go | ~80% | 95% | Symlink safety |
+| P1 | archive/smart_extractor.go | ~60% | 90% | Extraction |
+| P2 | ui/model_operations.go | ~70% | 85% | File operations UI |
+| P2 | config/bookmark.go | ~75% | 85% | Bookmark persistence |
+| P3 | Other UI components | ~80% | 80% | Maintain |
+
+### Quality Metrics
+
+Beyond coverage percentage, track:
+- **Assertion density**: Tests should have meaningful assertions, not just "runs without panic"
+- **Edge case ratio**: At least 40% of tests should cover edge cases or errors
+- **Mock isolation**: File system tests should use `t.TempDir()` consistently
