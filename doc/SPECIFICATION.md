@@ -199,6 +199,10 @@ Three display modes toggled with `I` key:
 - Working directory: active pane's directory
 - "Press Enter to continue" after execution
 - Both panes reload after exit
+- Command history with Ctrl+R incremental search
+- Bash-style up/down arrow key navigation through history
+- Search pattern displayed during Ctrl+R: `(reverse-i-search)'pattern': command`
+- History persisted across sessions
 
 ### Context Menu
 
@@ -223,7 +227,17 @@ Press `@` to show context menu with:
 - Location: `~/.config/duofm/config.toml`
 - Respects `XDG_CONFIG_HOME` environment variable
 - Auto-generated with defaults on first run
+- Auto-merge: Missing configuration items automatically added to existing config files
 - Changes require application restart
+
+#### Enter Key Behavior Configuration
+- Configurable action when pressing Enter on files
+- Three modes available:
+  - `less` (default): Open with pager in foreground
+  - `xdg-open`: Open with system default application in background
+  - `path:/path/to/app`: Open with custom application in foreground
+- Setting: `enter_behavior` in config.toml
+- Invalid values fall back to default with warning
 
 #### Keybindings
 - All keys customizable via `[keybindings]` section
@@ -261,6 +275,14 @@ Press `@` to show context menu with:
 #### Pane Synchronization (=)
 - Sync opposite pane to current directory
 - Preserves display settings (hidden files, sort order)
+
+#### Path Jump Dialog (Ctrl+J)
+- Direct navigation to any directory by typing full path
+- Bash-style inline Tab completion with filesystem suggestions
+- Real-time directory suggestions as you type
+- Only suggests directories (not files)
+- Error handling for invalid paths with clear messages
+- Dialog remains open on errors to allow correction
 
 #### Refresh (F5 / Ctrl+R)
 - Reload current directory
@@ -387,6 +409,7 @@ All dialogs follow consistent UI patterns:
 | - | Go to previous directory |
 | Alt+← / [ | Navigate backward in history |
 | Alt+→ / ] | Navigate forward in history |
+| Ctrl+J | Open path jump dialog |
 | F5 / Ctrl+R | Refresh |
 | = | Sync panes |
 
@@ -455,6 +478,7 @@ bookmark = ["B"]
 add_bookmark = ["Shift+B"]
 history_back = ["Alt+Left", "["]
 history_forward = ["Alt+Right", "]"]
+path_jump = ["Ctrl+J"]
 context_menu = ["@"]
 permission = ["Shift+P"]
 ```
@@ -509,6 +533,17 @@ path = "/path/to/Downloads"
 # Ambiguous character width: 1 or 2
 # Controls display width for ambiguous East Asian characters
 east_asian_ambiguous_width = 1
+```
+
+### Enter Key Behavior Section
+
+```toml
+# Enter key behavior when opening files
+# Options:
+#   "less"     - Open with pager (foreground, default)
+#   "xdg-open" - Open with system default app (background)
+#   "path:/path/to/app" - Open with custom app (foreground)
+enter_behavior = "less"
 ```
 
 ## Technical Requirements
@@ -572,6 +607,14 @@ east_asian_ambiguous_width = 1
 - E2E tests for user workflows
 - Table-driven tests for common patterns
 - Test coverage target: 80%+
+- Recent coverage improvements:
+  - Overall coverage: 77.4%+ and growing
+  - Archive operations: 80.8%
+  - File system operations: 87.9%
+  - UI components: 76.0%+
+  - Configuration management: 73.6%+
+  - Comprehensive tests for permission handling (security focus)
+  - Manager components fully tested (archive, batch, bookmark)
 
 ## Future Extensibility
 

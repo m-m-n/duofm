@@ -17,6 +17,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **Navigation & Search**
   - Search & Filter: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
+  - Path jump: Direct navigation to any directory with `Ctrl+J` and Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
   - Hidden files: Toggle visibility with `Ctrl+H`
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
@@ -42,16 +43,18 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Git branch display: Shows active branch in status bar when in Git repository
 
 - **External Integration**
-  - External viewer: Open files with $PAGER (`V` key or `Enter`)
+  - External viewer: Configurable Enter key behavior (pager, xdg-open, or custom app)
   - External editor: Edit files with $EDITOR (`E` key)
   - Shell commands: Execute commands with `!` key in current directory
+  - Shell history: Ctrl+R incremental search and up/down arrow navigation
   - Context menu actions: Open and "Open with" for custom applications
   - Working directory: External apps open in file's directory
 
 - **Customization**
-  - Configuration file: `~/.config/duofm/config.toml` (auto-generated)
+  - Configuration file: `~/.config/duofm/config.toml` (auto-generated with auto-merge)
   - Custom keybindings: Remap any key with modifier support (Ctrl, Shift, Alt)
   - Color theme: Full 256-color customization for all UI elements
+  - Enter key behavior: Choose between pager, xdg-open, or custom application
   - Bookmarks: Persisted in configuration file with edit/delete support
 
 ## Screenshots
