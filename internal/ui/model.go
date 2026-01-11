@@ -61,8 +61,9 @@ type Model struct {
 	batchOpManager *BatchOperationManager // Batch copy/move manager (delegated)
 
 	// Configuration
-	keybindingMap *KeybindingMap // キーバインドマップ
-	theme         *Theme         // カラーテーマ
+	keybindingMap *KeybindingMap       // キーバインドマップ
+	theme         *Theme               // カラーテーマ
+	enterBehavior config.EnterBehavior // Enterキーの動作設定
 
 	// Bookmarks (delegated)
 	bookmarkManager *BookmarkManager
@@ -83,12 +84,13 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil, 0)
+	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior())
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
 // historyLimit: 0=無効、>0=履歴エントリ数上限
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int) Model {
+// enterBehavior: Enterキー押下時のファイルオープン動作
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -142,6 +144,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		keybindingMap:    keybindingMap,
 		configWarnings:   warnings,
 		theme:            theme,
+		enterBehavior:    enterBehavior,
 		bookmarkManager:  bookmarkManager,
 		batchOpManager:   NewBatchOperationManager(),
 		archiveOpManager: NewArchiveOperationManager(),

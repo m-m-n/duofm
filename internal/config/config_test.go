@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -405,5 +406,165 @@ func TestLoadConfig_HistoryLimitFileNotExists(t *testing.T) {
 	// Default history_limit should be 20000
 	if cfg.HistoryLimit != 20000 {
 		t.Errorf("HistoryLimit = %d, want 20000", cfg.HistoryLimit)
+	}
+}
+
+// Tests for EnterBehavior configuration
+func TestLoadConfig_EnterBehaviorDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default enter_behavior should be "less"
+	if cfg.EnterBehavior.Type != EnterBehaviorLess {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess", cfg.EnterBehavior.Type)
+	}
+}
+
+func TestLoadConfig_EnterBehaviorLess(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "less"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, warnings := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Should have no warnings for valid value
+	for _, w := range warnings {
+		if strings.Contains(w, "enter_behavior") {
+			t.Errorf("Unexpected warning about enter_behavior: %s", w)
+		}
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorLess {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess", cfg.EnterBehavior.Type)
+	}
+}
+
+func TestLoadConfig_EnterBehaviorXDGOpen(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "xdg-open"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorXDGOpen {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorXDGOpen", cfg.EnterBehavior.Type)
+	}
+}
+
+func TestLoadConfig_EnterBehaviorCustom(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "path:/usr/bin/vim"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorCustom {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorCustom", cfg.EnterBehavior.Type)
+	}
+
+	if cfg.EnterBehavior.CustomPath != "/usr/bin/vim" {
+		t.Errorf("EnterBehavior.CustomPath = %q, want /usr/bin/vim", cfg.EnterBehavior.CustomPath)
+	}
+}
+
+func TestLoadConfig_EnterBehaviorInvalid(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "unknown"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, warnings := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Should have warning for invalid value
+	hasWarning := false
+	for _, w := range warnings {
+		if strings.Contains(w, "enter_behavior") && strings.Contains(w, "invalid") {
+			hasWarning = true
+			break
+		}
+	}
+	if !hasWarning {
+		t.Error("Expected warning for invalid enter_behavior value")
+	}
+
+	// Should fall back to default (less)
+	if cfg.EnterBehavior.Type != EnterBehaviorLess {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess (default)", cfg.EnterBehavior.Type)
+	}
+}
+
+func TestLoadConfig_EnterBehaviorFileNotExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "nonexistent", "config.toml")
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default enter_behavior should be "less"
+	if cfg.EnterBehavior.Type != EnterBehaviorLess {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess", cfg.EnterBehavior.Type)
 	}
 }

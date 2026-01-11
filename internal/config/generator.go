@@ -12,6 +12,13 @@ const defaultConfigTemplate = `# duofm configuration file
 # Key format: Uppercase letters, symbols as-is, PascalCase for special keys
 # Example: "J", "?", "Enter", "Ctrl+H"
 
+# Enter key behavior when opening files
+# Options:
+#   "less"     - Open with pager (foreground, default)
+#   "xdg-open" - Open with system default app (background)
+#   "path:/path/to/app" - Open with custom app (foreground)
+enter_behavior = "less"
+
 [keybindings]
 
 # Navigation

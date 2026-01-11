@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/config"
 )
 
 // handleKeyInput はキーボード入力を処理する
@@ -451,16 +452,34 @@ func (m Model) handleMoveRight() (tea.Model, tea.Cmd) {
 }
 
 // handleEnter はEnterキーを処理
+// EnterBehavior設定に基づいてファイルを開く動作を決定:
+//   - less: ページャーで開く（フォアグラウンド、デフォルト）
+//   - xdg-open: システムのデフォルトアプリで開く（バックグラウンド）
+//   - path:XXX: 指定されたアプリケーションで開く（フォアグラウンド）
 func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	entry := m.getActivePane().SelectedEntry()
 	if entry != nil && !entry.IsParentDir() && !entry.IsDir {
 		fullPath := filepath.Join(m.getActivePane().Path(), entry.Name)
-		if err := checkReadPermission(fullPath); err != nil {
-			m.statusMessage = fmt.Sprintf("Cannot read file: %v", err)
-			m.isStatusError = true
-			return m, statusMessageClearCmd(5 * time.Second)
+		workDir := m.getActivePane().Path()
+
+		// xdg-open以外はパーミッションチェックが必要
+		if m.enterBehavior.Type != config.EnterBehaviorXDGOpen {
+			if err := checkReadPermission(fullPath); err != nil {
+				m.statusMessage = fmt.Sprintf("Cannot read file: %v", err)
+				m.isStatusError = true
+				return m, statusMessageClearCmd(5 * time.Second)
+			}
 		}
-		return m, openWithViewer(fullPath, m.getActivePane().Path())
+
+		// EnterBehaviorに基づいてファイルを開く
+		switch m.enterBehavior.Type {
+		case config.EnterBehaviorXDGOpen:
+			return m, openWithXDG(fullPath, workDir)
+		case config.EnterBehaviorCustom:
+			return m, openWithCustomForeground(m.enterBehavior.CustomPath, fullPath, workDir)
+		default: // EnterBehaviorLess
+			return m, openWithViewer(fullPath, workDir)
+		}
 	}
 	cmd := m.getActivePane().EnterDirectoryAsync()
 	return m, cmd

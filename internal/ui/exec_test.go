@@ -324,3 +324,65 @@ func TestOpenWithEditorWithWorkDir(t *testing.T) {
 		t.Error("openWithEditor() returned nil command")
 	}
 }
+
+func TestOpenWithCustomForeground(t *testing.T) {
+	tests := []struct {
+		name        string
+		application string
+		file        string
+		workDir     string
+		wantNil     bool
+	}{
+		{
+			name:        "valid absolute path application",
+			application: "/bin/cat",
+			file:        "/tmp/test.txt",
+			workDir:     "/tmp",
+			wantNil:     false,
+		},
+		{
+			name:        "valid command name in PATH",
+			application: "cat",
+			file:        "/tmp/test.txt",
+			workDir:     "/tmp",
+			wantNil:     false,
+		},
+		{
+			name:        "non-existent application path",
+			application: "/nonexistent/application",
+			file:        "/tmp/test.txt",
+			workDir:     "/tmp",
+			wantNil:     false, // Returns a command that will produce an error message
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := openWithCustomForeground(tt.application, tt.file, tt.workDir)
+			if (cmd == nil) != tt.wantNil {
+				t.Errorf("openWithCustomForeground() returned nil = %v, want nil = %v", cmd == nil, tt.wantNil)
+			}
+		})
+	}
+}
+
+func TestOpenWithCustomForegroundReturnsCmd(t *testing.T) {
+	// Create a temporary file and directory
+	tmpDir, err := os.MkdirTemp("", "test_custom_workdir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	f, err := os.CreateTemp(tmpDir, "test_file")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// Test that openWithCustomForeground returns a non-nil command
+	cmd := openWithCustomForeground("cat", f.Name(), tmpDir)
+	if cmd == nil {
+		t.Error("openWithCustomForeground() returned nil command")
+	}
+}

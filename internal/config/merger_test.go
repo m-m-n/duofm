@@ -418,6 +418,7 @@ move_down = ["J"]
 		// Create config with all items
 		allKeybindings := DefaultKeybindings()
 		var keybindingsToml strings.Builder
+		keybindingsToml.WriteString("enter_behavior = \"less\"\n\n")
 		keybindingsToml.WriteString("[keybindings]\n")
 		for k, v := range allKeybindings {
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %v\n", k, formatTestArray(v)))
@@ -440,10 +441,12 @@ move_down = ["J"]
 			colors[k] = GetDefaultColorValue(k)
 		}
 		historyLimit := 1000
+		enterBehavior := "less"
 		raw := &rawConfig{
-			Keybindings:  allKeybindings,
-			Colors:       colors,
-			HistoryLimit: &historyLimit,
+			Keybindings:   allKeybindings,
+			Colors:        colors,
+			HistoryLimit:  &historyLimit,
+			EnterBehavior: &enterBehavior,
 		}
 
 		err := MergeConfig(tmpFile, raw)
@@ -547,6 +550,42 @@ history_limit = 5000
 			t.Errorf("Original keybinding missing\nContent:\n%s", string(content))
 		}
 	})
+
+	t.Run("preserves file permissions", func(t *testing.T) {
+		tmpFile := createTempFile(t, `[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		// Set a specific permission (e.g., 0600)
+		originalMode := os.FileMode(0600)
+		if err := os.Chmod(tmpFile, originalMode); err != nil {
+			t.Fatalf("Failed to set permissions: %v", err)
+		}
+
+		raw := &rawConfig{
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			Colors:       nil,
+			HistoryLimit: nil, // This will trigger a merge
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		// Check that permissions are preserved
+		info, err := os.Stat(tmpFile)
+		if err != nil {
+			t.Fatalf("Failed to stat file: %v", err)
+		}
+
+		if info.Mode().Perm() != originalMode.Perm() {
+			t.Errorf("File permissions changed: got %v, want %v", info.Mode().Perm(), originalMode.Perm())
+		}
+	})
 }
 
 // TestMergeConfigReload tests that merged config can be reloaded correctly.
@@ -636,6 +675,147 @@ func formatTestArray(values []string) string {
 		quoted[i] = fmt.Sprintf("%q", v)
 	}
 	return "[" + strings.Join(quoted, ", ") + "]"
+}
+
+// TestIsMissingEnterBehavior tests the IsMissingEnterBehavior function.
+func TestIsMissingEnterBehavior(t *testing.T) {
+	tests := []struct {
+		name          string
+		enterBehavior *string
+		want          bool
+	}{
+		{
+			name:          "nil - missing",
+			enterBehavior: nil,
+			want:          true,
+		},
+		{
+			name:          "value set - not missing",
+			enterBehavior: strPtr("less"),
+			want:          false,
+		},
+		{
+			name:          "empty value set - not missing",
+			enterBehavior: strPtr(""),
+			want:          false,
+		},
+		{
+			name:          "xdg-open set - not missing",
+			enterBehavior: strPtr("xdg-open"),
+			want:          false,
+		},
+		{
+			name:          "custom path set - not missing",
+			enterBehavior: strPtr("path:/usr/bin/vim"),
+			want:          false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsMissingEnterBehavior(tt.enterBehavior)
+			if got != tt.want {
+				t.Errorf("IsMissingEnterBehavior() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// strPtr is a helper to create *string from string value.
+func strPtr(s string) *string {
+	return &s
+}
+
+// TestMergeConfig_EnterBehavior tests enter_behavior merge functionality.
+func TestMergeConfig_EnterBehavior(t *testing.T) {
+	t.Run("missing enter_behavior is added", func(t *testing.T) {
+		tmpFile := createTempFile(t, `[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			Keybindings:   map[string][]string{"move_down": {"J"}},
+			Colors:        nil,
+			HistoryLimit:  intPtr(DefaultHistoryLimit),
+			EnterBehavior: nil, // missing
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+
+		// Should contain enter_behavior with default value
+		if !strings.Contains(string(content), "enter_behavior = \"less\"") {
+			t.Errorf("enter_behavior missing from merged file\nContent:\n%s", string(content))
+		}
+	})
+
+	t.Run("existing enter_behavior is preserved", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "xdg-open"
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			Keybindings:   map[string][]string{"move_down": {"J"}},
+			Colors:        nil,
+			HistoryLimit:  intPtr(DefaultHistoryLimit),
+			EnterBehavior: strPtr("xdg-open"),
+		}
+
+		originalContent, _ := os.ReadFile(tmpFile)
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		newContent, _ := os.ReadFile(tmpFile)
+
+		// Content should be unchanged (no merge needed for enter_behavior)
+		// Note: other items might still be merged, so we just check enter_behavior is preserved
+		if !strings.Contains(string(newContent), "xdg-open") {
+			t.Error("enter_behavior was modified")
+		}
+
+		// Original enter_behavior value should still be there
+		if !strings.Contains(string(originalContent), "xdg-open") {
+			t.Error("Original enter_behavior value not found in original content")
+		}
+	})
+
+	t.Run("custom path enter_behavior is preserved", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "path:/usr/bin/vim"
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			Keybindings:   map[string][]string{"move_down": {"J"}},
+			Colors:        nil,
+			HistoryLimit:  intPtr(DefaultHistoryLimit),
+			EnterBehavior: strPtr("path:/usr/bin/vim"),
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+
+		if !strings.Contains(string(content), "path:/usr/bin/vim") {
+			t.Error("Custom path enter_behavior was modified")
+		}
+	})
 }
 
 // TestMergeResultHasContent tests the hasContent method.

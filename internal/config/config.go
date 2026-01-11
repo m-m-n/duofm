@@ -10,9 +10,10 @@ import (
 
 // Config represents the application configuration.
 type Config struct {
-	Keybindings  map[string][]string `toml:"keybindings"`
-	Colors       *ColorConfig
-	HistoryLimit int `toml:"history_limit"`
+	Keybindings   map[string][]string `toml:"keybindings"`
+	Colors        *ColorConfig
+	HistoryLimit  int `toml:"history_limit"`
+	EnterBehavior EnterBehavior
 }
 
 // DefaultHistoryLimit is the default number of shell command history entries.
@@ -20,9 +21,10 @@ const DefaultHistoryLimit = 20000
 
 // rawConfig is used for TOML parsing to handle the [keybindings] and [colors] sections.
 type rawConfig struct {
-	Keybindings  map[string][]string    `toml:"keybindings"`
-	Colors       map[string]interface{} `toml:"colors"`
-	HistoryLimit *int                   `toml:"history_limit"`
+	Keybindings   map[string][]string    `toml:"keybindings"`
+	Colors        map[string]interface{} `toml:"colors"`
+	HistoryLimit  *int                   `toml:"history_limit"`
+	EnterBehavior *string                `toml:"enter_behavior"`
 }
 
 // LoadConfig loads the configuration from the specified path.
@@ -67,15 +69,25 @@ func LoadConfig(path string) (*Config, []string) {
 		cfg.HistoryLimit = *raw.HistoryLimit
 	}
 
+	// Load enter_behavior (parse if provided, otherwise keep default)
+	if raw.EnterBehavior != nil {
+		enterBehavior, warning := ParseEnterBehavior(*raw.EnterBehavior)
+		cfg.EnterBehavior = enterBehavior
+		if warning != "" {
+			warnings = append(warnings, fmt.Sprintf("Warning: %s", warning))
+		}
+	}
+
 	return cfg, warnings
 }
 
 // defaultConfig returns the default configuration.
 func defaultConfig() *Config {
 	return &Config{
-		Keybindings:  DefaultKeybindings(),
-		Colors:       DefaultColors(),
-		HistoryLimit: DefaultHistoryLimit,
+		Keybindings:   DefaultKeybindings(),
+		Colors:        DefaultColors(),
+		HistoryLimit:  DefaultHistoryLimit,
+		EnterBehavior: DefaultEnterBehavior(),
 	}
 }
 
