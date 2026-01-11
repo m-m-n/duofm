@@ -74,6 +74,27 @@ func executeShellCommand(command, workDir string) tea.Cmd {
 	})
 }
 
+// openWithCustomForeground opens a file with a custom application in foreground.
+// The application path should be an absolute path or available in PATH.
+// This function validates the application path at runtime using exec.LookPath().
+// If the application is not found or not executable, an error message is returned.
+func openWithCustomForeground(application, file, workDir string) tea.Cmd {
+	// Validate application path at runtime
+	_, err := exec.LookPath(application)
+	if err != nil {
+		// Return a command that sends an error message
+		return func() tea.Msg {
+			return execFinishedMsg{err: fmt.Errorf("executable not found: %s", application)}
+		}
+	}
+
+	c := exec.Command(application, file)
+	c.Dir = workDir
+	return tea.ExecProcess(c, func(err error) tea.Msg {
+		return execFinishedMsg{err: err}
+	})
+}
+
 // openWithXDG launches xdg-open with the specified file in background
 func openWithXDG(file, workDir string) tea.Cmd {
 	return func() tea.Msg {

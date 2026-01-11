@@ -9,14 +9,15 @@ import (
 
 // mergeResult holds the missing configuration items to be merged.
 type mergeResult struct {
-	Keybindings  map[string][]string
-	Colors       map[string]int
-	HistoryLimit *int // nil means not missing
+	Keybindings   map[string][]string
+	Colors        map[string]int
+	HistoryLimit  *int    // nil means not missing
+	EnterBehavior *string // nil means not missing
 }
 
 // hasContent returns true if there are any missing items to merge.
 func (m mergeResult) hasContent() bool {
-	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil
+	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil
 }
 
 // FindMissingKeybindings returns keybindings that exist in defaults but not in config.
@@ -64,6 +65,12 @@ func IsMissingHistoryLimit(historyLimit *int) bool {
 	return historyLimit == nil
 }
 
+// IsMissingEnterBehavior returns true if enter_behavior is not set in config.
+// A nil pointer indicates the value was not set in the config file.
+func IsMissingEnterBehavior(enterBehavior *string) bool {
+	return enterBehavior == nil
+}
+
 // formatKeybinding formats a keybinding entry as TOML.
 // Example: move_down = ["J", "Down"]
 func formatKeybinding(key string, values []string) string {
@@ -92,10 +99,23 @@ func MergeConfig(path string, existing *rawConfig) error {
 		result.HistoryLimit = &defaultLimit
 	}
 
+	// Check if enter_behavior is missing
+	if IsMissingEnterBehavior(existing.EnterBehavior) {
+		defaultEnterBehavior := DefaultEnterBehavior().String()
+		result.EnterBehavior = &defaultEnterBehavior
+	}
+
 	// Check if there's anything to merge
 	if !result.hasContent() {
 		return nil
 	}
+
+	// Get file info to preserve permissions
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("failed to stat config file: %w", err)
+	}
+	fileMode := fileInfo.Mode()
 
 	// Read existing file content
 	existingContent, err := os.ReadFile(path)
@@ -106,8 +126,8 @@ func MergeConfig(path string, existing *rawConfig) error {
 	// Generate the merged content
 	mergedContent := generateMergedFile(string(existingContent), result)
 
-	// Write the merged content back to the file
-	if err := os.WriteFile(path, []byte(mergedContent), 0644); err != nil {
+	// Write the merged content back to the file, preserving original permissions
+	if err := os.WriteFile(path, []byte(mergedContent), fileMode); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -174,12 +194,23 @@ func generateMergedFile(original string, result mergeResult) string {
 	// Build output
 	var sb strings.Builder
 	insertedHistoryLimit := false
+	insertedEnterBehavior := false
 
 	for i, line := range lines {
-		// Insert history_limit before the first section (root-level key)
-		if result.HistoryLimit != nil && !insertedHistoryLimit && i == firstSectionLine {
-			sb.WriteString(fmt.Sprintf("history_limit = %d\n\n", *result.HistoryLimit))
-			insertedHistoryLimit = true
+		// Insert root-level keys before the first section
+		if i == firstSectionLine {
+			if result.HistoryLimit != nil && !insertedHistoryLimit {
+				sb.WriteString(fmt.Sprintf("history_limit = %d\n", *result.HistoryLimit))
+				insertedHistoryLimit = true
+			}
+			if result.EnterBehavior != nil && !insertedEnterBehavior {
+				sb.WriteString(fmt.Sprintf("enter_behavior = %q\n", *result.EnterBehavior))
+				insertedEnterBehavior = true
+			}
+			// Add blank line after root-level keys if we inserted any
+			if insertedHistoryLimit || insertedEnterBehavior {
+				sb.WriteString("\n")
+			}
 		}
 
 		sb.WriteString(line)
@@ -217,8 +248,11 @@ func generateMergedFile(original string, result mergeResult) string {
 	if colorsSection == nil && len(result.Colors) > 0 {
 		needsSeparator = true
 	}
-	// history_limit at end only if there are no sections (file is empty or has no sections)
+	// Root-level keys at end only if there are no sections (file is empty or has no sections)
 	if result.HistoryLimit != nil && !insertedHistoryLimit {
+		needsSeparator = true
+	}
+	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		needsSeparator = true
 	}
 
@@ -226,9 +260,12 @@ func generateMergedFile(original string, result mergeResult) string {
 		appendContent.WriteString("\n# --- Auto-merged settings (added by duofm) ---\n")
 	}
 
-	// Add history_limit if missing and wasn't inserted yet (no sections exist)
+	// Add root-level keys if missing and weren't inserted yet (no sections exist)
 	if result.HistoryLimit != nil && !insertedHistoryLimit {
 		appendContent.WriteString(fmt.Sprintf("\nhistory_limit = %d\n", *result.HistoryLimit))
+	}
+	if result.EnterBehavior != nil && !insertedEnterBehavior {
+		appendContent.WriteString(fmt.Sprintf("\nenter_behavior = %q\n", *result.EnterBehavior))
 	}
 
 	// Add keybindings section if it doesn't exist

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/config"
 )
 
 // Phase 1: Up/Down History Navigation Tests
@@ -412,7 +413,7 @@ func TestHistoryNavigation_Integration_UpDownSequence(t *testing.T) {
 func createModelWithHistory(t *testing.T, historyFile string, limit int) Model {
 	t.Helper()
 
-	model := NewModelWithConfig(nil, nil, nil, limit)
+	model := NewModelWithConfig(nil, nil, nil, limit, config.DefaultEnterBehavior())
 	if limit > 0 {
 		model.shellHistory = NewShellHistory(historyFile, limit)
 	}

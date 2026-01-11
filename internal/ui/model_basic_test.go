@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/config"
 )
 
 // Model basic tests: initialization, view, settings
@@ -390,7 +391,7 @@ func TestModelRenderMethods(t *testing.T) {
 
 func TestModelInitWithWarnings(t *testing.T) {
 	t.Run("calls Init without panic", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0)
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultEnterBehavior())
 		cmd := model.Init()
 		// Init returns nil
 		if cmd != nil {
@@ -399,7 +400,7 @@ func TestModelInitWithWarnings(t *testing.T) {
 	})
 
 	t.Run("configWarnings are stored", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0)
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultEnterBehavior())
 		if len(model.configWarnings) != 1 {
 			t.Errorf("Expected 1 warning, got %d", len(model.configWarnings))
 		}
