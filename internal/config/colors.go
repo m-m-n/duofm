@@ -190,6 +190,56 @@ func AllColorKeys() []string {
 	return keys
 }
 
+// colorGetterMap maps config key names to ColorConfig field getters.
+// This allows getting default values by key name.
+var colorGetterMap = map[string]func(*ColorConfig) int{
+	"cursor_fg":               func(c *ColorConfig) int { return c.CursorFg },
+	"cursor_bg":               func(c *ColorConfig) int { return c.CursorBg },
+	"cursor_bg_inactive":      func(c *ColorConfig) int { return c.CursorBgInactive },
+	"mark_fg":                 func(c *ColorConfig) int { return c.MarkFg },
+	"mark_fg_inactive":        func(c *ColorConfig) int { return c.MarkFgInactive },
+	"mark_bg":                 func(c *ColorConfig) int { return c.MarkBg },
+	"mark_bg_inactive":        func(c *ColorConfig) int { return c.MarkBgInactive },
+	"cursor_mark_fg":          func(c *ColorConfig) int { return c.CursorMarkFg },
+	"cursor_mark_bg":          func(c *ColorConfig) int { return c.CursorMarkBg },
+	"cursor_mark_bg_inactive": func(c *ColorConfig) int { return c.CursorMarkBgInactive },
+	"path_fg":                 func(c *ColorConfig) int { return c.PathFg },
+	"path_fg_inactive":        func(c *ColorConfig) int { return c.PathFgInactive },
+	"header_fg":               func(c *ColorConfig) int { return c.HeaderFg },
+	"header_fg_inactive":      func(c *ColorConfig) int { return c.HeaderFgInactive },
+	"border_fg":               func(c *ColorConfig) int { return c.BorderFg },
+	"dimmed_bg":               func(c *ColorConfig) int { return c.DimmedBg },
+	"dimmed_fg":               func(c *ColorConfig) int { return c.DimmedFg },
+	"directory_fg":            func(c *ColorConfig) int { return c.DirectoryFg },
+	"symlink_fg":              func(c *ColorConfig) int { return c.SymlinkFg },
+	"executable_fg":           func(c *ColorConfig) int { return c.ExecutableFg },
+	"dialog_title_fg":         func(c *ColorConfig) int { return c.DialogTitleFg },
+	"dialog_border_fg":        func(c *ColorConfig) int { return c.DialogBorderFg },
+	"dialog_selected_fg":      func(c *ColorConfig) int { return c.DialogSelectedFg },
+	"dialog_selected_bg":      func(c *ColorConfig) int { return c.DialogSelectedBg },
+	"dialog_footer_fg":        func(c *ColorConfig) int { return c.DialogFooterFg },
+	"input_fg":                func(c *ColorConfig) int { return c.InputFg },
+	"input_bg":                func(c *ColorConfig) int { return c.InputBg },
+	"input_border_fg":         func(c *ColorConfig) int { return c.InputBorderFg },
+	"minibuffer_fg":           func(c *ColorConfig) int { return c.MinibufferFg },
+	"minibuffer_bg":           func(c *ColorConfig) int { return c.MinibufferBg },
+	"error_fg":                func(c *ColorConfig) int { return c.ErrorFg },
+	"error_border_fg":         func(c *ColorConfig) int { return c.ErrorBorderFg },
+	"warning_fg":              func(c *ColorConfig) int { return c.WarningFg },
+	"status_fg":               func(c *ColorConfig) int { return c.StatusFg },
+	"status_bg":               func(c *ColorConfig) int { return c.StatusBg },
+}
+
+// GetDefaultColorValue returns the default color value for the given key.
+// Returns -1 if the key is not found.
+func GetDefaultColorValue(key string) int {
+	getter, ok := colorGetterMap[key]
+	if !ok {
+		return -1
+	}
+	return getter(DefaultColors())
+}
+
 // LoadColors parses color values from the raw map and merges with defaults.
 // Returns the merged ColorConfig and any warnings for invalid values.
 func LoadColors(rawColors map[string]interface{}) (*ColorConfig, []string) {
