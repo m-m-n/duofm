@@ -348,9 +348,22 @@ func TestRenameDialogOpens(t *testing.T) {
 		t.Error("dialog should be set after r key")
 	}
 
-	_, isInputDialog := m.dialog.(*InputDialog)
-	if !isInputDialog {
-		t.Error("dialog should be InputDialog")
+	// Dialog type depends on whether the file has an extension
+	// Files with extension -> ExtensionRenameDialog
+	// Files without extension or directories -> InputDialog
+	_, baseName, hasExt := hasEditableExtension(entry.Name, entry.IsDir)
+	_ = baseName // suppress unused variable warning
+
+	if hasExt {
+		_, isExtRenameDialog := m.dialog.(*ExtensionRenameDialog)
+		if !isExtRenameDialog {
+			t.Errorf("dialog should be ExtensionRenameDialog for file with extension, got %T", m.dialog)
+		}
+	} else {
+		_, isInputDialog := m.dialog.(*InputDialog)
+		if !isInputDialog {
+			t.Errorf("dialog should be InputDialog for file without extension, got %T", m.dialog)
+		}
 	}
 }
 
