@@ -9,10 +9,11 @@ import (
 
 func TestHelpDialogContainsShellCommand(t *testing.T) {
 	dialog := NewHelpDialog()
-	view := dialog.View()
 
-	// Check that the help dialog contains the shell command key binding
-	if !strings.Contains(view, "!") {
+	// Check that the help dialog content contains the shell command key binding
+	// Use contentLines instead of view since view shows only one page
+	contentStr := strings.Join(dialog.contentLines, "\n")
+	if !strings.Contains(contentStr, "!") {
 		t.Error("Help dialog should contain '!' key binding for shell command")
 	}
 }

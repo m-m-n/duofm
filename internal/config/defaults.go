@@ -14,13 +14,14 @@ func DefaultKeybindings() map[string][]string {
 		"page_up":    {"Ctrl+U", "PageUp"},
 
 		// File operations
-		"copy":          {"C"},
-		"move":          {"M"},
-		"delete":        {"D"},
-		"rename":        {"R"},
-		"new_file":      {"N"},
-		"new_directory": {"Shift+N"},
-		"mark":          {"Space"},
+		"copy":             {"C"},
+		"move":             {"M"},
+		"delete":           {"D"},
+		"rename":           {"R"},
+		"rename_full_name": {"Shift+R"},
+		"new_file":         {"N"},
+		"new_directory":    {"Shift+N"},
+		"mark":             {"Space"},
 
 		// Display
 		"toggle_info":   {"I"},
@@ -76,6 +77,7 @@ func AllActions() []string {
 		"move",
 		"delete",
 		"rename",
+		"rename_full_name",
 		"new_file",
 		"new_directory",
 		"mark",

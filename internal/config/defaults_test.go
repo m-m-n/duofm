@@ -12,7 +12,7 @@ func TestDefaultKeybindings(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedActions := 36
+	expectedActions := 37
 	if len(defaults) != expectedActions {
 		t.Errorf("DefaultKeybindings() length = %d, want %d", len(defaults), expectedActions)
 	}
@@ -263,7 +263,7 @@ func TestAllActions(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedCount := 36
+	expectedCount := 37
 	if len(actions) != expectedCount {
 		t.Errorf("AllActions() length = %d, want %d", len(actions), expectedCount)
 	}
@@ -281,6 +281,7 @@ func TestAllActions(t *testing.T) {
 		"move",
 		"delete",
 		"rename",
+		"rename_full_name",
 		"new_file",
 		"new_directory",
 		"mark",

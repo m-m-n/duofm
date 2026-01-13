@@ -409,6 +409,9 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 	case ActionRename:
 		return m.handleRenameUI()
 
+	case ActionRenameFullName:
+		return m.handleRenameFullNameUI()
+
 	case ActionSort:
 		m.sortDialog = NewSortDialog(m.getActivePane().GetSortConfig())
 		return m, nil
@@ -626,6 +629,7 @@ func (m Model) handleNewDirectory() (tea.Model, tea.Cmd) {
 }
 
 // handleRenameUI はリネームダイアログを表示
+// ファイルの種類に応じて拡張子保持モードまたはフルネーム編集モードを選択する
 func (m Model) handleRenameUI() (tea.Model, tea.Cmd) {
 	entry := m.getActivePane().SelectedEntry()
 	if entry == nil || entry.IsParentDir() {
@@ -633,9 +637,39 @@ func (m Model) handleRenameUI() (tea.Model, tea.Cmd) {
 	}
 	pane := m.getActivePane()
 	oldName := entry.Name
-	m.dialog = NewInputDialog("Rename to:", func(newName string) tea.Cmd {
+
+	// 拡張子保持モードが使えるか判定
+	baseName, ext, hasExt := hasEditableExtension(entry.Name, entry.IsDir)
+
+	if hasExt {
+		// 拡張子保持モード（ExtensionRenameDialog）
+		m.dialog = NewExtensionRenameDialog(pane.Path(), oldName, baseName, ext)
+	} else {
+		// フルネーム編集モード（InputDialog）
+		dialog := NewInputDialog("Rename to:", func(newName string) tea.Cmd {
+			return m.handleRename(pane.Path(), oldName, newName)
+		})
+		dialog.SetInput(oldName)
+		m.dialog = dialog
+	}
+	return m, nil
+}
+
+// handleRenameFullNameUI はフルネームリネームダイアログを表示
+// ファイル種類に関わらず常にフルネーム編集モードを使用する（Shift+R用）
+func (m Model) handleRenameFullNameUI() (tea.Model, tea.Cmd) {
+	entry := m.getActivePane().SelectedEntry()
+	if entry == nil || entry.IsParentDir() {
+		return m, nil
+	}
+	pane := m.getActivePane()
+	oldName := entry.Name
+
+	dialog := NewInputDialog("Rename to:", func(newName string) tea.Cmd {
 		return m.handleRename(pane.Path(), oldName, newName)
 	})
+	dialog.SetInput(oldName)
+	m.dialog = dialog
 	return m, nil
 }
 

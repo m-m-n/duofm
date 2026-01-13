@@ -840,6 +840,9 @@ func (m Model) handleSystemMessages(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case renameInputResultMsg:
 		return m.handleRenameInputResult(msg)
 
+	case extensionRenameResultMsg:
+		return m.handleExtensionRenameResult(msg)
+
 	case tea.KeyMsg:
 		return m.handleKeyInput(msg)
 	}
@@ -1013,6 +1016,34 @@ func (m Model) handleFileOperationComplete(msg fileOperationCompleteMsg) (tea.Mo
 	}
 	m.getActivePane().LoadDirectory()
 	m.getInactivePane().LoadDirectory()
+	return m, nil
+}
+
+// handleExtensionRenameResult は拡張子保持リネームダイアログの結果を処理
+func (m Model) handleExtensionRenameResult(msg extensionRenameResultMsg) (tea.Model, tea.Cmd) {
+	m.dialog = nil
+
+	// Handle cancellation
+	if msg.cancelled {
+		return m, nil
+	}
+
+	// Execute rename operation
+	oldPath := filepath.Join(msg.dirPath, msg.oldName)
+	newPath := filepath.Join(msg.dirPath, msg.newName)
+
+	if err := fs.Rename(oldPath, newPath); err != nil {
+		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to rename: %v", err))
+		return m, nil
+	}
+
+	// Refresh panes
+	m.getActivePane().LoadDirectory()
+	m.getInactivePane().LoadDirectory()
+
+	// Move cursor to renamed file
+	m.moveCursorToFileAfterRename(msg.oldName, msg.newName)
+
 	return m, nil
 }
 

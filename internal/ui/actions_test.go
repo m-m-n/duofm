@@ -268,6 +268,31 @@ func TestActionPathJump(t *testing.T) {
 	})
 }
 
+func TestActionRenameFullName(t *testing.T) {
+	t.Run("ActionFromName returns ActionRenameFullName", func(t *testing.T) {
+		got := ActionFromName("rename_full_name")
+		if got != ActionRenameFullName {
+			t.Errorf("ActionFromName(\"rename_full_name\") = %v, want %v", got, ActionRenameFullName)
+		}
+	})
+
+	t.Run("ActionRenameFullName.String returns rename_full_name", func(t *testing.T) {
+		got := ActionRenameFullName.String()
+		if got != "rename_full_name" {
+			t.Errorf("ActionRenameFullName.String() = %q, want %q", got, "rename_full_name")
+		}
+	})
+
+	t.Run("DefaultKeybindingMap maps Shift+R to ActionRenameFullName", func(t *testing.T) {
+		km := DefaultKeybindingMap()
+		// Shift+R is normalized to uppercase "R"
+		got := km.GetAction("R")
+		if got != ActionRenameFullName {
+			t.Errorf("GetAction(\"R\") = %v, want %v", got, ActionRenameFullName)
+		}
+	})
+}
+
 func TestPageScrollActions(t *testing.T) {
 	t.Run("page_down and page_up in DefaultKeybindingMap", func(t *testing.T) {
 		km := DefaultKeybindingMap()
