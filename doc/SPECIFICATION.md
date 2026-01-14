@@ -89,7 +89,14 @@ graph TB
 - **Copy (C)**: Copy selected file(s) to opposite pane
 - **Move (M)**: Move selected file(s) to opposite pane
 - **Delete (D)**: Delete with confirmation dialog (requires `y` key to confirm)
-- **Rename (R)**: Rename selected file
+- **Rename (R)**: Extension-preserving rename for files with extensions
+  - Files with extensions: Edits base name only, extension is fixed and displayed
+  - Extensionless files and directories: Full filename editing
+  - Hidden files: Leading dot preserved; extension detection applied to remainder
+  - Examples: `document.txt` → edit `document`, `.bashrc` → edit full name, `.config.json` → edit `.config`
+- **Rename Full (Shift+R)**: Full filename rename for all file types
+  - Always allows editing complete filename including extension
+  - Use when changing file extensions or handling special cases
 - **New File (N)**: Create new file
 - **New Directory (Shift+N)**: Create new directory
 
@@ -193,6 +200,16 @@ Three display modes toggled with `I` key:
 - Working directory set to file's directory
 - Both panes reload after exit
 - Cursor position preserved after exit
+
+#### Configurable Enter Key Behavior
+- Configurable action when pressing Enter on files
+- Three modes available:
+  - `less` (default): Open with pager in foreground
+  - `xdg-open`: Open with system default application in background
+  - `path:/path/to/app`: Open with custom application in foreground
+- Setting: `enter_behavior` in config.toml
+- Invalid values fall back to default with warning
+- V key always uses pager (unchanged)
 
 #### Shell Command (!)
 - Execute arbitrary shell commands
@@ -419,7 +436,8 @@ All dialogs follow consistent UI patterns:
 | C | Copy to opposite pane |
 | M | Move to opposite pane |
 | D | Delete |
-| R | Rename |
+| R | Rename (extension-preserving) |
+| Shift+R | Rename (full filename) |
 | N | New file |
 | Shift+N | New directory |
 | Space | Mark/unmark file |
