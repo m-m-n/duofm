@@ -8,6 +8,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Dual-pane interface: Navigate two directories side-by-side
   - Vim-style keybindings: Familiar hjkl navigation with arrow key support
   - File operations: Copy, move, delete, rename files and directories
+  - Smart rename: Extension-preserving rename (R) and full filename rename (Shift+R)
   - Permission editing: Change permissions (chmod) with Shift+P, including recursive mode
   - File creation: Create new files (N) and directories (Shift+N)
   - Multi-file marking: Select multiple files with Space for batch operations
