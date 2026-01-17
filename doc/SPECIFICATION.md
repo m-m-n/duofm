@@ -59,6 +59,7 @@ graph TB
 - Active pane indicated by visual highlighting
 - Left pane: Current working directory on startup
 - Right pane: Home directory on startup
+- Async directory loading with proper pane identification
 
 #### Keyboard Navigation
 - Vim-style navigation (h/j/k/l)
@@ -79,9 +80,10 @@ graph TB
 #### Path Display
 - Absolute path shown at top of each pane
 - Home directory abbreviated as `~`
-- Symbolic link targets displayed
+- Symbolic link targets displayed with arrow (→)
 - Broken symlinks indicated
-- Async directory loading with pane identification
+- Async directory loading with proper pane identification
+- Parent directory (..) shows actual metadata (modification time, permissions, owner)
 
 ### File Operations
 
@@ -129,6 +131,7 @@ graph TB
 - Batch permission changes for multiple marked files
 - Progress display for large operations
 - Comprehensive error reporting
+- Symlinks skipped to prevent following malicious links
 
 #### Archive Operations
 - **Create archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
@@ -138,7 +141,7 @@ graph TB
 - Context menu integration for compress/extract
 - Progress display for long-running operations
 - Security checks (zip bomb detection, disk space validation)
-- Linux-only feature (uses external CLI tools)
+- Linux-only feature (uses external CLI tools: tar, gzip, bzip2, xz, zip, unzip, 7z)
 
 ### Display Modes
 
@@ -161,7 +164,8 @@ Three display modes toggled with `I` key:
 - Proper display width calculation for multibyte characters (Japanese, Chinese, Korean, emoji)
 - Correct file name truncation using rune-based slicing
 - East Asian Width configuration for ambiguous characters
-- Configurable ambiguous character width (1 or 2 cells)
+- Configurable ambiguous character width (1 or 2 cells) via `[display]` section
+- Improved support for complex Unicode symbols (☆, ü, ①, →, etc.)
 
 ### Search and Filter
 
@@ -193,7 +197,7 @@ Three display modes toggled with `I` key:
 - Opens file with $PAGER (default: less)
 - Working directory set to file's directory
 - Cursor position preserved after exit
-- `Enter` on file also opens viewer
+- `Enter` on file also opens viewer (or configured behavior)
 
 #### File Editor (E)
 - Opens file with $EDITOR (default: vim)
@@ -219,7 +223,7 @@ Three display modes toggled with `I` key:
 - Command history with Ctrl+R incremental search
 - Bash-style up/down arrow key navigation through history
 - Search pattern displayed during Ctrl+R: `(reverse-i-search)'pattern': command`
-- History persisted across sessions
+- History persisted across sessions (default: 20,000 commands)
 
 ### Context Menu
 
@@ -232,7 +236,7 @@ Press `@` to show context menu with:
 - New directory
 - Compress (with format selection)
 - Extract archive (for archive files)
-- Open file (with external application)
+- Open file (with external application via xdg-open)
 - Open with (custom command)
 - Symlink-specific options (logical/physical path)
 - Supports marked files for batch operations
@@ -268,6 +272,15 @@ Press `@` to show context menu with:
 - All UI elements customizable via `[colors]` section
 - Cursor, marks, file types, dialogs, status bar
 - Help dialog includes color palette reference with hex values
+- Supports customization of:
+  - Cursor colors (active/inactive panes)
+  - Mark colors (active/inactive panes)
+  - File type colors (directory, symlink, executable)
+  - Dialog colors (title, border, selection, footer)
+  - Input field colors
+  - Minibuffer colors
+  - Error and warning colors
+  - Status bar colors
 
 #### Bookmarks
 - Add current directory with `Shift+B`
@@ -275,6 +288,8 @@ Press `@` to show context menu with:
 - Jump to, edit, and delete bookmarks
 - Warning indicator for non-existent paths
 - Bookmarks persisted in configuration file
+- New bookmarks added to top of list
+- Duplicate paths not allowed
 
 ### Navigation Features
 
@@ -312,7 +327,11 @@ Press `?` for help dialog with:
 - Grouped by category
 - Scrollable with j/k, Space/Shift+Space, Ctrl+D/U, PageUp/PageDown
 - Color palette reference (256 colors with hex values)
+  - Standard colors 0-15: Terminal-dependent
+  - Colors 16-231: 6x6x6 color cube with #rrggbb values
+  - Colors 232-255: Grayscale with #rrggbb values
 - Page indicator for scroll position
+- Fixed layout to prevent line overflow
 
 ### Symlink Support
 
@@ -329,6 +348,7 @@ Press `?` for help dialog with:
 - Error dialogs for operation failures
 - Status bar messages for warnings
 - Directory permission errors shown with navigation preserved
+- Proper error handling for directory access errors (path not updated on failure)
 
 ### Dialog System
 
@@ -337,6 +357,7 @@ All dialogs follow consistent UI patterns:
 #### Confirm Dialog
 - Yes/No confirmation for destructive operations
 - Delete requires explicit `y` key (Enter ignored for safety)
+- Ctrl+C cancels operation
 
 #### Error Dialog
 - Red border and error message
@@ -346,6 +367,7 @@ All dialogs follow consistent UI patterns:
 - Single-line text input
 - Basic editing (backspace, delete, cursor movement)
 - Used for file creation, renaming, shell commands
+- Ctrl+C cancels input
 
 #### Overwrite Dialog
 - Three options: Overwrite, Cancel, Rename
@@ -357,6 +379,7 @@ All dialogs follow consistent UI patterns:
 - Color palette with hex values
 - Page indicators
 - Scrollable with page up/down keys
+- Fixed layout to prevent visual issues
 
 #### Sort Dialog
 - Two-row selection interface
@@ -372,12 +395,15 @@ All dialogs follow consistent UI patterns:
 - Two-line format (name + path)
 - Add, edit, delete bookmarks
 - Warning indicators for non-existent paths
+- j/k navigation, Enter to jump, d to delete, e to edit
 
 #### Permission Dialog
 - Numeric permission input (000-777)
 - Real-time symbolic notation display
 - Quick presets for common permissions
 - Recursive option for directories
+- Batch operation support
+- Dialog properly closes on confirmation (no freeze)
 
 #### Archive Progress Dialog
 - Operation type (Compressing/Extracting)
@@ -386,11 +412,18 @@ All dialogs follow consistent UI patterns:
 - File count and elapsed time
 - Cancelable with Esc
 
+#### Dialog Overlay Styling
+- File list visible behind dialogs with dimmed appearance
+- Full-screen dialogs dim both panes
+- Pane-local dialogs dim only active pane
+- Gray background with dimmed text instead of block characters
+
 ### Version Display
 
 - Dynamic version from build-time ldflags
 - Displayed in toolbar and `--version` CLI option
 - Build-time version injection via -ldflags
+- Git tag-based versioning
 
 ### Git Branch Display
 
@@ -405,10 +438,10 @@ All dialogs follow consistent UI patterns:
 - Double Ctrl+C quits application in normal mode
 - 2-second timeout for double-press detection
 
-#### Dialog Overlay Styling
-- File list visible behind dialogs with dimmed appearance
-- Full-screen dialogs dim both panes
-- Pane-local dialogs dim only active pane
+#### Dialog Bug Fixes
+- Fixed permission dialog freeze on Esc key (proper cancellation message)
+- Fixed permission dialog freeze on Enter key confirmation (proper dialog cleanup)
+- All dialogs properly close without hanging the application
 
 ## Keyboard Shortcuts
 
@@ -564,6 +597,14 @@ east_asian_ambiguous_width = 1
 enter_behavior = "less"
 ```
 
+### Shell Command History Section
+
+```toml
+# Maximum number of shell command history entries to retain
+# Default: 20000
+history_limit = 20000
+```
+
 ## Technical Requirements
 
 - Go 1.21 or later
@@ -589,17 +630,28 @@ enter_behavior = "less"
 | zip | `zip`, `unzip` |
 | 7z | `7z` (p7zip-full) |
 
+On Debian/Ubuntu:
+```bash
+sudo apt install tar gzip bzip2 xz-utils zip unzip p7zip-full
+```
+
+On macOS:
+```bash
+brew install gnu-tar gzip bzip2 xz zip p7zip
+```
+
 ## Performance Characteristics
 
 - Async directory loading for responsive UI
 - Independent pane operations
 - Marks preserved during filter/refresh
 - Efficient sorting with directory-first ordering
-- History limited to 100 entries per pane
+- History limited to 100 entries per pane (configurable: 20,000 for shell commands)
 - No performance degradation with 1000+ files
 - Page scroll response time < 50ms
 - Single file permission change < 50ms
 - Recursive permission processing > 500 files/second
+- Archive operations with progress display
 
 ## Security Considerations
 
@@ -633,6 +685,7 @@ enter_behavior = "less"
   - Configuration management: 73.6%+
   - Comprehensive tests for permission handling (security focus)
   - Manager components fully tested (archive, batch, bookmark)
+- Refactored E2E test scripts for better maintainability
 
 ## Future Extensibility
 
