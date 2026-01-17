@@ -19,156 +19,192 @@ func TestNewSortDialog(t *testing.T) {
 	if dialog.originalConfig.Field != SortBySize {
 		t.Errorf("originalConfig.Field = %v, want SortBySize", dialog.originalConfig.Field)
 	}
-	if dialog.focusedRow != 0 {
-		t.Errorf("focusedRow = %d, want 0", dialog.focusedRow)
+	if dialog.focusedDropdown != 0 {
+		t.Errorf("focusedDropdown = %d, want 0", dialog.focusedDropdown)
 	}
 	if !dialog.active {
 		t.Error("dialog should be active")
 	}
 }
 
-func TestSortDialog_HandleKey_FieldNavigation(t *testing.T) {
+func TestSortDialog_HandleKey_TabNavigation(t *testing.T) {
 	tests := []struct {
-		name       string
-		startField SortField
-		key        string
-		wantField  SortField
-		focusedRow int
+		name         string
+		startFocused int
+		key          string
+		wantFocused  int
 	}{
-		{"h from Size to Name", SortBySize, "h", SortByName, 0},
-		{"left from Size to Name", SortBySize, "left", SortByName, 0},
-		{"l from Size to Date", SortBySize, "l", SortByDate, 0},
-		{"right from Size to Date", SortBySize, "right", SortByDate, 0},
-		{"h from Name stays at Name", SortByName, "h", SortByName, 0},
-		{"l from Date stays at Date", SortByDate, "l", SortByDate, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dialog := NewSortDialog(SortConfig{Field: tt.startField, Order: SortAsc})
-			dialog.focusedRow = tt.focusedRow
-
-			dialog.HandleKey(tt.key)
-
-			if dialog.config.Field != tt.wantField {
-				t.Errorf("Field = %v, want %v", dialog.config.Field, tt.wantField)
-			}
-		})
-	}
-}
-
-func TestSortDialog_HandleKey_OrderNavigation(t *testing.T) {
-	tests := []struct {
-		name       string
-		startOrder SortOrder
-		key        string
-		wantOrder  SortOrder
-	}{
-		{"h from Desc to Asc", SortDesc, "h", SortAsc},
-		{"left from Desc to Asc", SortDesc, "left", SortAsc},
-		{"l from Asc to Desc", SortAsc, "l", SortDesc},
-		{"right from Asc to Desc", SortAsc, "right", SortDesc},
-		{"h from Asc stays at Asc", SortAsc, "h", SortAsc},
-		{"l from Desc stays at Desc", SortDesc, "l", SortDesc},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dialog := NewSortDialog(SortConfig{Field: SortByName, Order: tt.startOrder})
-			dialog.focusedRow = 1 // Order行
-
-			dialog.HandleKey(tt.key)
-
-			if dialog.config.Order != tt.wantOrder {
-				t.Errorf("Order = %v, want %v", dialog.config.Order, tt.wantOrder)
-			}
-		})
-	}
-}
-
-func TestSortDialog_HandleKey_RowNavigation(t *testing.T) {
-	tests := []struct {
-		name  string
-		start int
-		key   string
-		want  int
-	}{
-		{"j from row 0 to 1", 0, "j", 1},
-		{"down from row 0 to 1", 0, "down", 1},
-		{"k from row 1 to 0", 1, "k", 0},
-		{"up from row 1 to 0", 1, "up", 0},
-		{"j from row 1 stays at 1", 1, "j", 1},
-		{"k from row 0 stays at 0", 0, "k", 0},
+		{"Tab from 0 to 1", 0, "tab", 1},
+		{"Tab from 1 stays at 1", 1, "tab", 1},
+		{"Shift+Tab from 1 to 0", 1, "shift+tab", 0},
+		{"Shift+Tab from 0 stays at 0", 0, "shift+tab", 0},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dialog := NewSortDialog(DefaultSortConfig())
-			dialog.focusedRow = tt.start
+			dialog.focusedDropdown = tt.startFocused
 
 			dialog.HandleKey(tt.key)
 
-			if dialog.focusedRow != tt.want {
-				t.Errorf("focusedRow = %d, want %d", dialog.focusedRow, tt.want)
+			if dialog.focusedDropdown != tt.wantFocused {
+				t.Errorf("focusedDropdown = %d, want %d", dialog.focusedDropdown, tt.wantFocused)
 			}
 		})
 	}
 }
 
-func TestSortDialog_HandleKey_Enter(t *testing.T) {
-	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+func TestSortDialog_HandleKey_EnterExpandsDropdown(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
 
-	confirmed, cancelled := dialog.HandleKey("enter")
+	// Enter should expand the focused dropdown
+	dialog.HandleKey("enter")
 
-	if !confirmed {
-		t.Error("Expected confirmed = true")
-	}
-	if cancelled {
-		t.Error("Expected cancelled = false")
+	if !dialog.fieldDropdown.IsExpanded() {
+		t.Error("Enter should expand the focused dropdown")
 	}
 }
 
-func TestSortDialog_HandleKey_Escape(t *testing.T) {
+func TestSortDialog_HandleKey_SpaceExpandsDropdown(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+
+	// Space should also expand the focused dropdown
+	dialog.HandleKey(" ")
+
+	if !dialog.fieldDropdown.IsExpanded() {
+		t.Error("Space should expand the focused dropdown")
+	}
+}
+
+func TestSortDialog_HandleKey_EnterExpandsDropdownFirst(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+
+	// Enter on fresh dialog should expand the dropdown, not confirm
+	confirmed, cancelled := dialog.HandleKey("enter")
+
+	if confirmed || cancelled {
+		t.Error("Enter should expand dropdown, not confirm/cancel")
+	}
+	if !dialog.fieldDropdown.IsExpanded() {
+		t.Error("Enter should expand focused dropdown")
+	}
+}
+
+func TestSortDialog_HandleKey_EscapeCancelsDialog(t *testing.T) {
 	original := SortConfig{Field: SortByName, Order: SortAsc}
 	dialog := NewSortDialog(original)
 
-	// 変更
+	// Change the selection
 	dialog.config.Field = SortBySize
 	dialog.config.Order = SortDesc
 
 	confirmed, cancelled := dialog.HandleKey("esc")
 
 	if confirmed {
-		t.Error("Expected confirmed = false")
+		t.Error("Escape should not confirm")
 	}
 	if !cancelled {
-		t.Error("Expected cancelled = true")
+		t.Error("Escape should cancel dialog when no dropdown is expanded")
 	}
-	// configがoriginalに復元されることを確認
+	// Config should be restored to original
 	if dialog.config.Field != SortByName {
-		t.Errorf("config.Field = %v, want SortByName", dialog.config.Field)
+		t.Errorf("config.Field = %v, want SortByName (restored)", dialog.config.Field)
 	}
 	if dialog.config.Order != SortAsc {
-		t.Errorf("config.Order = %v, want SortAsc", dialog.config.Order)
+		t.Errorf("config.Order = %v, want SortAsc (restored)", dialog.config.Order)
 	}
 }
 
-func TestSortDialog_HandleKey_Q(t *testing.T) {
+func TestSortDialog_HandleKey_EscapeClosesExpandedDropdown(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+
+	// Expand the dropdown
+	dialog.fieldDropdown.Expand()
+
+	// Escape should close dropdown, not cancel dialog
+	confirmed, cancelled := dialog.HandleKey("esc")
+
+	if dialog.fieldDropdown.IsExpanded() {
+		t.Error("Escape should close expanded dropdown")
+	}
+	if confirmed || cancelled {
+		t.Error("Escape with expanded dropdown should not confirm or cancel dialog")
+	}
+}
+
+func TestSortDialog_HandleKey_QCancelsDialogEvenWhenDropdownExpanded(t *testing.T) {
 	original := SortConfig{Field: SortByName, Order: SortAsc}
 	dialog := NewSortDialog(original)
-	dialog.config.Field = SortByDate
+
+	// Expand the dropdown
+	dialog.fieldDropdown.Expand()
 
 	confirmed, cancelled := dialog.HandleKey("q")
 
 	if confirmed {
-		t.Error("Expected confirmed = false")
+		t.Error("q should not confirm")
 	}
 	if !cancelled {
-		t.Error("Expected cancelled = true")
+		t.Error("q should cancel dialog even when dropdown is expanded")
 	}
-	// Escと同じ動作
-	if dialog.config.Field != SortByName {
-		t.Errorf("config.Field = %v, want SortByName", dialog.config.Field)
+}
+
+func TestSortDialog_HandleKey_DropdownNavigation(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+
+	// Expand field dropdown
+	dialog.HandleKey("enter")
+
+	// Navigate down (j)
+	dialog.HandleKey("j")
+
+	// highlightedIndex should change
+	if dialog.fieldDropdown.highlightedIndex != 1 {
+		t.Errorf("highlightedIndex = %d, want 1", dialog.fieldDropdown.highlightedIndex)
+	}
+}
+
+func TestSortDialog_HandleKey_DropdownSelection(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+
+	// Expand field dropdown
+	dialog.HandleKey("enter")
+
+	// Navigate to Size (index 1)
+	dialog.HandleKey("j")
+
+	// Select with Enter
+	confirmed, cancelled := dialog.HandleKey("enter")
+
+	if dialog.config.Field != SortBySize {
+		t.Errorf("config.Field = %v, want SortBySize", dialog.config.Field)
+	}
+	if dialog.fieldDropdown.IsExpanded() {
+		t.Error("dropdown should collapse after selection")
+	}
+	// Selecting from dropdown should not confirm/cancel the dialog
+	if confirmed || cancelled {
+		t.Error("dropdown selection should not confirm or cancel dialog")
+	}
+}
+
+func TestSortDialog_HandleKey_OrderDropdownSelection(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
+
+	// Focus on Order dropdown
+	dialog.HandleKey("tab")
+
+	// Expand order dropdown
+	dialog.HandleKey("enter")
+
+	// Navigate to Desc (index 1)
+	dialog.HandleKey("j")
+
+	// Select with Enter
+	dialog.HandleKey("enter")
+
+	if dialog.config.Order != SortDesc {
+		t.Errorf("config.Order = %v, want SortDesc", dialog.config.Order)
 	}
 }
 
@@ -187,7 +223,7 @@ func TestSortDialog_Config(t *testing.T) {
 
 func TestSortDialog_OriginalConfig(t *testing.T) {
 	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortAsc})
-	// 変更しても originalConfig は変わらない
+	// Change config but originalConfig should stay the same
 	dialog.config.Field = SortByDate
 	dialog.config.Order = SortDesc
 
@@ -208,10 +244,10 @@ func TestSortDialog_IsActive(t *testing.T) {
 		t.Error("New dialog should be active")
 	}
 
-	// Enterで終了
-	dialog.HandleKey("enter")
+	// Escape to cancel dialog
+	dialog.HandleKey("esc")
 	if dialog.IsActive() {
-		t.Error("After enter, dialog should be inactive")
+		t.Error("After escape, dialog should be inactive")
 	}
 }
 
@@ -221,7 +257,6 @@ func TestSortDialog_View(t *testing.T) {
 
 	view := dialog.View()
 
-	// 基本的な内容が含まれることを確認
 	if view == "" {
 		t.Error("View should not be empty")
 	}
@@ -235,38 +270,33 @@ func TestSortDialog_DisplayType(t *testing.T) {
 	}
 }
 
-func TestSortDialog_Update_Enter(t *testing.T) {
+func TestSortDialog_Update_EnterExpandsDropdown(t *testing.T) {
 	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
 
 	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
 	_, cmd := dialog.Update(keyMsg)
 
+	// Enter should expand the dropdown
+	if !dialog.fieldDropdown.IsExpanded() {
+		t.Error("Enter should expand the focused dropdown")
+	}
+
+	// Command should be for live preview (config changed message)
 	if cmd == nil {
 		t.Error("Update with Enter should return a command")
 	}
 
-	// コマンドを実行して結果を取得
 	msg := cmd()
-	result, ok := msg.(sortDialogResultMsg)
+	_, ok := msg.(sortDialogConfigChangedMsg)
 	if !ok {
-		t.Fatalf("Expected sortDialogResultMsg, got %T", msg)
-	}
-
-	if !result.confirmed {
-		t.Error("Expected confirmed = true")
-	}
-	if result.cancelled {
-		t.Error("Expected cancelled = false")
-	}
-	if result.config.Field != SortBySize {
-		t.Errorf("config.Field = %v, want SortBySize", result.config.Field)
+		t.Fatalf("Expected sortDialogConfigChangedMsg, got %T", msg)
 	}
 }
 
 func TestSortDialog_Update_Escape(t *testing.T) {
 	original := SortConfig{Field: SortByName, Order: SortAsc}
 	dialog := NewSortDialog(original)
-	dialog.config.Field = SortByDate // 変更
+	dialog.config.Field = SortByDate // Change
 
 	keyMsg := tea.KeyMsg{Type: tea.KeyEscape}
 	_, cmd := dialog.Update(keyMsg)
@@ -275,7 +305,6 @@ func TestSortDialog_Update_Escape(t *testing.T) {
 		t.Error("Update with Escape should return a command")
 	}
 
-	// コマンドを実行して結果を取得
 	msg := cmd()
 	result, ok := msg.(sortDialogResultMsg)
 	if !ok {
@@ -288,7 +317,6 @@ func TestSortDialog_Update_Escape(t *testing.T) {
 	if !result.cancelled {
 		t.Error("Expected cancelled = true")
 	}
-	// originalConfigが返される
 	if result.config.Field != SortByName {
 		t.Errorf("config.Field = %v, want SortByName", result.config.Field)
 	}
@@ -297,15 +325,14 @@ func TestSortDialog_Update_Escape(t *testing.T) {
 func TestSortDialog_Update_Navigation(t *testing.T) {
 	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
 
-	// jキーで下に移動
-	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	// Tab to move focus
+	keyMsg := tea.KeyMsg{Type: tea.KeyTab}
 	_, cmd := dialog.Update(keyMsg)
 
 	if cmd == nil {
-		t.Error("Update with j should return a command for live preview")
+		t.Error("Update with Tab should return a command for live preview")
 	}
 
-	// コマンドを実行して結果を取得
 	msg := cmd()
 	_, ok := msg.(sortDialogConfigChangedMsg)
 	if !ok {
@@ -328,10 +355,40 @@ func TestSortDialog_Update_Inactive(t *testing.T) {
 func TestSortDialog_Update_NonKeyMsg(t *testing.T) {
 	dialog := NewSortDialog(DefaultSortConfig())
 
-	// 非KeyMsgを送信
 	_, cmd := dialog.Update(tea.WindowSizeMsg{Width: 100, Height: 50})
 
 	if cmd != nil {
 		t.Error("Update with non-key message should return nil command")
+	}
+}
+
+func TestSortDialog_DropdownSyncWithConfig(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortByDate, Order: SortDesc})
+
+	// Dropdown should be initialized with correct selection
+	if dialog.fieldDropdown.SelectedIndex() != int(SortByDate) {
+		t.Errorf("fieldDropdown.SelectedIndex = %d, want %d", dialog.fieldDropdown.SelectedIndex(), SortByDate)
+	}
+	if dialog.orderDropdown.SelectedIndex() != int(SortDesc) {
+		t.Errorf("orderDropdown.SelectedIndex = %d, want %d", dialog.orderDropdown.SelectedIndex(), SortDesc)
+	}
+}
+
+func TestSortDialog_ArrowKeysInDropdown(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+
+	// Expand dropdown
+	dialog.HandleKey("enter")
+
+	// Down arrow should work
+	dialog.HandleKey("down")
+	if dialog.fieldDropdown.highlightedIndex != 1 {
+		t.Errorf("down arrow: highlightedIndex = %d, want 1", dialog.fieldDropdown.highlightedIndex)
+	}
+
+	// Up arrow should work
+	dialog.HandleKey("up")
+	if dialog.fieldDropdown.highlightedIndex != 0 {
+		t.Errorf("up arrow: highlightedIndex = %d, want 0", dialog.fieldDropdown.highlightedIndex)
 	}
 }
