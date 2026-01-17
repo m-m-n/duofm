@@ -7,91 +7,157 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// SortDialog はソート設定を変更するためのダイアログ
+// SortDialog is a dialog for changing sort settings using dropdown menus.
 type SortDialog struct {
 	BaseDialog
-	config         SortConfig // 現在の選択
-	originalConfig SortConfig // キャンセル時の復元用
-	focusedRow     int        // 0: Sort by, 1: Order
-	styles         DialogStyles
+	config          SortConfig // Current selection
+	originalConfig  SortConfig // For restoration on cancel
+	focusedDropdown int        // 0: Sort by, 1: Order
+	fieldDropdown   *Dropdown  // Sort by dropdown
+	orderDropdown   *Dropdown  // Order dropdown
+	styles          DialogStyles
 }
 
-// NewSortDialog は新しいソートダイアログを作成
+// NewSortDialog creates a new sort dialog with dropdown menus.
 func NewSortDialog(current SortConfig) *SortDialog {
 	base := NewBaseDialog(DialogDisplayPane)
 	base.SetWidth(36)
+
+	// Create Sort by dropdown
+	fieldOptions := []DropdownOption{
+		{Label: "Name", Value: "name"},
+		{Label: "Size", Value: "size"},
+		{Label: "Date", Value: "date"},
+	}
+	fieldDropdown := NewDropdown(fieldOptions, int(current.Field))
+
+	// Create Order dropdown
+	orderOptions := []DropdownOption{
+		{Label: "\u2191Asc", Value: "asc"},   // Up arrow
+		{Label: "\u2193Desc", Value: "desc"}, // Down arrow
+	}
+	orderDropdown := NewDropdown(orderOptions, int(current.Order))
+
 	return &SortDialog{
-		BaseDialog:     base,
-		config:         current,
-		originalConfig: current,
-		focusedRow:     0,
-		styles:         NewDialogStyles(36, ColorPrimary),
+		BaseDialog:      base,
+		config:          current,
+		originalConfig:  current,
+		focusedDropdown: 0,
+		fieldDropdown:   fieldDropdown,
+		orderDropdown:   orderDropdown,
+		styles:          NewDialogStyles(36, ColorPrimary),
 	}
 }
 
-// HandleKey はキー入力を処理し、確定またはキャンセル状態を返す
+// HandleKey processes key input and returns confirmed/cancelled status.
 func (d *SortDialog) HandleKey(key string) (confirmed bool, cancelled bool) {
-	switch key {
-	case "h", "left":
-		d.moveLeft()
-	case "l", "right":
-		d.moveRight()
-	case "j", "down":
-		if d.focusedRow < 1 {
-			d.focusedRow = 1
-		}
-	case "k", "up":
-		if d.focusedRow > 0 {
-			d.focusedRow = 0
-		}
-	case "enter":
-		d.Close()
-		return true, false
-	case "esc", "q":
+	// q always cancels the dialog, even when dropdown is expanded
+	if key == "q" {
 		d.config = d.originalConfig
 		d.Close()
 		return false, true
 	}
+
+	// Check if any dropdown is expanded
+	if d.fieldDropdown.IsExpanded() {
+		return d.handleExpandedDropdownKey(d.fieldDropdown, key, true)
+	}
+	if d.orderDropdown.IsExpanded() {
+		return d.handleExpandedDropdownKey(d.orderDropdown, key, false)
+	}
+
+	// No dropdown expanded - handle dialog-level keys
+	return d.handleDialogKey(key)
+}
+
+// handleExpandedDropdownKey handles keys when a dropdown is expanded.
+func (d *SortDialog) handleExpandedDropdownKey(dropdown *Dropdown, key string, isFieldDropdown bool) (confirmed bool, cancelled bool) {
+	action := dropdown.HandleKey(key)
+
+	switch action {
+	case DropdownActionSelected:
+		// Update config based on which dropdown was changed
+		if isFieldDropdown {
+			d.config.Field = SortField(dropdown.SelectedIndex())
+		} else {
+			d.config.Order = SortOrder(dropdown.SelectedIndex())
+		}
+		return false, false
+
+	case DropdownActionCancelled:
+		// Escape closes dropdown only, does not cancel dialog
+		return false, false
+
+	default:
+		// DropdownActionNone - key was handled internally (cursor moved)
+		return false, false
+	}
+}
+
+// handleDialogKey handles keys when no dropdown is expanded.
+func (d *SortDialog) handleDialogKey(key string) (confirmed bool, cancelled bool) {
+	switch key {
+	case "tab":
+		if d.focusedDropdown < 1 {
+			d.focusedDropdown = 1
+		}
+		return false, false
+
+	case "shift+tab":
+		if d.focusedDropdown > 0 {
+			d.focusedDropdown = 0
+		}
+		return false, false
+
+	case "enter":
+		// Expand the focused dropdown
+		d.getFocusedDropdown().Expand()
+		return false, false
+
+	case " ":
+		// Space also expands dropdown
+		d.getFocusedDropdown().Expand()
+		return false, false
+
+	case "esc":
+		// Cancel dialog
+		d.config = d.originalConfig
+		d.Close()
+		return false, true
+
+	case "j", "down":
+		// When expanded dropdown handles j/down, but when closed, these do nothing
+		// at dialog level (use Tab instead)
+		return false, false
+
+	case "k", "up":
+		// When expanded dropdown handles k/up, but when closed, these do nothing
+		// at dialog level (use Shift+Tab instead)
+		return false, false
+	}
+
 	return false, false
 }
 
-// moveLeft は現在の行で左に移動
-func (d *SortDialog) moveLeft() {
-	if d.focusedRow == 0 {
-		// Sort by: Name <- Size <- Date
-		if d.config.Field > SortByName {
-			d.config.Field--
-		}
-	} else {
-		// Order: Asc <- Desc
-		d.config.Order = SortAsc
+// getFocusedDropdown returns the currently focused dropdown.
+func (d *SortDialog) getFocusedDropdown() *Dropdown {
+	if d.focusedDropdown == 0 {
+		return d.fieldDropdown
 	}
+	return d.orderDropdown
 }
 
-// moveRight は現在の行で右に移動
-func (d *SortDialog) moveRight() {
-	if d.focusedRow == 0 {
-		// Sort by: Name -> Size -> Date
-		if d.config.Field < SortByDate {
-			d.config.Field++
-		}
-	} else {
-		// Order: Asc -> Desc
-		d.config.Order = SortDesc
-	}
-}
-
-// Config は現在の設定を返す
+// Config returns the current sort configuration.
 func (d *SortDialog) Config() SortConfig {
 	return d.config
 }
 
-// OriginalConfig は元の設定を返す
+// OriginalConfig returns the original sort configuration.
 func (d *SortDialog) OriginalConfig() SortConfig {
 	return d.originalConfig
 }
 
-// Update はbubbletea互換のUpdate実装
+// Update implements the Bubble Tea Update interface.
 func (d *SortDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	if !d.IsActive() {
 		return d, nil
@@ -113,7 +179,7 @@ func (d *SortDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			}
 		}
 
-		// ライブプレビュー用: 設定変更メッセージ
+		// Live preview: emit config change message
 		return d, func() tea.Msg {
 			return sortDialogConfigChangedMsg{config: d.config}
 		}
@@ -122,7 +188,7 @@ func (d *SortDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	return d, nil
 }
 
-// View はダイアログをレンダリング
+// View renders the dialog.
 func (d *SortDialog) View() string {
 	if !d.IsActive() {
 		return ""
@@ -130,109 +196,50 @@ func (d *SortDialog) View() string {
 
 	var b strings.Builder
 
-	// タイトル
+	// Title
 	b.WriteString(d.styles.Title.Render("Sort"))
 	b.WriteString("\n\n")
 
-	// Sort by 行
+	// Sort by row
 	b.WriteString(d.renderSortByRow())
 	b.WriteString("\n")
 
-	// Order 行
+	// Order row
 	b.WriteString(d.renderOrderRow())
 	b.WriteString("\n\n")
 
-	// ヘルプテキスト
-	b.WriteString(d.styles.Footer.Render("h/l:change  j/k:row"))
+	// Help text
+	b.WriteString(d.styles.Footer.Render("Tab:next  Enter:select"))
 	b.WriteString("\n")
-	b.WriteString(d.styles.Footer.Render("Enter:OK  Esc:cancel"))
+	b.WriteString(d.styles.Footer.Render("Esc:cancel  q:quit"))
 
 	return d.styles.Box.Render(b.String())
 }
 
-// renderSortByRow はSort by行をレンダリング
+// renderSortByRow renders the Sort by row with dropdown.
 func (d *SortDialog) renderSortByRow() string {
 	labelStyle := lipgloss.NewStyle().Width(10)
+	isFocused := d.focusedDropdown == 0
 
-	fields := []struct {
-		field SortField
-		label string
-	}{
-		{SortByName, "Name"},
-		{SortBySize, "Size"},
-		{SortByDate, "Date"},
-	}
-
-	var options []string
-	for _, f := range fields {
-		if d.config.Field == f.field {
-			options = append(options, d.renderSelected(f.label, d.focusedRow == 0))
-		} else {
-			options = append(options, d.renderUnselected(f.label, d.focusedRow == 0))
-		}
-	}
-
-	return labelStyle.Render("Sort by") + "  " + strings.Join(options, "  ")
+	return labelStyle.Render("Sort by") + "  " + d.fieldDropdown.View(isFocused)
 }
 
-// renderOrderRow はOrder行をレンダリング
+// renderOrderRow renders the Order row with dropdown.
 func (d *SortDialog) renderOrderRow() string {
 	labelStyle := lipgloss.NewStyle().Width(10)
+	isFocused := d.focusedDropdown == 1
 
-	orders := []struct {
-		order SortOrder
-		label string
-	}{
-		{SortAsc, "↑Asc"},
-		{SortDesc, "↓Desc"},
-	}
-
-	var options []string
-	for _, o := range orders {
-		if d.config.Order == o.order {
-			options = append(options, d.renderSelected(o.label, d.focusedRow == 1))
-		} else {
-			options = append(options, d.renderUnselected(o.label, d.focusedRow == 1))
-		}
-	}
-
-	return labelStyle.Render("Order") + "  " + strings.Join(options, "  ")
+	return labelStyle.Render("Order") + "  " + d.orderDropdown.View(isFocused)
 }
 
-// renderSelected は選択中の項目をレンダリング
-func (d *SortDialog) renderSelected(label string, isFocusedRow bool) string {
-	style := lipgloss.NewStyle()
-	if isFocusedRow {
-		style = style.
-			Background(lipgloss.Color("39")).
-			Foreground(lipgloss.Color("0"))
-	} else {
-		style = style.
-			Foreground(lipgloss.Color("39")).
-			Bold(true)
-	}
-	return "[" + style.Render(label) + "]"
-}
-
-// renderUnselected は非選択の項目をレンダリング
-func (d *SortDialog) renderUnselected(label string, isFocusedRow bool) string {
-	style := lipgloss.NewStyle()
-	if isFocusedRow {
-		style = style.Foreground(lipgloss.Color("240"))
-	} else {
-		style = style.Foreground(lipgloss.Color("243"))
-	}
-	return " " + style.Render(label) + " "
-}
-
-// sortDialogResultMsg はソートダイアログの結果メッセージ
+// sortDialogResultMsg is the result message for the sort dialog.
 type sortDialogResultMsg struct {
 	config    SortConfig
 	confirmed bool
 	cancelled bool
 }
 
-// sortDialogConfigChangedMsg はソート設定変更時のメッセージ（ライブプレビュー用）
+// sortDialogConfigChangedMsg is emitted when sort config changes (for live preview).
 type sortDialogConfigChangedMsg struct {
 	config SortConfig
 }
