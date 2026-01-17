@@ -9,23 +9,25 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Vim-style keybindings: Familiar hjkl navigation with arrow key support
   - File operations: Copy, move, delete, rename files and directories
   - Smart rename: Extension-preserving rename (R) and full filename rename (Shift+R)
-  - Permission editing: Change permissions (chmod) with Shift+P, including recursive mode
+  - Permission editing: Change permissions (chmod) with Shift+P, including recursive and batch modes
   - File creation: Create new files (N) and directories (Shift+N)
   - Multi-file marking: Select multiple files with Space for batch operations
   - Symbolic link support: Display targets, detect broken links, navigate to physical/logical paths
   - Overwrite handling: Smart conflict resolution with overwrite, skip, or rename options
+  - Cursor management: Smart cursor positioning preserved across operations and navigation
 
 - **Navigation & Search**
   - Search & Filter: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
   - Path jump: Direct navigation to any directory with `Ctrl+J` and Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
-  - Hidden files: Toggle visibility with `Ctrl+H`
+  - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting)
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
   - Sort options: By name, size, or date with live preview
   - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
   - Smart cursor: Remember position when navigating to parent directory
   - Refresh: Reload directory contents with F5 or Ctrl+R
+  - Async loading: Responsive UI with proper pane identification
 
 - **Archive Operations** (Linux only)
   - Create archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
@@ -33,15 +35,18 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Smart extraction: Adapts to archive structure
   - Compression levels: Choose from 0-9 for supported formats
   - Security checks: Zip bomb detection, disk space validation
+  - Progress display: Real-time progress for long operations
+  - Cancelable operations: Esc to cancel with cleanup
 
 - **Display & UI**
   - Three display modes: Minimal, Basic (size+date), Detail (permissions+owner)
   - Unicode support: Proper display for Japanese, Chinese, Korean and emoji
-  - East Asian Width: Configurable width for ambiguous characters
+  - East Asian Width: Configurable width for ambiguous characters (☆, ü, ①, →)
   - Context menu: Press `@` for visual action selection with number key shortcuts
   - Help system: Press `?` for scrollable keybinding reference with color palette
   - Dialog overlays: Dimmed background keeps file list visible during dialogs
   - Git branch display: Shows active branch in status bar when in Git repository
+  - Version display: Dynamic version from build-time ldflags
 
 - **External Integration**
   - External viewer: Configurable Enter key behavior (pager, xdg-open, or custom app)
@@ -50,6 +55,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Shell history: Ctrl+R incremental search and up/down arrow navigation
   - Context menu actions: Open and "Open with" for custom applications
   - Working directory: External apps open in file's directory
+  - Persistent history: Shell commands preserved across sessions (20,000 default)
 
 - **Customization**
   - Configuration file: `~/.config/duofm/config.toml` (auto-generated with auto-merge)
@@ -57,6 +63,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Color theme: Full 256-color customization for all UI elements
   - Enter key behavior: Choose between pager, xdg-open, or custom application
   - Bookmarks: Persisted in configuration file with edit/delete support
+  - Auto-merge: Missing configuration items automatically added on updates
 
 ## Screenshots
 
