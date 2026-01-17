@@ -33,6 +33,11 @@ func (t *TextInput) HandleKey(msg tea.KeyMsg) bool {
 		t.InsertRunes(msg.Runes)
 		return true
 
+	case tea.KeySpace:
+		// Space key is handled separately from KeyRunes in Bubble Tea
+		t.InsertRunes([]rune{' '})
+		return true
+
 	case tea.KeyBackspace:
 		t.DeleteBackward()
 		return true
@@ -179,10 +184,7 @@ func (t *TextInput) RenderWithCursor(width int) string {
 		if t.CursorPos > width-3 {
 			startPos = t.CursorPos - width + 3
 		}
-		endPos := startPos + width - 2
-		if endPos > len(runes) {
-			endPos = len(runes)
-		}
+		endPos := min(startPos+width-2, len(runes))
 		displayInput = string(runes[startPos:endPos])
 		cursorDisplayPos = t.CursorPos - startPos
 	}
