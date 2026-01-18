@@ -736,7 +736,7 @@ Parse Input
 **Deliverables:**
 - SearchModeSQLLike constant
 - Ctrl+G keybinding
-- Minibuffer with WHERE prompt
+- Minibuffer with "(query): " prompt
 - Error display
 - Integration tests
 

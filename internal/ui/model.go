@@ -255,7 +255,7 @@ func (m *Model) startSearch(mode SearchMode) {
 	case SearchModeRegex:
 		m.minibuffer.SetPrompt("(regex): ")
 	case SearchModeSQLLike:
-		m.minibuffer.SetPrompt("(sql): ")
+		m.minibuffer.SetPrompt("(query): ")
 	default:
 		m.minibuffer.SetPrompt("/: ")
 	}
