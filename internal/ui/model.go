@@ -249,10 +249,15 @@ func (m *Model) startSearch(mode SearchMode) {
 	m.searchState.IsActive = true
 
 	// ミニバッファの設定
-	if mode == SearchModeIncremental {
+	switch mode {
+	case SearchModeIncremental:
 		m.minibuffer.SetPrompt("/: ")
-	} else {
-		m.minibuffer.SetPrompt("(search): ")
+	case SearchModeRegex:
+		m.minibuffer.SetPrompt("(regex): ")
+	case SearchModeSQLLike:
+		m.minibuffer.SetPrompt("(sql): ")
+	default:
+		m.minibuffer.SetPrompt("/: ")
 	}
 	m.minibuffer.Clear()
 	m.minibuffer.SetWidth(m.getActivePane().width)

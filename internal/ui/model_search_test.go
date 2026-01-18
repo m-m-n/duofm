@@ -291,7 +291,7 @@ func TestSearchPromptForModes(t *testing.T) {
 		{
 			name:       "正規表現検索のプロンプト",
 			key:        tea.KeyMsg{Type: tea.KeyCtrlF},
-			wantPrompt: "(search): ",
+			wantPrompt: "(regex): ",
 		},
 	}
 

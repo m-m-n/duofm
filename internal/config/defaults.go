@@ -40,6 +40,7 @@ func DefaultKeybindings() map[string][]string {
 		// Search
 		"search":       {"/"},
 		"regex_search": {"Ctrl+F"},
+		"sql_filter":   {"Ctrl+G"},
 
 		// External applications
 		"view":          {"V"},
@@ -93,6 +94,7 @@ func AllActions() []string {
 		"sync_pane",
 		"search",
 		"regex_search",
+		"sql_filter",
 		"view",
 		"edit",
 		"shell_command",

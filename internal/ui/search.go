@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sakura/duofm/internal/filter"
 	"github.com/sakura/duofm/internal/fs"
 )
 
@@ -17,6 +18,8 @@ const (
 	SearchModeIncremental
 	// SearchModeRegex is regex pattern matching applied on confirm
 	SearchModeRegex
+	// SearchModeSQLLike is SQL-like WHERE clause filtering
+	SearchModeSQLLike
 )
 
 // String returns the string representation of SearchMode
@@ -26,6 +29,8 @@ func (m SearchMode) String() string {
 		return "incremental"
 	case SearchModeRegex:
 		return "regex"
+	case SearchModeSQLLike:
+		return "sql"
 	default:
 		return "none"
 	}
@@ -100,4 +105,10 @@ func filterRegex(entries []fs.FileEntry, pattern string) ([]fs.FileEntry, error)
 		}
 	}
 	return result, nil
+}
+
+// filterSQLLike filters entries using SQL-like WHERE clause syntax.
+// Returns filtered entries or an error if the query is invalid.
+func filterSQLLike(entries []fs.FileEntry, query string) ([]fs.FileEntry, error) {
+	return filter.FilterSQLLike(entries, query)
 }
