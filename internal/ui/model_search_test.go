@@ -64,7 +64,7 @@ func TestSearchKeyActivatesIncrementalSearch(t *testing.T) {
 	}
 }
 
-func TestCtrlFActivatesRegexSearch(t *testing.T) {
+func TestCtrlFOpensRegexSearchDialog(t *testing.T) {
 	model := NewModel()
 
 	// Initialize with WindowSizeMsg
@@ -80,16 +80,18 @@ func TestCtrlFActivatesRegexSearch(t *testing.T) {
 	updatedModel, _ = m.Update(keyMsg)
 	m = updatedModel.(Model)
 
-	if m.searchState.Mode != SearchModeRegex {
-		t.Errorf("searchState.Mode = %v, want SearchModeRegex", m.searchState.Mode)
+	// Should open RegexSearchDialog, not activate minibuffer search
+	if m.dialog == nil {
+		t.Error("dialog should be set after Ctrl+F")
 	}
 
-	if !m.searchState.IsActive {
-		t.Error("searchState.IsActive should be true after Ctrl+F")
+	if _, ok := m.dialog.(*RegexSearchDialog); !ok {
+		t.Errorf("dialog should be *RegexSearchDialog, got %T", m.dialog)
 	}
 
-	if !m.minibuffer.IsVisible() {
-		t.Error("minibuffer should be visible after Ctrl+F")
+	// minibuffer should NOT be visible (dialog is used instead)
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should NOT be visible after Ctrl+F (dialog is used)")
 	}
 }
 
@@ -277,44 +279,56 @@ func TestSearchStateRestoreOnEsc(t *testing.T) {
 	t.Logf("Entry counts: initial=%d, filtered=%d, restored=%d", initialEntryCount, filteredCount, restoredCount)
 }
 
-func TestSearchPromptForModes(t *testing.T) {
-	tests := []struct {
-		name       string
-		key        tea.KeyMsg
-		wantPrompt string
-	}{
-		{
-			name:       "インクリメンタル検索のプロンプト",
-			key:        tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}},
-			wantPrompt: "/: ",
-		},
-		{
-			name:       "正規表現検索のプロンプト",
-			key:        tea.KeyMsg{Type: tea.KeyCtrlF},
-			wantPrompt: "(regex): ",
-		},
+func TestSearchPromptForIncrementalMode(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Start incremental search with / key
+	key := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	updatedModel, _ = m.Update(key)
+	m = updatedModel.(Model)
+
+	wantPrompt := "/: "
+	if m.minibuffer.prompt != wantPrompt {
+		t.Errorf("prompt = %s, want %s", m.minibuffer.prompt, wantPrompt)
+	}
+}
+
+func TestCtrlGOpensQuerySearchDialog(t *testing.T) {
+	model := NewModel()
+
+	// Initialize with WindowSizeMsg
+	msg := tea.WindowSizeMsg{
+		Width:  120,
+		Height: 40,
+	}
+	updatedModel, _ := model.Update(msg)
+	m := updatedModel.(Model)
+
+	// Press Ctrl+G
+	keyMsg := tea.KeyMsg{Type: tea.KeyCtrlG}
+	updatedModel, _ = m.Update(keyMsg)
+	m = updatedModel.(Model)
+
+	// Should open QuerySearchDialog
+	if m.dialog == nil {
+		t.Error("dialog should be set after Ctrl+G")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := NewModel()
+	if _, ok := m.dialog.(*QuerySearchDialog); !ok {
+		t.Errorf("dialog should be *QuerySearchDialog, got %T", m.dialog)
+	}
 
-			// Initialize with WindowSizeMsg
-			msg := tea.WindowSizeMsg{
-				Width:  120,
-				Height: 40,
-			}
-			updatedModel, _ := model.Update(msg)
-			m := updatedModel.(Model)
-
-			// Start search
-			updatedModel, _ = m.Update(tt.key)
-			m = updatedModel.(Model)
-
-			if m.minibuffer.prompt != tt.wantPrompt {
-				t.Errorf("prompt = %s, want %s", m.minibuffer.prompt, tt.wantPrompt)
-			}
-		})
+	// minibuffer should NOT be visible (dialog is used instead)
+	if m.minibuffer.IsVisible() {
+		t.Error("minibuffer should NOT be visible after Ctrl+G (dialog is used)")
 	}
 }
 

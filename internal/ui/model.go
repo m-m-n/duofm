@@ -40,8 +40,10 @@ type Model struct {
 	configWarnings []string // 設定ファイルの警告
 
 	// Search and minibuffer
-	searchState SearchState // 検索状態
-	minibuffer  *Minibuffer // ミニバッファ
+	searchState  SearchState    // 検索状態
+	minibuffer   *Minibuffer    // ミニバッファ
+	regexHistory *SearchHistory // 正規表現検索履歴
+	queryHistory *SearchHistory // クエリ検索履歴
 
 	// Input state
 	ctrlCPending         bool // Ctrl+Cが1回押された状態かどうか
@@ -141,6 +143,8 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		diskSpaceMonitor: NewDiskSpaceMonitor(),
 		searchState:      SearchState{Mode: SearchModeNone},
 		minibuffer:       NewMinibuffer(),
+		regexHistory:     NewSearchHistory(DefaultSearchHistorySize),
+		queryHistory:     NewSearchHistory(DefaultSearchHistorySize),
 		keybindingMap:    keybindingMap,
 		configWarnings:   warnings,
 		theme:            theme,
@@ -232,7 +236,13 @@ func (m *Model) startShellCommandMode() {
 }
 
 // startSearch は検索モードを開始する
+// Note: Only handles incremental search now. Regex and query searches use dialogs.
 func (m *Model) startSearch(mode SearchMode) {
+	// Only handle incremental search - other modes use dialogs
+	if mode != SearchModeIncremental {
+		return
+	}
+
 	// 現在のフィルタ状態を保存（Esc時に復元するため）
 	pane := m.getActivePane()
 	if pane.IsFiltered() {
@@ -248,17 +258,7 @@ func (m *Model) startSearch(mode SearchMode) {
 	m.searchState.Pattern = ""
 	m.searchState.IsActive = true
 
-	// ミニバッファの設定
-	switch mode {
-	case SearchModeIncremental:
-		m.minibuffer.SetPrompt("/: ")
-	case SearchModeRegex:
-		m.minibuffer.SetPrompt("(regex): ")
-	case SearchModeSQLLike:
-		m.minibuffer.SetPrompt("(query): ")
-	default:
-		m.minibuffer.SetPrompt("/: ")
-	}
+	m.minibuffer.SetPrompt("/: ")
 	m.minibuffer.Clear()
 	m.minibuffer.SetWidth(m.getActivePane().width)
 	m.minibuffer.Show()

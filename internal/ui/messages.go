@@ -145,3 +145,15 @@ type openWithDialogResultMsg struct {
 	workDir     string   // working directory
 	cancelled   bool     // true if cancelled
 }
+
+// regexSearchResultMsg notifies the result of regex search dialog
+type regexSearchResultMsg struct {
+	pattern   string // search pattern (empty string means clear filter)
+	cancelled bool   // true if cancelled
+}
+
+// querySearchResultMsg notifies the result of query search dialog
+type querySearchResultMsg struct {
+	query     string // search query (empty string means clear filter)
+	cancelled bool   // true if cancelled
+}

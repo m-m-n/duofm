@@ -324,11 +324,11 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionRegexSearch:
-		m.startSearch(SearchModeRegex)
+		m.dialog = NewRegexSearchDialog(m.regexHistory)
 		return m, nil
 
 	case ActionSQLFilter:
-		m.startSearch(SearchModeSQLLike)
+		m.dialog = NewQuerySearchDialog(m.queryHistory)
 		return m, nil
 
 	case ActionShellCommand:
