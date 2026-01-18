@@ -180,6 +180,44 @@ func (m Model) handleContextMenuResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 
 // handleDialogMessages はダイアログ関連のメッセージを処理する
 func (m Model) handleDialogMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
+	// Regex search dialog result
+	if result, ok := msg.(regexSearchResultMsg); ok {
+		m.dialog = nil
+		if result.cancelled {
+			return m, nil, true
+		}
+		pane := m.getActivePane()
+		if result.pattern == "" {
+			pane.ClearFilter()
+		} else {
+			if err := pane.ApplyFilter(result.pattern, SearchModeRegex); err != nil {
+				m.statusMessage = fmt.Sprintf("Regex error: %v", err)
+				m.isStatusError = true
+				return m, statusMessageClearCmd(5 * time.Second), true
+			}
+		}
+		return m, nil, true
+	}
+
+	// Query search dialog result
+	if result, ok := msg.(querySearchResultMsg); ok {
+		m.dialog = nil
+		if result.cancelled {
+			return m, nil, true
+		}
+		pane := m.getActivePane()
+		if result.query == "" {
+			pane.ClearFilter()
+		} else {
+			if err := pane.ApplyFilter(result.query, SearchModeSQLLike); err != nil {
+				m.statusMessage = fmt.Sprintf("Query error: %v", err)
+				m.isStatusError = true
+				return m, statusMessageClearCmd(5 * time.Second), true
+			}
+		}
+		return m, nil, true
+	}
+
 	// ソートダイアログの結果処理
 	if result, ok := msg.(sortDialogResultMsg); ok {
 		m.sortDialog = nil
