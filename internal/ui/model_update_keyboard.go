@@ -327,6 +327,10 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		m.startSearch(SearchModeRegex)
 		return m, nil
 
+	case ActionSQLFilter:
+		m.startSearch(SearchModeSQLLike)
+		return m, nil
+
 	case ActionShellCommand:
 		m.startShellCommandMode()
 		return m, nil

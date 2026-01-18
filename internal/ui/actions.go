@@ -37,6 +37,7 @@ const (
 	// Search
 	ActionSearch
 	ActionRegexSearch
+	ActionSQLFilter
 	// External applications
 	ActionView
 	ActionEdit
@@ -85,6 +86,7 @@ var actionNames = map[Action]string{
 	ActionSyncPane:       "sync_pane",
 	ActionSearch:         "search",
 	ActionRegexSearch:    "regex_search",
+	ActionSQLFilter:      "sql_filter",
 	ActionView:           "view",
 	ActionEdit:           "edit",
 	ActionShellCommand:   "shell_command",
@@ -126,6 +128,7 @@ var nameToAction = map[string]Action{
 	"sync_pane":        ActionSyncPane,
 	"search":           ActionSearch,
 	"regex_search":     ActionRegexSearch,
+	"sql_filter":       ActionSQLFilter,
 	"view":             ActionView,
 	"edit":             ActionEdit,
 	"shell_command":    ActionShellCommand,

@@ -12,7 +12,7 @@ func TestDefaultKeybindings(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedActions := 37
+	expectedActions := 38 // Includes sql_filter
 	if len(defaults) != expectedActions {
 		t.Errorf("DefaultKeybindings() length = %d, want %d", len(defaults), expectedActions)
 	}
@@ -263,7 +263,7 @@ func TestAllActions(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedCount := 37
+	expectedCount := 38 // Includes sql_filter
 	if len(actions) != expectedCount {
 		t.Errorf("AllActions() length = %d, want %d", len(actions), expectedCount)
 	}
@@ -297,6 +297,7 @@ func TestAllActions(t *testing.T) {
 		"sync_pane",
 		"search",
 		"regex_search",
+		"sql_filter",
 		"view",
 		"edit",
 		"shell_command",

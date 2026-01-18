@@ -89,6 +89,11 @@ func (p *Pane) ApplyFilter(pattern string, mode SearchMode) error {
 		if err != nil {
 			return err
 		}
+	case SearchModeSQLLike:
+		filtered, err = filterSQLLike(p.allEntries, pattern)
+		if err != nil {
+			return err
+		}
 	default:
 		filtered = p.allEntries
 	}
@@ -183,6 +188,8 @@ func (p *Pane) formatFilterIndicator() string {
 		return fmt.Sprintf("[/%s]", pattern)
 	case SearchModeRegex:
 		return fmt.Sprintf("[re/%s]", pattern)
+	case SearchModeSQLLike:
+		return fmt.Sprintf("[sql/%s]", pattern)
 	default:
 		return ""
 	}
