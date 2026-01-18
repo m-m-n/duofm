@@ -472,7 +472,7 @@ Filtered file list
 ```
 1. User presses Ctrl+G
    |-- Set search mode to SearchModeSQLLike
-   |-- Show minibuffer with "WHERE " prompt
+   |-- Show minibuffer with "(query): " prompt
 2. User types query
    |-- Standard minibuffer editing (no real-time filtering)
 3. User presses Enter
@@ -497,7 +497,7 @@ Filtered file list
 
 3. **Add Ctrl+G Key Handler**
    - Activate SQL-like filter mode
-   - Set minibuffer prompt to "WHERE "
+   - Set minibuffer prompt to "(query): "
    - Handle Enter to execute
    - Handle Esc to cancel
 
@@ -534,7 +534,7 @@ Filtered file list
 
 **Acceptance Criteria**:
 - [ ] Ctrl+G activates SQL-like filter
-- [ ] Minibuffer shows "WHERE " prompt
+- [ ] Minibuffer shows "(query): " prompt
 - [ ] Enter executes filter and displays results
 - [ ] Esc cancels filter and restores list
 - [ ] Error messages displayed clearly
