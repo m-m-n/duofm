@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -19,8 +20,8 @@ func TestNewSortDialog(t *testing.T) {
 	if dialog.originalConfig.Field != SortBySize {
 		t.Errorf("originalConfig.Field = %v, want SortBySize", dialog.originalConfig.Field)
 	}
-	if dialog.focusedDropdown != 0 {
-		t.Errorf("focusedDropdown = %d, want 0", dialog.focusedDropdown)
+	if dialog.focusedItem != FocusTargetSortBy {
+		t.Errorf("focusedItem = %d, want FocusTargetSortBy", dialog.focusedItem)
 	}
 	if !dialog.active {
 		t.Error("dialog should be active")
@@ -30,25 +31,27 @@ func TestNewSortDialog(t *testing.T) {
 func TestSortDialog_HandleKey_TabNavigation(t *testing.T) {
 	tests := []struct {
 		name         string
-		startFocused int
+		startFocused FocusTarget
 		key          string
-		wantFocused  int
+		wantFocused  FocusTarget
 	}{
-		{"Tab from 0 to 1", 0, "tab", 1},
-		{"Tab from 1 stays at 1", 1, "tab", 1},
-		{"Shift+Tab from 1 to 0", 1, "shift+tab", 0},
-		{"Shift+Tab from 0 stays at 0", 0, "shift+tab", 0},
+		{"Tab from SortBy to Order", FocusTargetSortBy, "tab", FocusTargetOrder},
+		{"Tab from Order to OK", FocusTargetOrder, "tab", FocusTargetOK},
+		{"Tab from OK stays at OK", FocusTargetOK, "tab", FocusTargetOK},
+		{"Shift+Tab from OK to Order", FocusTargetOK, "shift+tab", FocusTargetOrder},
+		{"Shift+Tab from Order to SortBy", FocusTargetOrder, "shift+tab", FocusTargetSortBy},
+		{"Shift+Tab from SortBy stays at SortBy", FocusTargetSortBy, "shift+tab", FocusTargetSortBy},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dialog := NewSortDialog(DefaultSortConfig())
-			dialog.focusedDropdown = tt.startFocused
+			dialog.focusedItem = tt.startFocused
 
 			dialog.HandleKey(tt.key)
 
-			if dialog.focusedDropdown != tt.wantFocused {
-				t.Errorf("focusedDropdown = %d, want %d", dialog.focusedDropdown, tt.wantFocused)
+			if dialog.focusedItem != tt.wantFocused {
+				t.Errorf("focusedItem = %d, want %d", dialog.focusedItem, tt.wantFocused)
 			}
 		})
 	}
@@ -390,5 +393,234 @@ func TestSortDialog_ArrowKeysInDropdown(t *testing.T) {
 	dialog.HandleKey("up")
 	if dialog.fieldDropdown.highlightedIndex != 0 {
 		t.Errorf("up arrow: highlightedIndex = %d, want 0", dialog.fieldDropdown.highlightedIndex)
+	}
+}
+
+// ============================================
+// Phase 4: j/k Navigation and OK Button Tests
+// ============================================
+
+func TestSortDialog_JKNavigation_BetweenMajorItems(t *testing.T) {
+	tests := []struct {
+		name       string
+		startFocus FocusTarget
+		key        string
+		wantFocus  FocusTarget
+	}{
+		{"j from SortBy to Order", FocusTargetSortBy, "j", FocusTargetOrder},
+		{"j from Order to OK", FocusTargetOrder, "j", FocusTargetOK},
+		{"j from OK stays at OK", FocusTargetOK, "j", FocusTargetOK},
+		{"k from OK to Order", FocusTargetOK, "k", FocusTargetOrder},
+		{"k from Order to SortBy", FocusTargetOrder, "k", FocusTargetSortBy},
+		{"k from SortBy stays at SortBy", FocusTargetSortBy, "k", FocusTargetSortBy},
+		{"down from SortBy to Order", FocusTargetSortBy, "down", FocusTargetOrder},
+		{"down from Order to OK", FocusTargetOrder, "down", FocusTargetOK},
+		{"up from OK to Order", FocusTargetOK, "up", FocusTargetOrder},
+		{"up from Order to SortBy", FocusTargetOrder, "up", FocusTargetSortBy},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dialog := NewSortDialog(DefaultSortConfig())
+			dialog.focusedItem = tt.startFocus
+
+			dialog.HandleKey(tt.key)
+
+			if dialog.focusedItem != tt.wantFocus {
+				t.Errorf("focusedItem = %d, want %d", dialog.focusedItem, tt.wantFocus)
+			}
+		})
+	}
+}
+
+func TestSortDialog_TabNavigation_ThreeMajorItems(t *testing.T) {
+	tests := []struct {
+		name       string
+		startFocus FocusTarget
+		key        string
+		wantFocus  FocusTarget
+	}{
+		{"Tab from SortBy to Order", FocusTargetSortBy, "tab", FocusTargetOrder},
+		{"Tab from Order to OK", FocusTargetOrder, "tab", FocusTargetOK},
+		{"Tab from OK stays at OK", FocusTargetOK, "tab", FocusTargetOK},
+		{"Shift+Tab from OK to Order", FocusTargetOK, "shift+tab", FocusTargetOrder},
+		{"Shift+Tab from Order to SortBy", FocusTargetOrder, "shift+tab", FocusTargetSortBy},
+		{"Shift+Tab from SortBy stays at SortBy", FocusTargetSortBy, "shift+tab", FocusTargetSortBy},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dialog := NewSortDialog(DefaultSortConfig())
+			dialog.focusedItem = tt.startFocus
+
+			dialog.HandleKey(tt.key)
+
+			if dialog.focusedItem != tt.wantFocus {
+				t.Errorf("focusedItem = %d, want %d", dialog.focusedItem, tt.wantFocus)
+			}
+		})
+	}
+}
+
+func TestSortDialog_OKButton_EnterConfirms(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+	dialog.focusedItem = FocusTargetOK
+
+	confirmed, cancelled := dialog.HandleKey("enter")
+
+	if !confirmed {
+		t.Error("Enter on OK button should confirm dialog")
+	}
+	if cancelled {
+		t.Error("Enter on OK button should not cancel")
+	}
+	if dialog.IsActive() {
+		t.Error("Dialog should be closed after confirmation")
+	}
+}
+
+func TestSortDialog_OKButton_SpaceDoesNothing(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+	dialog.focusedItem = FocusTargetOK
+
+	confirmed, cancelled := dialog.HandleKey(" ")
+
+	if confirmed {
+		t.Error("Space on OK button should not confirm")
+	}
+	if cancelled {
+		t.Error("Space on OK button should not cancel")
+	}
+	if !dialog.IsActive() {
+		t.Error("Dialog should remain active after Space on OK button")
+	}
+}
+
+func TestSortDialog_JKNavigation_OnlyWhenDropdownsClosed(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+	dialog.focusedItem = FocusTargetSortBy
+
+	// Expand the dropdown
+	dialog.fieldDropdown.Expand()
+
+	// j should not move focus when dropdown is expanded (dropdown handles it)
+	initialFocus := dialog.focusedItem
+	dialog.HandleKey("j")
+
+	// Focus should not change because dropdown handles j
+	if dialog.focusedItem != initialFocus {
+		t.Errorf("j with expanded dropdown changed focusedItem from %d to %d", initialFocus, dialog.focusedItem)
+	}
+}
+
+func TestSortDialog_EnterExpandsDropdown_NotOK(t *testing.T) {
+	tests := []struct {
+		name   string
+		focus  FocusTarget
+		expand bool
+	}{
+		{"Enter on SortBy expands dropdown", FocusTargetSortBy, true},
+		{"Enter on Order expands dropdown", FocusTargetOrder, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dialog := NewSortDialog(DefaultSortConfig())
+			dialog.focusedItem = tt.focus
+
+			confirmed, cancelled := dialog.HandleKey("enter")
+
+			if confirmed || cancelled {
+				t.Error("Enter on dropdown should not confirm or cancel dialog")
+			}
+
+			// Check if the correct dropdown is expanded
+			if tt.focus == FocusTargetSortBy && !dialog.fieldDropdown.IsExpanded() {
+				t.Error("Sort by dropdown should be expanded")
+			}
+			if tt.focus == FocusTargetOrder && !dialog.orderDropdown.IsExpanded() {
+				t.Error("Order dropdown should be expanded")
+			}
+		})
+	}
+}
+
+func TestSortDialog_SpaceExpandsDropdown_NotOK(t *testing.T) {
+	tests := []struct {
+		name   string
+		focus  FocusTarget
+		expand bool
+	}{
+		{"Space on SortBy expands dropdown", FocusTargetSortBy, true},
+		{"Space on Order expands dropdown", FocusTargetOrder, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dialog := NewSortDialog(DefaultSortConfig())
+			dialog.focusedItem = tt.focus
+
+			dialog.HandleKey(" ")
+
+			// Check if the correct dropdown is expanded
+			if tt.focus == FocusTargetSortBy && !dialog.fieldDropdown.IsExpanded() {
+				t.Error("Sort by dropdown should be expanded")
+			}
+			if tt.focus == FocusTargetOrder && !dialog.orderDropdown.IsExpanded() {
+				t.Error("Order dropdown should be expanded")
+			}
+		})
+	}
+}
+
+func TestSortDialog_View_ShowsOKButton(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+	dialog.width = 40
+
+	view := dialog.View()
+
+	// View should contain OK button
+	if !strings.Contains(view, "OK") {
+		t.Error("View should contain OK button")
+	}
+}
+
+func TestSortDialog_View_HelpTextUpdated(t *testing.T) {
+	dialog := NewSortDialog(DefaultSortConfig())
+	dialog.width = 40
+
+	view := dialog.View()
+
+	// View should contain updated help text with j/k
+	if !strings.Contains(view, "j/k") {
+		t.Error("Help text should mention j/k for navigation")
+	}
+}
+
+func TestSortDialog_Update_OKConfirmation(t *testing.T) {
+	dialog := NewSortDialog(SortConfig{Field: SortBySize, Order: SortDesc})
+	dialog.focusedItem = FocusTargetOK
+
+	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	_, cmd := dialog.Update(keyMsg)
+
+	if cmd == nil {
+		t.Error("Update with Enter on OK should return a command")
+	}
+
+	msg := cmd()
+	result, ok := msg.(sortDialogResultMsg)
+	if !ok {
+		t.Fatalf("Expected sortDialogResultMsg, got %T", msg)
+	}
+
+	if !result.confirmed {
+		t.Error("Expected confirmed = true")
+	}
+	if result.cancelled {
+		t.Error("Expected cancelled = false")
+	}
+	if result.config.Field != SortBySize {
+		t.Errorf("config.Field = %v, want SortBySize", result.config.Field)
 	}
 }

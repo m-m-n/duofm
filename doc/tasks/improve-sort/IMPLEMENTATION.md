@@ -548,20 +548,267 @@ None - all requirements confirmed in specification.
 - **Current Implementation**: `internal/ui/sort_dialog.go`
 - **E2E Tests**: `test/e2e/scripts/tests/sort_tests.sh`
 
-## Next Steps
+---
 
-After reviewing this implementation plan:
+### Phase 4: Add j/k Navigation and OK Button
 
-1. **Review and Approval**
-   - Verify plan aligns with specification
-   - Address any concerns about approach
+**Goal**: Add j/k navigation between major items (Sort by, Order, OK button) and an explicit OK button for confirmation. This improves consistency with other dialogs and provides Vim-style navigation.
 
-2. **Begin Implementation**
-   - Start with Phase 1 (Dropdown component)
-   - Follow TDD approach (write tests first)
-   - Commit incrementally
+**Files to Modify**:
+- `internal/ui/sort_dialog.go`:
+  - Change `focusedDropdown` to `focusedItem` (0-2)
+  - Add OK button as major item 2
+  - Implement j/k navigation between major items
+  - Update Enter handling for OK button confirmation
+  - Update Space handling to not affect OK button
+  - Update View to render OK button
+  - Update help text
 
-3. **Verification**
-   - Run tests after each phase
-   - Manual testing with visual inspection
-   - E2E test suite execution
+- `internal/ui/sort_dialog_test.go`:
+  - Add tests for j/k navigation between major items
+  - Add tests for OK button confirmation
+  - Add tests for Space key behavior on OK button
+  - Update Tab/Shift+Tab tests for 3 major items
+
+- `test/e2e/scripts/tests/sort_tests.sh`:
+  - Add tests for j/k navigation between major items
+  - Add tests for OK button confirmation
+  - Update existing tests for 3 major items
+
+**Key Components**:
+
+| Component | Responsibility | Precondition | Postcondition |
+|-----------|----------------|--------------|---------------|
+| focusedItem | Track focus across 3 major items (Sort by, Order, OK) | Dialog active | Focus index in range 0-2 |
+| j/k Navigation | Move focus between major items when dropdowns closed | Dropdowns closed | Focus moves (no cycling) |
+| OK Button | Confirm dialog with explicit action | Focus on OK button | Dialog closes, settings applied |
+
+**FocusTarget Type Definition**:
+
+To provide type safety and clear semantics for focus tracking, define a FocusTarget enum type:
+
+```go
+// FocusTarget represents which major item has focus in the dialog
+type FocusTarget int
+
+const (
+    FocusTargetSortBy FocusTarget = iota  // 0: Sort by dropdown
+    FocusTargetOrder                       // 1: Order dropdown
+    FocusTargetOK                          // 2: OK button
+)
+```
+
+This enum pattern ensures:
+- `FocusTargetSortBy` (0): Sort by dropdown has focus
+- `FocusTargetOrder` (1): Order dropdown has focus
+- `FocusTargetOK` (2): OK button has focus
+
+**Processing Flow**:
+
+```
+Major Item Navigation (Dropdowns Closed):
+1. Receive j/down key
+   |-- focusedItem < FocusTargetOK -> focusedItem++
+   +-- focusedItem == FocusTargetOK -> no change (at last item)
+
+2. Receive k/up key
+   |-- focusedItem > FocusTargetSortBy -> focusedItem--
+   +-- focusedItem == FocusTargetSortBy -> no change (at first item)
+
+3. Receive Enter key
+   |-- focusedItem == 0 -> Expand Sort by dropdown
+   |-- focusedItem == 1 -> Expand Order dropdown
+   +-- focusedItem == 2 -> Confirm dialog, close
+
+4. Receive Space key
+   |-- focusedItem == 0 -> Expand Sort by dropdown
+   |-- focusedItem == 1 -> Expand Order dropdown
+   +-- focusedItem == 2 -> No action (differentiate from dropdown)
+```
+
+**State Transitions** (Updated from SPEC.md):
+
+```
+Dialog States:
+[*] -> SortByFocused (on dialog open)
+
+SortByFocused (focusedItem = 0):
+  Enter/Space -> SortByExpanded
+  j/Tab -> OrderFocused
+  Esc/q -> [*] (cancel)
+
+SortByExpanded:
+  Enter -> SortByFocused (with selection)
+  Esc -> SortByFocused (no change)
+  q -> [*] (cancel dialog)
+
+OrderFocused (focusedItem = 1):
+  Enter/Space -> OrderExpanded
+  k/Shift+Tab -> SortByFocused
+  j/Tab -> OKFocused
+  Esc/q -> [*] (cancel)
+
+OrderExpanded:
+  Enter -> OrderFocused (with selection)
+  Esc -> OrderFocused (no change)
+  q -> [*] (cancel dialog)
+
+OKFocused (focusedItem = 2):
+  Enter -> [*] (confirm dialog)
+  Space -> No action
+  k/Shift+Tab -> OrderFocused
+  Esc/q -> [*] (cancel)
+```
+
+**Visual Design** (from SPEC.md):
+
+```
+Closed State:
+╭──────────────────────────────────╮
+│                                  │
+│   Sort                           │
+│                                  │
+│  Sort by    [Name ▼]             │  <- Major item 0
+│                                  │
+│  Order      [↑Asc ▼]             │  <- Major item 1
+│                                  │
+│            [OK]                  │  <- Major item 2 (NEW)
+│                                  │
+│  j/k:move  Enter:select  q:quit  │
+│                                  │
+╰──────────────────────────────────╯
+
+OK Button Focused:
+│           [ OK ]                 │  <- Highlighted
+```
+
+**Implementation Steps**:
+
+1. **Rename focusedDropdown to focusedItem**
+   - Change field name and update all references
+   - Change range from 0-1 to 0-2
+
+2. **Add j/k Navigation in handleDialogKey()**
+   - j/down: increment focusedItem (if < 2)
+   - k/up: decrement focusedItem (if > 0)
+   - Navigation only when dropdowns are closed
+
+3. **Update Enter Handling**
+   - Check if focusedItem == 2 (OK button)
+   - If OK button: close dialog and return confirmed
+   - Otherwise: expand focused dropdown
+
+4. **Update Space Handling**
+   - Only expand dropdown if focusedItem < 2
+   - Do nothing if focusedItem == 2 (OK button)
+
+5. **Update Tab/Shift+Tab Handling**
+   - Tab: move to next major item (0->1->2)
+   - Shift+Tab: move to previous major item (2->1->0)
+   - No cycling at boundaries
+
+6. **Add OK Button Rendering in View()**
+   - Add new row for OK button
+   - Show focus indicator when focusedItem == 2
+
+7. **Update Help Text**
+   - Change to: "j/k:move  Enter:select  q:quit"
+
+**Dependencies**:
+- Requires: Phase 1-3 complete (Dropdown component, SortDialog refactor, E2E tests)
+- Blocks: None
+
+**Testing Approach**:
+
+*Unit Tests*:
+- j moves focus down (0->1->2), stops at 2
+- k moves focus up (2->1->0), stops at 0
+- Tab moves focus forward through all 3 items
+- Shift+Tab moves focus backward through all 3 items
+- Enter on OK button (focusedItem=2) confirms dialog
+- Space on OK button does nothing
+- j/k/Tab/Shift+Tab only work when dropdowns closed
+
+*E2E Tests*:
+- Full workflow using j/k navigation between major items
+- OK button confirmation via Enter
+- Navigation from Order to OK and back
+
+**Acceptance Criteria**:
+- [ ] j/down moves focus to next major item when dropdowns closed
+- [ ] k/up moves focus to previous major item when dropdowns closed
+- [ ] Tab/Shift+Tab navigation works between 3 major items
+- [ ] Navigation does not cycle (stops at first/last item)
+- [ ] OK button is displayed below Order dropdown
+- [ ] Enter on OK button confirms dialog
+- [ ] Space on OK button does nothing
+- [ ] OK button has visual focus indication when focused
+- [ ] Help text shows "j/k:move"
+- [ ] All existing functionality preserved
+
+**Estimated Effort**: Small (1-2 days)
+
+**Risks and Mitigation**:
+- **Risk**: OK button might overlap with dropdown expansion
+  - **Mitigation**: Dialog height already accounts for dropdown expansion; OK button is below the space reserved for dropdowns
+
+---
+
+## Complete File Structure (Updated)
+
+```
+internal/ui/
+  dropdown.go           # Reusable dropdown component (Phase 1)
+  dropdown_test.go      # Dropdown unit tests (Phase 1)
+  sort_dialog.go        # MODIFIED: Use dropdowns + j/k + OK button
+  sort_dialog_test.go   # MODIFIED: Tests for all navigation modes
+  sort.go               # UNCHANGED: SortConfig, SortEntries
+  sort_test.go          # UNCHANGED
+  dialog.go             # UNCHANGED: Dialog interface
+  dialog_base.go        # UNCHANGED: BaseDialog
+
+test/e2e/scripts/tests/
+  sort_tests.sh         # MODIFIED: j/k navigation + OK button tests
+```
+
+## Success Criteria (Updated)
+
+- [ ] All dropdowns expand and collapse correctly
+- [ ] All option selections work via j/k and Enter
+- [ ] **j/k navigation works between major items when dropdowns closed**
+- [ ] Tab/Shift+Tab navigation works between **3** major items
+- [ ] **Enter on OK button confirms dialog**
+- [ ] **Space on OK button does nothing**
+- [ ] Escape cancels dialog or closes dropdown appropriately
+- [ ] q cancels dialog at any time
+- [ ] Live preview continues to work
+- [ ] All unit tests pass
+- [ ] All E2E tests pass
+- [ ] Visual inspection confirms correct layout **with OK button**
+
+## Implementation Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Create Dropdown Component | Completed |
+| Phase 2 | Refactor SortDialog to Use Dropdowns | Completed |
+| Phase 3 | Update E2E Tests | Completed |
+| Phase 4 | Add j/k Navigation and OK Button | **Completed** |
+
+**Note**: All phases have been implemented and verified. Phase 4 adds j/k navigation between major items (Sort by, Order, OK button) with explicit OK button confirmation.
+
+## Implementation Complete
+
+All implementation phases have been completed successfully:
+
+1. **Phase 1-3**: Dropdown component, SortDialog refactor, E2E tests
+2. **Phase 4**: j/k navigation + OK button (completed 2026-01-19)
+
+### Phase 4 Key Changes
+- Introduced `FocusTarget` type for type-safe focus tracking
+- Renamed `focusedDropdown` to `focusedItem` (0-2 range)
+- Added j/k/down/up navigation between 3 major items
+- Added OK button as 3rd major item
+- Enter on OK button confirms dialog
+- Space on OK button does nothing
+- Updated help text to "j/k:move Enter:select q:quit"

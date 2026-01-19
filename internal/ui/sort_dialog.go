@@ -7,15 +7,27 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// FocusTarget represents which major item has focus in the dialog.
+type FocusTarget int
+
+const (
+	// FocusTargetSortBy is the Sort by dropdown (major item 0).
+	FocusTargetSortBy FocusTarget = iota
+	// FocusTargetOrder is the Order dropdown (major item 1).
+	FocusTargetOrder
+	// FocusTargetOK is the OK button (major item 2).
+	FocusTargetOK
+)
+
 // SortDialog is a dialog for changing sort settings using dropdown menus.
 type SortDialog struct {
 	BaseDialog
-	config          SortConfig // Current selection
-	originalConfig  SortConfig // For restoration on cancel
-	focusedDropdown int        // 0: Sort by, 1: Order
-	fieldDropdown   *Dropdown  // Sort by dropdown
-	orderDropdown   *Dropdown  // Order dropdown
-	styles          DialogStyles
+	config         SortConfig  // Current selection
+	originalConfig SortConfig  // For restoration on cancel
+	focusedItem    FocusTarget // 0: Sort by, 1: Order, 2: OK button
+	fieldDropdown  *Dropdown   // Sort by dropdown
+	orderDropdown  *Dropdown   // Order dropdown
+	styles         DialogStyles
 }
 
 // NewSortDialog creates a new sort dialog with dropdown menus.
@@ -39,13 +51,13 @@ func NewSortDialog(current SortConfig) *SortDialog {
 	orderDropdown := NewDropdown(orderOptions, int(current.Order))
 
 	return &SortDialog{
-		BaseDialog:      base,
-		config:          current,
-		originalConfig:  current,
-		focusedDropdown: 0,
-		fieldDropdown:   fieldDropdown,
-		orderDropdown:   orderDropdown,
-		styles:          NewDialogStyles(36, ColorPrimary),
+		BaseDialog:     base,
+		config:         current,
+		originalConfig: current,
+		focusedItem:    FocusTargetSortBy,
+		fieldDropdown:  fieldDropdown,
+		orderDropdown:  orderDropdown,
+		styles:         NewDialogStyles(36, ColorPrimary),
 	}
 }
 
@@ -97,26 +109,49 @@ func (d *SortDialog) handleExpandedDropdownKey(dropdown *Dropdown, key string, i
 // handleDialogKey handles keys when no dropdown is expanded.
 func (d *SortDialog) handleDialogKey(key string) (confirmed bool, cancelled bool) {
 	switch key {
+	case "j", "down":
+		// Move focus to next major item (no cycling)
+		if d.focusedItem < FocusTargetOK {
+			d.focusedItem++
+		}
+		return false, false
+
+	case "k", "up":
+		// Move focus to previous major item (no cycling)
+		if d.focusedItem > FocusTargetSortBy {
+			d.focusedItem--
+		}
+		return false, false
+
 	case "tab":
-		if d.focusedDropdown < 1 {
-			d.focusedDropdown = 1
+		// Tab moves to next major item (no cycling)
+		if d.focusedItem < FocusTargetOK {
+			d.focusedItem++
 		}
 		return false, false
 
 	case "shift+tab":
-		if d.focusedDropdown > 0 {
-			d.focusedDropdown = 0
+		// Shift+Tab moves to previous major item (no cycling)
+		if d.focusedItem > FocusTargetSortBy {
+			d.focusedItem--
 		}
 		return false, false
 
 	case "enter":
-		// Expand the focused dropdown
+		// If on OK button, confirm dialog
+		if d.focusedItem == FocusTargetOK {
+			d.Close()
+			return true, false
+		}
+		// Otherwise, expand the focused dropdown
 		d.getFocusedDropdown().Expand()
 		return false, false
 
 	case " ":
-		// Space also expands dropdown
-		d.getFocusedDropdown().Expand()
+		// Space expands dropdown, but does nothing on OK button
+		if d.focusedItem < FocusTargetOK {
+			d.getFocusedDropdown().Expand()
+		}
 		return false, false
 
 	case "esc":
@@ -124,27 +159,22 @@ func (d *SortDialog) handleDialogKey(key string) (confirmed bool, cancelled bool
 		d.config = d.originalConfig
 		d.Close()
 		return false, true
-
-	case "j", "down":
-		// When expanded dropdown handles j/down, but when closed, these do nothing
-		// at dialog level (use Tab instead)
-		return false, false
-
-	case "k", "up":
-		// When expanded dropdown handles k/up, but when closed, these do nothing
-		// at dialog level (use Shift+Tab instead)
-		return false, false
 	}
 
 	return false, false
 }
 
 // getFocusedDropdown returns the currently focused dropdown.
+// Returns nil if OK button is focused.
 func (d *SortDialog) getFocusedDropdown() *Dropdown {
-	if d.focusedDropdown == 0 {
+	switch d.focusedItem {
+	case FocusTargetSortBy:
 		return d.fieldDropdown
+	case FocusTargetOrder:
+		return d.orderDropdown
+	default:
+		return nil
 	}
-	return d.orderDropdown
 }
 
 // Config returns the current sort configuration.
@@ -208,10 +238,12 @@ func (d *SortDialog) View() string {
 	b.WriteString(d.renderOrderRow())
 	b.WriteString("\n\n")
 
+	// OK button
+	b.WriteString(d.renderOKButton())
+	b.WriteString("\n\n")
+
 	// Help text
-	b.WriteString(d.styles.Footer.Render("Tab:next  Enter:select"))
-	b.WriteString("\n")
-	b.WriteString(d.styles.Footer.Render("Esc:cancel  q:quit"))
+	b.WriteString(d.styles.Footer.Render("j/k:move  Enter:select  q:quit"))
 
 	return d.styles.Box.Render(b.String())
 }
@@ -219,7 +251,7 @@ func (d *SortDialog) View() string {
 // renderSortByRow renders the Sort by row with dropdown.
 func (d *SortDialog) renderSortByRow() string {
 	labelStyle := lipgloss.NewStyle().Width(10)
-	isFocused := d.focusedDropdown == 0
+	isFocused := d.focusedItem == FocusTargetSortBy
 
 	return labelStyle.Render("Sort by") + "  " + d.fieldDropdown.View(isFocused)
 }
@@ -227,9 +259,27 @@ func (d *SortDialog) renderSortByRow() string {
 // renderOrderRow renders the Order row with dropdown.
 func (d *SortDialog) renderOrderRow() string {
 	labelStyle := lipgloss.NewStyle().Width(10)
-	isFocused := d.focusedDropdown == 1
+	isFocused := d.focusedItem == FocusTargetOrder
 
 	return labelStyle.Render("Order") + "  " + d.orderDropdown.View(isFocused)
+}
+
+// renderOKButton renders the OK button.
+func (d *SortDialog) renderOKButton() string {
+	labelStyle := lipgloss.NewStyle().Width(10)
+	isFocused := d.focusedItem == FocusTargetOK
+
+	var buttonStyle lipgloss.Style
+	if isFocused {
+		buttonStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("0")).
+			Background(lipgloss.Color("39"))
+	} else {
+		buttonStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252"))
+	}
+
+	return labelStyle.Render("") + "  [" + buttonStyle.Render("OK") + "]"
 }
 
 // sortDialogResultMsg is the result message for the sort dialog.

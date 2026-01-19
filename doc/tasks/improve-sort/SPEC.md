@@ -2,22 +2,24 @@
 
 ## Overview
 
-Replace the current horizontal option selection in the sort dialog with a dropdown menu interface. This provides a more intuitive and visually clear user experience while resolving layout issues with the current implementation.
+Enhance the sort dialog navigation and UX by adding j/k navigation between major items and an explicit OK button for confirmation. This improves consistency with other dialogs (bookmark, overwrite) and provides a more intuitive Vim-style navigation experience.
 
 ## Objectives
 
-- Replace horizontal option selection with dropdown menus
-- Provide clearer visual feedback for current selections
-- Align with standard UI conventions for option selection
-- Maintain all existing sort functionality
+- Add j/k navigation between major items (Sort by, Order, OK button)
+- Add OK button for explicit confirmation
+- Maintain Tab/Shift+Tab navigation for compatibility
+- Maintain all existing sort functionality including live preview
 
 ## Domain Rules
 
 - Sort field options: Name, Size, Date (exactly 3 options)
 - Sort order options: Ascending, Descending (exactly 2 options)
+- Major items: Sort by dropdown, Order dropdown, OK button (3 items)
 - Only one dropdown can be expanded at a time
 - Selection changes are applied immediately for live preview
 - Cancel reverts to original settings
+- OK confirms current settings
 
 ## User Stories
 
@@ -28,57 +30,79 @@ As a user, I want to select the sort field from a dropdown menu, so that I can c
 - [ ] Dropdown shows current value with a down arrow indicator `[Name ▼]`
 - [ ] Pressing Enter/Space expands the dropdown
 - [ ] Options appear in a bordered list below the field
-- [ ] j/k or arrow keys navigate between options
-- [ ] Enter selects the highlighted option
-- [ ] Escape closes without changing
+- [ ] j/k or arrow keys navigate between options within dropdown
+- [ ] Enter selects the highlighted option and closes dropdown
+- [ ] Escape closes dropdown without changing
 
-### US2: Navigate Between Dropdowns
-As a user, I want to move between sort field and order dropdowns, so that I can configure both settings efficiently.
+### US2: Navigate Between Major Items
+As a user, I want to move between major items (Sort by, Order, OK) using j/k keys, so that I can navigate consistently with other dialogs.
 
 **Acceptance Criteria:**
-- [ ] Tab moves focus to the next dropdown
-- [ ] Shift+Tab moves focus to the previous dropdown
+- [ ] j/down moves focus to the next major item
+- [ ] k/up moves focus to the previous major item
+- [ ] Tab moves focus to the next major item
+- [ ] Shift+Tab moves focus to the previous major item
+- [ ] Navigation does not cycle (stops at first/last item)
 - [ ] Focus is visually indicated
 
-### US3: Confirm or Cancel Sort Settings
-As a user, I want to confirm or cancel my sort settings, so that I have control over when changes are applied.
+### US3: Confirm Sort Settings via OK Button
+As a user, I want to confirm my sort settings by pressing Enter on the OK button, so that I have explicit control over when changes are finalized.
 
 **Acceptance Criteria:**
-- [ ] Enter confirms settings when no dropdown is expanded
+- [ ] OK button is displayed below the Order dropdown
+- [ ] Enter on OK button confirms settings and closes dialog
+- [ ] Space on OK button does nothing (to differentiate from dropdown)
+- [ ] OK button has visual focus indication
+
+### US4: Cancel Sort Settings
+As a user, I want to cancel my sort settings, so that I can discard unwanted changes.
+
+**Acceptance Criteria:**
 - [ ] Escape cancels the dialog when no dropdown is expanded
-- [ ] q also cancels the dialog when no dropdown is expanded
+- [ ] q cancels the dialog at any time (even when dropdown is expanded)
+- [ ] Cancel reverts to original settings
 
 ## Functional Requirements
 
-### FR1: Dropdown Component Behavior
+### FR1: Dropdown Component Behavior (existing, no change)
 - FR1.1: Dropdown displays current value in format `[value ▼]`
 - FR1.2: Enter or Space key expands the dropdown when focused
 - FR1.3: Expanded dropdown shows bordered option list below the trigger
 - FR1.4: Current selection is highlighted in the expanded list
-- FR1.5: j/k or Down/Up arrow keys navigate options
+- FR1.5: j/k or Down/Up arrow keys navigate options within dropdown
 - FR1.6: Enter key selects option and closes dropdown
 - FR1.7: Escape key closes dropdown without selecting
 - FR1.8: Options do not cycle (stop at first/last)
 
-### FR2: Field Navigation
-- FR2.1: Tab key moves focus from Sort by dropdown to Order dropdown
-- FR2.2: Shift+Tab moves focus from Order dropdown to Sort by dropdown
-- FR2.3: Tab/Shift+Tab only works when dropdowns are closed
+### FR2: Major Item Navigation (**CHANGED**)
+- FR2.1: Major items are: Sort by (0), Order (1), OK button (2)
+- FR2.2: j/down key moves focus to the next major item
+- FR2.3: k/up key moves focus to the previous major item
+- FR2.4: Tab key moves focus to the next major item
+- FR2.5: Shift+Tab moves focus to the previous major item
+- FR2.6: Navigation only works when dropdowns are closed
+- FR2.7: Navigation does not cycle (stops at first/last item)
 
-### FR3: Dialog Confirmation
-- FR3.1: Enter key confirms dialog when all dropdowns are closed
-- FR3.2: Escape key cancels dialog when all dropdowns are closed
-- FR3.3: q key cancels dialog when all dropdowns are closed
-- FR3.4: Cancel reverts to original sort configuration
+### FR3: OK Button (**NEW**)
+- FR3.1: OK button is displayed as the third major item
+- FR3.2: Enter key on OK button confirms dialog and closes it
+- FR3.3: Space key on OK button does nothing (to differentiate from dropdown)
+- FR3.4: OK button has visual focus indication when focused
 
-### FR4: Live Preview
-- FR4.1: File list updates immediately when selection changes (existing behavior)
+### FR4: Dialog Cancellation (existing, minor change)
+- FR4.1: Escape key closes dropdown if expanded, otherwise cancels dialog
+- FR4.2: q key cancels dialog at any time (even when dropdown is expanded)
+- FR4.3: Cancel reverts to original sort configuration
+
+### FR5: Live Preview (existing, no change)
+- FR5.1: File list updates immediately when selection changes
 
 ## Non-Functional Requirements
 
 - NFR1 - Performance: Dialog rendering must complete within 16ms (60fps)
 - NFR2 - Accessibility: All operations must be keyboard-accessible
 - NFR3 - Usability: Current selection state must be clearly visible
+- NFR4 - Consistency: Navigation behavior consistent with other dialogs (bookmark, overwrite)
 
 ## Interface Contract
 
@@ -87,10 +111,12 @@ As a user, I want to confirm or cancel my sort settings, so that I have control 
 **Key Bindings (Dropdown Closed):**
 | Key | Action |
 |-----|--------|
-| Enter | Open dropdown OR confirm dialog |
-| Space | Open dropdown |
-| Tab | Focus next dropdown |
-| Shift+Tab | Focus previous dropdown |
+| j, Down | Move to next major item |
+| k, Up | Move to previous major item |
+| Tab | Move to next major item |
+| Shift+Tab | Move to previous major item |
+| Enter | Open dropdown (on dropdown) / Confirm (on OK button) |
+| Space | Open dropdown (on dropdown) / No action (on OK button) |
 | Escape | Cancel dialog |
 | q | Cancel dialog |
 
@@ -99,8 +125,9 @@ As a user, I want to confirm or cancel my sort settings, so that I have control 
 |-----|--------|
 | j, Down | Move to next option |
 | k, Up | Move to previous option |
-| Enter | Select option and close |
-| Escape | Close without selecting |
+| Enter | Select option and close dropdown |
+| Escape | Close dropdown without selecting |
+| q | Cancel dialog (closes entire dialog) |
 
 ### Output Specification
 
@@ -119,20 +146,25 @@ stateDiagram-v2
     [*] --> SortByFocused: Open dialog
 
     SortByFocused --> SortByExpanded: Enter/Space
-    SortByFocused --> OrderFocused: Tab
+    SortByFocused --> OrderFocused: j/Tab
     SortByFocused --> [*]: Esc/q (cancel)
-    SortByFocused --> [*]: Enter (confirm, no dropdown open)
 
     SortByExpanded --> SortByFocused: Enter (select)
-    SortByExpanded --> SortByFocused: Esc (cancel selection)
+    SortByExpanded --> SortByFocused: Esc (close dropdown)
+    SortByExpanded --> [*]: q (cancel)
 
     OrderFocused --> OrderExpanded: Enter/Space
-    OrderFocused --> SortByFocused: Shift+Tab
+    OrderFocused --> SortByFocused: k/Shift+Tab
+    OrderFocused --> OKFocused: j/Tab
     OrderFocused --> [*]: Esc/q (cancel)
-    OrderFocused --> [*]: Enter (confirm, no dropdown open)
 
     OrderExpanded --> OrderFocused: Enter (select)
-    OrderExpanded --> OrderFocused: Esc (cancel selection)
+    OrderExpanded --> OrderFocused: Esc (close dropdown)
+    OrderExpanded --> [*]: q (cancel)
+
+    OKFocused --> OrderFocused: k/Shift+Tab
+    OKFocused --> [*]: Enter (confirm)
+    OKFocused --> [*]: Esc/q (cancel)
 ```
 
 ### Error Conditions
@@ -149,11 +181,13 @@ stateDiagram-v2
 │                                  │
 │   Sort                           │
 │                                  │
-│  Sort by    [Name ▼]             │
+│  Sort by    [Name ▼]             │  ← Major item 0
 │                                  │
-│  Order      [↑Asc ▼]             │
+│  Order      [↑Asc ▼]             │  ← Major item 1
 │                                  │
-│  Enter:select  Esc:cancel        │
+│            [OK]                  │  ← Major item 2 (NEW)
+│                                  │
+│  j/k:move  Enter:select  q:quit  │
 │                                  │
 ╰──────────────────────────────────╯
 ```
@@ -173,7 +207,9 @@ stateDiagram-v2
 │             └─────────┘          │
 │  Order      [↑Asc ▼]             │
 │                                  │
-│  Enter:select  Esc:cancel        │
+│            [OK]                  │
+│                                  │
+│  j/k:move  Enter:select  q:quit  │
 │                                  │
 ╰──────────────────────────────────╯
 ```
@@ -193,7 +229,27 @@ stateDiagram-v2
 │             │ ↓Desc   │          │
 │             └─────────┘          │
 │                                  │
-│  Enter:select  Esc:cancel        │
+│            [OK]                  │
+│                                  │
+│  j/k:move  Enter:select  q:quit  │
+│                                  │
+╰──────────────────────────────────╯
+```
+
+### OK Button Focused
+
+```
+╭──────────────────────────────────╮
+│                                  │
+│   Sort                           │
+│                                  │
+│  Sort by    [Name ▼]             │
+│                                  │
+│  Order      [↑Asc ▼]             │
+│                                  │
+│           [ OK ]                 │  ← Highlighted/focused
+│                                  │
+│  j/k:move  Enter:select  q:quit  │
 │                                  │
 ╰──────────────────────────────────╯
 ```
@@ -230,20 +286,25 @@ stateDiagram-v2
 
 ### Unit Tests
 - [ ] Dropdown renders correctly in closed state with down arrow
-- [ ] Enter/Space expands dropdown
+- [ ] Enter/Space expands dropdown (on dropdown focus)
 - [ ] j/k navigate options within dropdown
 - [ ] Enter selects option and closes dropdown
 - [ ] Escape closes dropdown without selecting
-- [ ] Tab moves focus between dropdowns
-- [ ] Shift+Tab moves focus in reverse
+- [ ] j/k moves focus between major items when dropdown closed
+- [ ] Tab/Shift+Tab moves focus between major items when dropdown closed
 - [ ] Options don't cycle past first/last
+- [ ] Major items don't cycle past first/last
+- [ ] OK button renders correctly
+- [ ] Enter on OK button confirms dialog
+- [ ] Space on OK button does nothing
 - [ ] Cancel restores original configuration
 
 ### Integration Tests
-- [ ] Full dialog workflow: open dropdown, select, confirm
+- [ ] Full dialog workflow: open dropdown, select, navigate to OK, confirm
 - [ ] Cancel workflow: open dropdown, change, cancel dialog
 - [ ] Live preview updates when selection changes
 - [ ] Dialog correctly sends result/cancel messages
+- [ ] q cancels dialog even when dropdown is expanded
 
 ### E2E Tests
 - [ ] Sort by Name via dropdown selection
@@ -251,36 +312,42 @@ stateDiagram-v2
 - [ ] Sort by Date via dropdown selection
 - [ ] Change order to Descending
 - [ ] Cancel dialog reverts changes
-- [ ] Tab navigation between fields
+- [ ] j/k navigation between major items
+- [ ] Tab/Shift+Tab navigation between major items
+- [ ] OK button confirmation
 - [ ] Sort settings persist after navigation
 
 ## Success Criteria
 
 - [ ] All dropdowns expand and collapse correctly
 - [ ] All option selections work via j/k and Enter
-- [ ] Tab/Shift+Tab navigation works between fields
-- [ ] Enter confirms dialog when dropdowns closed
+- [ ] j/k navigation works between major items when dropdowns closed
+- [ ] Tab/Shift+Tab navigation works between major items when dropdowns closed
+- [ ] OK button confirms dialog when focused and Enter pressed
 - [ ] Escape cancels dialog or closes dropdown appropriately
+- [ ] q cancels dialog at any time
 - [ ] Live preview continues to work
 - [ ] All unit tests pass
 - [ ] All E2E tests pass (after updates for new key bindings)
-- [ ] Visual inspection confirms correct layout
+- [ ] Visual inspection confirms correct layout with OK button
 
 ## Migration Notes
 
 ### Key Binding Changes
 
-| Old Binding | New Binding | Action |
-|-------------|-------------|--------|
-| h/l | Enter + j/k + Enter | Change option value |
-| j/k | Tab/Shift+Tab | Move between fields |
+| Current Binding | New Binding | Action |
+|-----------------|-------------|--------|
+| Tab/Shift+Tab (only) | j/k + Tab/Shift+Tab | Move between major items |
+| (none) | Enter on OK | Confirm dialog |
+| Enter (on dropdown, closed) | Enter on OK | Confirm dialog |
 
 ### E2E Test Updates Required
 
 Tests in `test/e2e/scripts/tests/sort_tests.sh` need updates:
-- `test_sort_dialog_hl_navigation` - Replace h/l with dropdown workflow
-- `test_sort_dialog_jk_navigation` - Replace j/k with Tab workflow
-- `test_sort_by_size_desc` - Update key sequence for dropdown selection
+- Add tests for j/k navigation between major items
+- Add tests for OK button confirmation
+- Update `test_sort_by_size_desc` to use OK button for confirmation
+- Update `test_sort_dialog_tab_navigation` to verify 3 major items (Sort by, Order, OK)
 
 ## Constraints
 
@@ -292,8 +359,55 @@ Tests in `test/e2e/scripts/tests/sort_tests.sh` need updates:
 
 - None (all requirements confirmed)
 
+## Implementation Notes
+
+### Changes to sort_dialog.go
+
+1. **Add focusedItem field**: Change from `focusedDropdown int` (0-1) to `focusedItem int` (0-2)
+   - 0: Sort by dropdown
+   - 1: Order dropdown
+   - 2: OK button
+
+2. **Update handleDialogKey()**: Add j/k handling for major item navigation
+   ```go
+   case "j", "down":
+       if d.focusedItem < 2 {
+           d.focusedItem++
+       }
+   case "k", "up":
+       if d.focusedItem > 0 {
+           d.focusedItem--
+       }
+   ```
+
+3. **Update Enter handling**: Check if on OK button
+   ```go
+   case "enter":
+       if d.focusedItem == 2 {
+           // OK button - confirm dialog
+           d.Close()
+           return true, false
+       }
+       // Expand dropdown
+       d.getFocusedDropdown().Expand()
+   ```
+
+4. **Update Space handling**: Only expand dropdown, not on OK
+   ```go
+   case " ":
+       if d.focusedItem < 2 {
+           d.getFocusedDropdown().Expand()
+       }
+   ```
+
+5. **Add OK button rendering in View()**
+
+6. **Update footer text**: `j/k:move  Enter:select  q:quit`
+
 ## References
 
 - Current implementation: `internal/ui/sort_dialog.go`
+- Dropdown component: `internal/ui/dropdown.go`
+- E2E tests: `test/e2e/scripts/tests/sort_tests.sh`
 - Dialog best practices: `doc/development/DIALOG_BEST_PRACTICES.md`
 - Contributing guidelines: `doc/CONTRIBUTING.md`
