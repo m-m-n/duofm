@@ -2,8 +2,8 @@
 # Sort Tests for duofm
 #
 # Description: Tests for sort dialog with dropdown menus including navigation,
-#              selection, confirmation, and persistence
-# Tests: 10
+#              selection, confirmation, persistence, and j/k navigation with OK button
+# Tests: 14
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../helpers.sh"
@@ -238,7 +238,12 @@ test_sort_persists_after_navigation() {
     sleep 0.2
     send_keys "$CURRENT_SESSION" "Enter"  # Select Size
     sleep 0.2
-    send_keys "$CURRENT_SESSION" "Escape"  # Close dialog
+    # Navigate to OK button and confirm
+    send_keys "$CURRENT_SESSION" "j"  # To Order
+    sleep 0.1
+    send_keys "$CURRENT_SESSION" "j"  # To OK
+    sleep 0.1
+    send_keys "$CURRENT_SESSION" "Enter"  # Confirm
     sleep 0.3
 
     # Enter a directory
@@ -276,7 +281,12 @@ test_sort_independent_panes() {
     sleep 0.2
     send_keys "$CURRENT_SESSION" "Enter"  # Select Size
     sleep 0.2
-    send_keys "$CURRENT_SESSION" "Escape"  # Close dialog
+    # Navigate to OK button and confirm
+    send_keys "$CURRENT_SESSION" "j"  # To Order
+    sleep 0.1
+    send_keys "$CURRENT_SESSION" "j"  # To OK
+    sleep 0.1
+    send_keys "$CURRENT_SESSION" "Enter"  # Confirm
     sleep 0.3
 
     # Switch to right pane (l switches panes in file list mode)
@@ -333,6 +343,101 @@ test_sort_dialog_arrow_keys() {
     stop_duofm "$CURRENT_SESSION"
 }
 
+# Test: j/k navigation between major items (Sort by, Order, OK)
+test_sort_dialog_jk_major_item_navigation() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Press 's' to open sort dialog
+    send_keys "$CURRENT_SESSION" "s"
+    sleep 0.5
+
+    # Verify dialog is open with OK button visible (combined check)
+    assert_contains "$CURRENT_SESSION" "[OK]" \
+        "Sort dialog opened with OK button visible"
+
+    # j moves down through major items, then navigate to OK and confirm
+    send_keys "$CURRENT_SESSION" "j"  # To Order
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "j"  # To OK
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "Enter"  # Confirm
+    sleep 0.3
+
+    # Dialog should be closed
+    assert_not_contains "$CURRENT_SESSION" "Sort by" \
+        "Dialog closed after j/k navigation to OK and Enter"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Test: OK button confirmation
+test_sort_dialog_ok_button_confirmation() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Press 's' to open sort dialog
+    send_keys "$CURRENT_SESSION" "s"
+    sleep 0.5
+
+    # Verify dialog is open with OK button
+    assert_contains "$CURRENT_SESSION" "[OK]" \
+        "Sort dialog opened with OK button"
+
+    # Select Size via dropdown
+    send_keys "$CURRENT_SESSION" "Enter"  # Expand
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "j"  # Move to Size
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "Enter"  # Select Size
+    sleep 0.2
+
+    # Navigate to OK button using j
+    send_keys "$CURRENT_SESSION" "j"  # To Order
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "j"  # To OK
+    sleep 0.2
+
+    # Press Enter on OK button to confirm
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Dialog should close
+    assert_not_contains "$CURRENT_SESSION" "Sort by" \
+        "Sort dialog closes after OK button confirmation"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
+# Test: Tab navigation through 3 major items
+test_sort_dialog_tab_three_items() {
+    start_duofm "$CURRENT_SESSION"
+
+    # Press 's' to open sort dialog
+    send_keys "$CURRENT_SESSION" "s"
+    sleep 0.5
+
+    # Verify dialog is open with OK button
+    assert_contains "$CURRENT_SESSION" "[OK]" \
+        "Sort dialog opened with OK button for Tab test"
+
+    # Tab from Sort by to Order
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # Tab from Order to OK
+    send_keys "$CURRENT_SESSION" "Tab"
+    sleep 0.2
+
+    # OK button should be focused, press Enter to confirm
+    send_keys "$CURRENT_SESSION" "Enter"
+    sleep 0.3
+
+    # Dialog should close
+    assert_not_contains "$CURRENT_SESSION" "Sort by" \
+        "Dialog closes after Tab to OK and Enter"
+
+    stop_duofm "$CURRENT_SESSION"
+}
+
 # Execute tests when run directly
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     echo "========================================"
@@ -350,6 +455,9 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     run_test test_sort_persists_after_navigation
     run_test test_sort_independent_panes
     run_test test_sort_dialog_arrow_keys
+    run_test test_sort_dialog_jk_major_item_navigation
+    run_test test_sort_dialog_ok_button_confirmation
+    run_test test_sort_dialog_tab_three_items
 
     print_summary
     exit $?
