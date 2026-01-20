@@ -129,29 +129,50 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 	items := []MenuItem{}
 	markCount := len(d.markedFiles)
 
-	// Open with xdg-open (disabled when multiple files marked)
-	items = append(items, MenuItem{
-		ID:    "open",
-		Label: "Open",
-		Action: func() error {
-			// Will be handled by Model via openWithXDGMsg
-			return nil
-		},
-		Enabled: markCount == 0,
-	})
+	// Open operations
+	items = append(items, d.buildOpenMenuItems(markCount)...)
 
-	// Open with custom application (always enabled)
-	items = append(items, MenuItem{
-		ID:    "open_with",
-		Label: "Open with ...",
-		Action: func() error {
-			// Will be handled by Model via dialog
-			return nil
-		},
-		Enabled: true,
-	})
+	// File operations (copy, move, delete)
+	items = append(items, d.buildFileOperationMenuItems(entry, sourcePath, destPath, markCount)...)
 
-	// Determine labels based on mark count
+	// Compress
+	items = append(items, d.buildCompressMenuItem(markCount))
+
+	// Extract (archive files only)
+	if item := d.buildExtractMenuItem(entry, sourcePath); item != nil {
+		items = append(items, *item)
+	}
+
+	// Symlink operations
+	items = append(items, d.buildSymlinkMenuItems(entry, sourcePath)...)
+
+	return items
+}
+
+// buildOpenMenuItems creates Open and Open with menu items
+func (d *ContextMenuDialog) buildOpenMenuItems(markCount int) []MenuItem {
+	return []MenuItem{
+		{
+			ID:    "open",
+			Label: "Open",
+			Action: func() error {
+				return nil
+			},
+			Enabled: markCount == 0,
+		},
+		{
+			ID:    "open_with",
+			Label: "Open with ...",
+			Action: func() error {
+				return nil
+			},
+			Enabled: true,
+		},
+	}
+}
+
+// buildFileOperationMenuItems creates copy, move, and delete menu items
+func (d *ContextMenuDialog) buildFileOperationMenuItems(entry *fs.FileEntry, sourcePath, destPath string, markCount int) []MenuItem {
 	var copyLabel, moveLabel, deleteLabel string
 	if markCount > 0 {
 		copyLabel = fmt.Sprintf("Copy %d files to other pane", markCount)
@@ -163,74 +184,88 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 		deleteLabel = "Delete"
 	}
 
-	// Basic operations available for all file types
-	items = append(items, MenuItem{
-		ID:    "copy",
-		Label: copyLabel,
-		Action: func() error {
-			fullPath := filepath.Join(sourcePath, entry.Name)
-			return fs.Copy(fullPath, destPath)
+	return []MenuItem{
+		{
+			ID:    "copy",
+			Label: copyLabel,
+			Action: func() error {
+				fullPath := filepath.Join(sourcePath, entry.Name)
+				return fs.Copy(fullPath, destPath)
+			},
+			Enabled: true,
 		},
-		Enabled: true,
-	})
-
-	items = append(items, MenuItem{
-		ID:    "move",
-		Label: moveLabel,
-		Action: func() error {
-			fullPath := filepath.Join(sourcePath, entry.Name)
-			return fs.MoveFile(fullPath, destPath)
+		{
+			ID:    "move",
+			Label: moveLabel,
+			Action: func() error {
+				fullPath := filepath.Join(sourcePath, entry.Name)
+				return fs.MoveFile(fullPath, destPath)
+			},
+			Enabled: true,
 		},
-		Enabled: true,
-	})
-
-	items = append(items, MenuItem{
-		ID:    "delete",
-		Label: deleteLabel,
-		Action: func() error {
-			fullPath := filepath.Join(sourcePath, entry.Name)
-			return fs.Delete(fullPath)
+		{
+			ID:    "delete",
+			Label: deleteLabel,
+			Action: func() error {
+				fullPath := filepath.Join(sourcePath, entry.Name)
+				return fs.Delete(fullPath)
+			},
+			Enabled: true,
 		},
-		Enabled: true,
-	})
-
-	// Compress menu item (for all files/directories)
-	compressLabel := "Compress"
-	if markCount > 0 {
-		compressLabel = fmt.Sprintf("Compress %d files", markCount)
 	}
-	items = append(items, MenuItem{
-		ID:      "compress",
-		Label:   compressLabel,
-		Action:  nil, // Will be handled by submenu in Update()
-		Enabled: true,
-	})
+}
 
-	// Extract archive menu item (only for archive files)
+// buildCompressMenuItem creates the compress menu item
+func (d *ContextMenuDialog) buildCompressMenuItem(markCount int) MenuItem {
+	label := "Compress"
+	if markCount > 0 {
+		label = fmt.Sprintf("Compress %d files", markCount)
+	}
+	return MenuItem{
+		ID:      "compress",
+		Label:   label,
+		Action:  nil,
+		Enabled: true,
+	}
+}
+
+// buildExtractMenuItem creates the extract menu item for archive files
+func (d *ContextMenuDialog) buildExtractMenuItem(entry *fs.FileEntry, sourcePath string) *MenuItem {
+	if entry.IsDir {
+		return nil
+	}
+
 	fullPath := filepath.Join(sourcePath, entry.Name)
 	format, err := archive.DetectFormat(fullPath)
-	if err == nil && format != archive.FormatUnknown && !entry.IsDir {
-		// Check if format is available
-		if archive.IsFormatAvailable(format) {
-			items = append(items, MenuItem{
-				ID:    "extract",
-				Label: "Extract archive",
-				Action: func() error {
-					// Will be handled by Model
-					return nil
-				},
-				Enabled: true,
-			})
-		}
+	if err != nil || format == archive.FormatUnknown {
+		return nil
 	}
 
-	// Symlink-specific operations
-	if entry.IsSymlink && entry.IsDir && !entry.LinkBroken {
-		items = append(items, MenuItem{
+	if !archive.IsFormatAvailable(format) {
+		return nil
+	}
+
+	return &MenuItem{
+		ID:    "extract",
+		Label: "Extract archive",
+		Action: func() error {
+			return nil
+		},
+		Enabled: true,
+	}
+}
+
+// buildSymlinkMenuItems creates symlink-specific menu items
+func (d *ContextMenuDialog) buildSymlinkMenuItems(entry *fs.FileEntry, sourcePath string) []MenuItem {
+	if !entry.IsSymlink || !entry.IsDir || entry.LinkBroken {
+		return nil
+	}
+
+	return []MenuItem{
+		{
 			ID:    "enter_logical",
 			Label: "Enter as directory (logical path)",
 			Action: func() error {
-				// Navigate to the symlink directory (following the symlink)
 				if d.paneChanger != nil {
 					fullPath := filepath.Join(sourcePath, entry.Name)
 					return d.paneChanger.ChangeDirectory(fullPath)
@@ -238,33 +273,24 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 				return nil
 			},
 			Enabled: true,
-		})
-
-		items = append(items, MenuItem{
+		},
+		{
 			ID:    "enter_physical",
 			Label: "Open link target (physical path)",
 			Action: func() error {
-				// Navigate directly to the link target itself
 				if d.paneChanger != nil {
 					targetPath := entry.LinkTarget
-
-					// Handle relative paths by converting to absolute
 					if !filepath.IsAbs(targetPath) {
 						targetPath = filepath.Join(sourcePath, targetPath)
 					}
-
-					// Clean the path to resolve any .. components
 					targetPath = filepath.Clean(targetPath)
-
 					return d.paneChanger.ChangeDirectory(targetPath)
 				}
 				return nil
 			},
 			Enabled: !entry.LinkBroken,
-		})
+		},
 	}
-
-	return items
 }
 
 // Update handles keyboard input
