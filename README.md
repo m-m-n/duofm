@@ -18,6 +18,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 
 - **Navigation & Search**
   - Search & Filter: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
+  - SQL-like filtering: Advanced WHERE clause syntax (`Ctrl+G`) with size, date, type queries
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
   - Path jump: Direct navigation to any directory with `Ctrl+J` and Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists

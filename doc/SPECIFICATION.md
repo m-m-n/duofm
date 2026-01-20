@@ -180,6 +180,17 @@ Three display modes toggled with `I` key:
 - Smart case sensitivity
 - Advanced pattern matching capabilities
 
+#### SQL-like Query Filter (Ctrl+G)
+- SQL WHERE clause syntax for powerful filtering
+- Columns: name, size, mtime, type, ext, perm, owner, group, isdir, isfile, issymlink
+- Operators: =, !=, <, >, <=, >=, LIKE, ILIKE, IN, IS NULL
+- Size literals: KiB, MiB, GiB (binary) and KB, MB, GB (decimal)
+- Date functions: now(), year(), month(), day()
+- Duration support: now() - 7d, now() - 1h
+- String functions: lower(), upper()
+- Logical operators: AND, OR, NOT with parentheses grouping
+- Examples: `size > 1GiB`, `mtime > now() - 7d`, `ext IN ('go', 'rs')`
+
 ### Sorting
 
 - Toggle with `S` key
@@ -319,6 +330,11 @@ Press `@` to show context menu with:
 #### Refresh (F5 / Ctrl+R)
 - Reload current directory
 - Preserves cursor position and marks
+
+#### Filter State Preservation
+- Active filter is preserved during file delete operations
+- Deleted files are removed from filtered view
+- Filter re-applied after directory reload
 
 ### Help System
 
@@ -494,6 +510,7 @@ All dialogs follow consistent UI patterns:
 |-----|--------|
 | / | Incremental search |
 | Ctrl+F | Regex search |
+| Ctrl+G | SQL-like query filter |
 
 ### External
 | Key | Action |
@@ -603,6 +620,28 @@ enter_behavior = "less"
 # Maximum number of shell command history entries to retain
 # Default: 20000
 history_limit = 20000
+```
+
+### SQL-like Filter Examples
+
+```sql
+-- Find large files
+size > 1GiB
+
+-- Find files modified this week
+mtime > now() - 7d
+
+-- Find Go source files
+ext = 'go'
+
+-- Complex query with multiple conditions
+size > 1MiB AND year(mtime) = 2024 AND type = 'file'
+
+-- Find files by pattern
+name LIKE '%.txt' OR name ILIKE '%test%'
+
+-- Find files by extension list
+ext IN ('go', 'rs', 'py')
 ```
 
 ## Technical Requirements
