@@ -272,6 +272,307 @@ func TestExecuteDeleteOperation_ParentDirectory_NoOp(t *testing.T) {
 	}
 }
 
+// TestExecuteDeleteOperation_PreservesIncrementalFilter tests filter preservation after single file deletion
+func TestExecuteDeleteOperation_PreservesIncrementalFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "apple.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "apricot.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "banana.txt"), []byte("test"), 0644)
+
+	theme := DefaultTheme()
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, theme)
+	if err != nil {
+		t.Fatalf("Failed to create pane: %v", err)
+	}
+
+	model := Model{
+		leftPane:   pane,
+		rightPane:  pane,
+		activePane: LeftPane,
+		theme:      theme,
+	}
+
+	// Apply incremental filter
+	if err := model.leftPane.ApplyFilter("ap", SearchModeIncremental); err != nil {
+		t.Fatalf("ApplyFilter() failed: %v", err)
+	}
+
+	// Verify filter is applied (should have 2 entries: apple.txt, apricot.txt)
+	if model.leftPane.filterPattern != "ap" {
+		t.Fatalf("Filter pattern not set: got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeIncremental {
+		t.Fatalf("Filter mode not set: got %v", model.leftPane.filterMode)
+	}
+
+	// Find and select apple.txt
+	for i, entry := range model.leftPane.entries {
+		if entry.Name == "apple.txt" {
+			model.leftPane.cursor = i
+			break
+		}
+	}
+
+	// Execute delete operation
+	model = model.executeDeleteOperation()
+
+	// Verify filter is preserved
+	if model.leftPane.filterPattern != "ap" {
+		t.Errorf("Filter pattern should be preserved, got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeIncremental {
+		t.Errorf("Filter mode should be preserved, got %v", model.leftPane.filterMode)
+	}
+
+	// Verify filtered entries are updated (only apricot.txt should remain in filtered view)
+	foundApricot := false
+	foundApple := false
+	for _, entry := range model.leftPane.entries {
+		if entry.Name == "apricot.txt" {
+			foundApricot = true
+		}
+		if entry.Name == "apple.txt" {
+			foundApple = true
+		}
+	}
+	if !foundApricot {
+		t.Error("apricot.txt should still be in filtered entries")
+	}
+	if foundApple {
+		t.Error("apple.txt should have been removed from filtered entries")
+	}
+
+	// Verify cursor is within bounds
+	if model.leftPane.cursor < 0 || model.leftPane.cursor >= len(model.leftPane.entries) {
+		t.Errorf("Cursor out of bounds: %d (entries: %d)",
+			model.leftPane.cursor, len(model.leftPane.entries))
+	}
+}
+
+// TestExecuteDeleteOperation_PreservesRegexFilter tests filter preservation with regex filter
+func TestExecuteDeleteOperation_PreservesRegexFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "data.csv"), []byte("test"), 0644)
+
+	theme := DefaultTheme()
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, theme)
+	if err != nil {
+		t.Fatalf("Failed to create pane: %v", err)
+	}
+
+	model := Model{
+		leftPane:   pane,
+		rightPane:  pane,
+		activePane: LeftPane,
+		theme:      theme,
+	}
+
+	// Apply regex filter
+	if err := model.leftPane.ApplyFilter(`file\d`, SearchModeRegex); err != nil {
+		t.Fatalf("ApplyFilter() failed: %v", err)
+	}
+
+	// Find and select file1.txt
+	for i, entry := range model.leftPane.entries {
+		if entry.Name == "file1.txt" {
+			model.leftPane.cursor = i
+			break
+		}
+	}
+
+	// Execute delete operation
+	model = model.executeDeleteOperation()
+
+	// Verify filter is preserved
+	if model.leftPane.filterPattern != `file\d` {
+		t.Errorf("Filter pattern should be preserved, got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeRegex {
+		t.Errorf("Filter mode should be preserved, got %v", model.leftPane.filterMode)
+	}
+}
+
+// TestExecuteDeleteOperation_PreservesSQLLikeFilter tests filter preservation with SQL-like filter
+func TestExecuteDeleteOperation_PreservesSQLLikeFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "document.pdf"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "document.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "image.png"), []byte("test"), 0644)
+
+	theme := DefaultTheme()
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, theme)
+	if err != nil {
+		t.Fatalf("Failed to create pane: %v", err)
+	}
+
+	model := Model{
+		leftPane:   pane,
+		rightPane:  pane,
+		activePane: LeftPane,
+		theme:      theme,
+	}
+
+	// Apply SQL-like filter
+	if err := model.leftPane.ApplyFilter("name LIKE 'document%'", SearchModeSQLLike); err != nil {
+		t.Fatalf("ApplyFilter() failed: %v", err)
+	}
+
+	// Find and select document.pdf
+	for i, entry := range model.leftPane.entries {
+		if entry.Name == "document.pdf" {
+			model.leftPane.cursor = i
+			break
+		}
+	}
+
+	// Execute delete operation
+	model = model.executeDeleteOperation()
+
+	// Verify filter is preserved
+	if model.leftPane.filterPattern != "name LIKE 'document%'" {
+		t.Errorf("Filter pattern should be preserved, got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeSQLLike {
+		t.Errorf("Filter mode should be preserved, got %v", model.leftPane.filterMode)
+	}
+}
+
+// TestExecuteDeleteOperation_MultipleFiles_PreservesFilter tests filter preservation after multiple file deletion
+func TestExecuteDeleteOperation_MultipleFiles_PreservesFilter(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "alpha.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "another.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "apple.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "banana.txt"), []byte("test"), 0644)
+
+	theme := DefaultTheme()
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, theme)
+	if err != nil {
+		t.Fatalf("Failed to create pane: %v", err)
+	}
+
+	model := Model{
+		leftPane:   pane,
+		rightPane:  pane,
+		activePane: LeftPane,
+		theme:      theme,
+	}
+
+	// Apply filter
+	if err := model.leftPane.ApplyFilter("a", SearchModeIncremental); err != nil {
+		t.Fatalf("ApplyFilter() failed: %v", err)
+	}
+
+	// Mark multiple files for deletion
+	for _, entry := range model.leftPane.entries {
+		if entry.Name == "alpha.txt" || entry.Name == "another.txt" {
+			model.leftPane.markedFiles[entry.Name] = true
+		}
+	}
+
+	// Execute delete operation
+	model = model.executeDeleteOperation()
+
+	// Verify filter is preserved
+	if model.leftPane.filterPattern != "a" {
+		t.Errorf("Filter pattern should be preserved, got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeIncremental {
+		t.Errorf("Filter mode should be preserved, got %v", model.leftPane.filterMode)
+	}
+
+	// Verify only apple.txt remains in filtered view (matches "a")
+	foundApple := false
+	for _, entry := range model.leftPane.entries {
+		if entry.Name == "apple.txt" {
+			foundApple = true
+		}
+		if entry.Name == "alpha.txt" || entry.Name == "another.txt" {
+			t.Errorf("Deleted file %s should not be in filtered entries", entry.Name)
+		}
+	}
+	if !foundApple {
+		t.Error("apple.txt should still be in filtered entries")
+	}
+
+	// Verify marks are cleared
+	if len(model.leftPane.markedFiles) != 0 {
+		t.Errorf("Marks should be cleared after deletion, got %d marks", len(model.leftPane.markedFiles))
+	}
+}
+
+// TestExecuteDeleteOperation_NoFilter_NoRegression tests that delete without filter still works
+func TestExecuteDeleteOperation_NoFilter_NoRegression(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create test files
+	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte("test"), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "file3.txt"), []byte("test"), 0644)
+
+	theme := DefaultTheme()
+	pane, err := NewPane(LeftPane, tmpDir, 80, 20, true, theme)
+	if err != nil {
+		t.Fatalf("Failed to create pane: %v", err)
+	}
+
+	model := Model{
+		leftPane:   pane,
+		rightPane:  pane,
+		activePane: LeftPane,
+		theme:      theme,
+	}
+
+	// Ensure no filter is applied
+	if model.leftPane.filterPattern != "" {
+		t.Fatalf("Filter should not be applied initially")
+	}
+
+	// Find file2.txt
+	for i, entry := range model.leftPane.entries {
+		if entry.Name == "file2.txt" {
+			model.leftPane.cursor = i
+			break
+		}
+	}
+
+	initialEntryCount := len(model.leftPane.entries)
+
+	// Execute delete operation
+	model = model.executeDeleteOperation()
+
+	// Verify filter remains empty
+	if model.leftPane.filterPattern != "" {
+		t.Errorf("Filter pattern should remain empty, got %q", model.leftPane.filterPattern)
+	}
+	if model.leftPane.filterMode != SearchModeNone {
+		t.Errorf("Filter mode should remain SearchModeNone, got %v", model.leftPane.filterMode)
+	}
+
+	// Verify entry count decreased by 1
+	if len(model.leftPane.entries) != initialEntryCount-1 {
+		t.Errorf("Entry count should decrease by 1, got %d (was %d)",
+			len(model.leftPane.entries), initialEntryCount)
+	}
+
+	// Verify file2.txt is deleted
+	for _, entry := range model.leftPane.entries {
+		if entry.Name == "file2.txt" {
+			t.Error("file2.txt should have been deleted")
+		}
+	}
+}
+
 // TestExecuteDeleteOperation_ErrorHandling_CursorStillSet tests cursor positioning when deletion fails
 func TestExecuteDeleteOperation_ErrorHandling_CursorStillSet(t *testing.T) {
 	tmpDir := t.TempDir()
