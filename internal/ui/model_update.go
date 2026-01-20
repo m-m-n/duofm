@@ -558,8 +558,11 @@ func (m Model) executeDeleteOperation() Model {
 
 		// Only reload and clear marks if at least one file was deleted successfully
 		if successCount > 0 {
-			activePane.ClearMarks()
-			activePane.LoadDirectory()
+			// Note: ClearMarks is called inside ReloadDirectoryWithFilter
+			if err := activePane.ReloadDirectoryWithFilter(); err != nil {
+				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to reload directory: %v", err))
+				return m
+			}
 
 			// Calculate and set new cursor position based on first marked file position
 			if minMarkedIndex >= 0 {
@@ -588,7 +591,10 @@ func (m Model) executeDeleteOperation() Model {
 				m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
 				// Don't reload or adjust cursor on error for single file
 			} else {
-				activePane.LoadDirectory()
+				if err := activePane.ReloadDirectoryWithFilter(); err != nil {
+					m.dialog = NewErrorDialog(fmt.Sprintf("Failed to reload directory: %v", err))
+					return m
+				}
 
 				// Calculate and set new cursor position
 				newCursor := activePane.calculateCursorAfterDeletion(cursorBeforeDeletion)

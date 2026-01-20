@@ -90,11 +90,12 @@ func NewPane(paneID PanePosition, path string, width, height int, isActive bool,
 	return pane, nil
 }
 
-// LoadDirectory はディレクトリを読み込む（同期版）
-func (p *Pane) LoadDirectory() error {
+// loadEntriesFromDisk reads directory entries from filesystem, applies sort and hidden file filter.
+// This is the shared logic between LoadDirectory() and ReloadDirectoryWithFilter().
+func (p *Pane) loadEntriesFromDisk() ([]fs.FileEntry, error) {
 	entries, err := fs.ReadDirectory(p.path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	entries = SortEntries(entries, p.sortConfig)
@@ -102,6 +103,17 @@ func (p *Pane) LoadDirectory() error {
 	// 隠しファイルをフィルタリング
 	if !p.showHidden {
 		entries = filterHiddenFiles(entries)
+	}
+
+	return entries, nil
+}
+
+// LoadDirectory はディレクトリを読み込む（同期版）
+// Uses loadEntriesFromDisk() helper for shared logic.
+func (p *Pane) LoadDirectory() error {
+	entries, err := p.loadEntriesFromDisk()
+	if err != nil {
+		return err
 	}
 
 	// allEntriesにすべてのエントリを保存

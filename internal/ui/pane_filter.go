@@ -136,6 +136,45 @@ func (p *Pane) ResetToFullList() error {
 	return p.LoadDirectory()
 }
 
+// ReloadDirectoryWithFilter reloads directory contents while preserving filter state.
+// If a filter was active, it is re-applied to the new entries.
+// Uses loadEntriesFromDisk() helper for shared logic with LoadDirectory().
+func (p *Pane) ReloadDirectoryWithFilter() error {
+	// Save current filter state
+	savedPattern := p.filterPattern
+	savedMode := p.filterMode
+
+	// Clear marked entries (deleted files no longer exist)
+	p.markedFiles = make(map[string]bool)
+
+	// Reload directory entries using shared helper
+	entries, err := p.loadEntriesFromDisk()
+	if err != nil {
+		return err
+	}
+
+	// Update allEntries
+	p.allEntries = entries
+
+	// Re-apply filter if it was active
+	if savedPattern != "" {
+		// ApplyFilter handles cursor adjustment and scroll
+		return p.ApplyFilter(savedPattern, savedMode)
+	}
+
+	// No filter - show all entries
+	// Note: filterPattern and filterMode are already empty, no need to reset
+	p.entries = entries
+
+	// Adjust cursor if out of bounds
+	if p.cursor >= len(p.entries) {
+		p.cursor = max(0, len(p.entries)-1)
+	}
+	p.adjustScroll()
+
+	return nil
+}
+
 // IsFiltered はフィルタが適用中かどうかを返す
 func (p *Pane) IsFiltered() bool {
 	return p.filterPattern != ""
