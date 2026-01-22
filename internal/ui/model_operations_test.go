@@ -1034,6 +1034,14 @@ func TestModelCheckFileConflict(t *testing.T) {
 }
 
 func TestContextMenuCompressWithNilAction(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to true so Open/Open with items are enabled
+	// This ensures consistent navigation behavior
+	setDesktopEnvironmentForTest(true)
+
 	model := NewModel()
 
 	// Initialize with WindowSizeMsg

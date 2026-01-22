@@ -95,6 +95,13 @@ func TestNewContextMenuDialog(t *testing.T) {
 
 // TestBuildMenuItems_RegularFile tests menu items for regular files
 func TestBuildMenuItems_RegularFile(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to true so Open/Open with items are enabled
+	setDesktopEnvironmentForTest(true)
+
 	entry := &fs.FileEntry{
 		Name:  "test.txt",
 		IsDir: false,
@@ -928,7 +935,15 @@ func TestContextMenuDialog_OpenMenuItemPresent(t *testing.T) {
 }
 
 // TestContextMenuDialog_OpenEnabledWhenNoFilesMarked tests that "Open" is enabled when markCount == 0
+// and desktop environment is available.
 func TestContextMenuDialog_OpenEnabledWhenNoFilesMarked(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to true
+	setDesktopEnvironmentForTest(true)
+
 	entry := &fs.FileEntry{
 		Name:  "test.txt",
 		IsDir: false,
@@ -939,7 +954,7 @@ func TestContextMenuDialog_OpenEnabledWhenNoFilesMarked(t *testing.T) {
 
 	// "Open" should be at position 0 and enabled
 	if !dialog.items[0].Enabled {
-		t.Error("Expected 'Open' to be enabled when no files are marked")
+		t.Error("Expected 'Open' to be enabled when no files are marked and desktop environment is available")
 	}
 }
 
@@ -993,8 +1008,16 @@ func TestContextMenuDialog_OpenWithMenuItemPresent(t *testing.T) {
 	}
 }
 
-// TestContextMenuDialog_OpenWithAlwaysEnabled tests that "Open with ..." is always enabled
-func TestContextMenuDialog_OpenWithAlwaysEnabled(t *testing.T) {
+// TestContextMenuDialog_OpenWithEnabledWhenDesktopAvailable tests that "Open with ..." is enabled
+// regardless of marked file count when desktop environment is available.
+func TestContextMenuDialog_OpenWithEnabledWhenDesktopAvailable(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to true
+	setDesktopEnvironmentForTest(true)
+
 	tests := []struct {
 		name        string
 		markedCount int
@@ -1013,7 +1036,7 @@ func TestContextMenuDialog_OpenWithAlwaysEnabled(t *testing.T) {
 
 			var pane *Pane
 			if tt.markedCount > 0 {
-				pane := &Pane{}
+				pane = &Pane{}
 				pane.markedFiles = make(map[string]bool)
 				for i := 0; i < tt.markedCount; i++ {
 					pane.markedFiles[fmt.Sprintf("file%d.txt", i)] = true
@@ -1022,7 +1045,7 @@ func TestContextMenuDialog_OpenWithAlwaysEnabled(t *testing.T) {
 
 			dialog := NewContextMenuDialogWithPane(entry, "/test/source", "/test/dest", pane)
 
-			// "Open with ..." should be at position 1 and always enabled
+			// "Open with ..." should be at position 1 and enabled when desktop is available
 			if len(dialog.items) < 2 {
 				t.Fatalf("Expected at least 2 items, got %d", len(dialog.items))
 			}
@@ -1032,8 +1055,184 @@ func TestContextMenuDialog_OpenWithAlwaysEnabled(t *testing.T) {
 			}
 
 			if !dialog.items[1].Enabled {
-				t.Errorf("Expected 'Open with ...' to be enabled with %d marked files", tt.markedCount)
+				t.Errorf("Expected 'Open with ...' to be enabled with %d marked files when desktop is available", tt.markedCount)
 			}
 		})
+	}
+}
+
+// TestBuildOpenMenuItems_DesktopEnvironment tests that Open/Open with are disabled without desktop environment
+func TestBuildOpenMenuItems_DesktopEnvironment(t *testing.T) {
+	tests := []struct {
+		name                string
+		hasDesktop          bool
+		markCount           int
+		wantOpenEnabled     bool
+		wantOpenWithEnabled bool
+	}{
+		{
+			name:                "desktop present, no marks",
+			hasDesktop:          true,
+			markCount:           0,
+			wantOpenEnabled:     true,
+			wantOpenWithEnabled: true,
+		},
+		{
+			name:                "desktop present, with marks",
+			hasDesktop:          true,
+			markCount:           2,
+			wantOpenEnabled:     false,
+			wantOpenWithEnabled: true,
+		},
+		{
+			name:                "no desktop, no marks",
+			hasDesktop:          false,
+			markCount:           0,
+			wantOpenEnabled:     false,
+			wantOpenWithEnabled: false,
+		},
+		{
+			name:                "no desktop, with marks",
+			hasDesktop:          false,
+			markCount:           2,
+			wantOpenEnabled:     false,
+			wantOpenWithEnabled: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Save original value and restore after test
+			originalValue := hasDesktop
+			defer func() { hasDesktop = originalValue }()
+
+			// Set test value
+			setDesktopEnvironmentForTest(tt.hasDesktop)
+
+			entry := &fs.FileEntry{
+				Name:  "test.txt",
+				IsDir: false,
+			}
+
+			var pane *Pane
+			if tt.markCount > 0 {
+				pane = &Pane{}
+				pane.markedFiles = make(map[string]bool)
+				for i := 0; i < tt.markCount; i++ {
+					pane.markedFiles[fmt.Sprintf("file%d.txt", i)] = true
+				}
+			}
+
+			dialog := NewContextMenuDialogWithPane(entry, "/source", "/dest", pane)
+
+			// Check Open item (index 0)
+			if dialog.items[0].ID != "open" {
+				t.Fatalf("Expected first item to be 'open', got '%s'", dialog.items[0].ID)
+			}
+			if dialog.items[0].Enabled != tt.wantOpenEnabled {
+				t.Errorf("Open.Enabled = %v, want %v", dialog.items[0].Enabled, tt.wantOpenEnabled)
+			}
+
+			// Check Open with item (index 1)
+			if dialog.items[1].ID != "open_with" {
+				t.Fatalf("Expected second item to be 'open_with', got '%s'", dialog.items[1].ID)
+			}
+			if dialog.items[1].Enabled != tt.wantOpenWithEnabled {
+				t.Errorf("OpenWith.Enabled = %v, want %v", dialog.items[1].Enabled, tt.wantOpenWithEnabled)
+			}
+		})
+	}
+}
+
+// TestNavigationSkipsDisabledItems tests that j/k navigation skips disabled menu items (FR3).
+func TestNavigationSkipsDisabledItems(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	// Manually set up items with some disabled
+	dialog.items = []MenuItem{
+		{ID: "item0", Label: "Item 0", Enabled: false}, // disabled
+		{ID: "item1", Label: "Item 1", Enabled: false}, // disabled
+		{ID: "item2", Label: "Item 2", Enabled: true},  // enabled
+		{ID: "item3", Label: "Item 3", Enabled: false}, // disabled
+		{ID: "item4", Label: "Item 4", Enabled: true},  // enabled
+	}
+	dialog.cursor = 2 // Start at first enabled item
+
+	tests := []struct {
+		name           string
+		key            string
+		startCursor    int
+		expectedCursor int
+	}{
+		{
+			name:           "move down from enabled to next enabled",
+			key:            "j",
+			startCursor:    2, // item2 (enabled)
+			expectedCursor: 4, // item4 (enabled), skips item3 (disabled)
+		},
+		{
+			name:           "move down wraps to first enabled",
+			key:            "j",
+			startCursor:    4, // item4 (enabled)
+			expectedCursor: 2, // item2 (enabled), wraps and skips item0, item1
+		},
+		{
+			name:           "move up from enabled to previous enabled",
+			key:            "k",
+			startCursor:    4, // item4 (enabled)
+			expectedCursor: 2, // item2 (enabled), skips item3 (disabled)
+		},
+		{
+			name:           "move up wraps to last enabled",
+			key:            "k",
+			startCursor:    2, // item2 (enabled)
+			expectedCursor: 4, // item4 (enabled), wraps and skips disabled items
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dialog.cursor = tt.startCursor
+
+			keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.key)}
+			dialog.Update(keyMsg)
+
+			if dialog.cursor != tt.expectedCursor {
+				t.Errorf("cursor = %d, want %d", dialog.cursor, tt.expectedCursor)
+			}
+		})
+	}
+}
+
+// TestNavigationAllDisabledItems tests navigation when all items are disabled (guard against infinite loop).
+func TestNavigationAllDisabledItems(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	// All items disabled
+	dialog.items = []MenuItem{
+		{ID: "item0", Label: "Item 0", Enabled: false},
+		{ID: "item1", Label: "Item 1", Enabled: false},
+		{ID: "item2", Label: "Item 2", Enabled: false},
+	}
+	dialog.cursor = 0
+
+	// Move down - should not infinite loop, cursor stays at 0 or moves to next position
+	keyMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("j")}
+	dialog.Update(keyMsg)
+
+	// The cursor should have moved (or stayed), but not caused infinite loop
+	// When all items are disabled, we allow cursor to move to any position
+	if dialog.cursor < 0 || dialog.cursor >= len(dialog.items) {
+		t.Errorf("cursor out of bounds: %d", dialog.cursor)
 	}
 }
