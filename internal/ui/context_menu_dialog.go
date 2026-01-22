@@ -149,8 +149,10 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 	return items
 }
 
-// buildOpenMenuItems creates Open and Open with menu items
+// buildOpenMenuItems creates Open and Open with menu items.
+// These items are disabled when no desktop environment is available.
 func (d *ContextMenuDialog) buildOpenMenuItems(markCount int) []MenuItem {
+	hasDesktopEnv := HasDesktopEnvironment()
 	return []MenuItem{
 		{
 			ID:    "open",
@@ -158,7 +160,7 @@ func (d *ContextMenuDialog) buildOpenMenuItems(markCount int) []MenuItem {
 			Action: func() error {
 				return nil
 			},
-			Enabled: markCount == 0,
+			Enabled: hasDesktopEnv && markCount == 0,
 		},
 		{
 			ID:    "open_with",
@@ -166,7 +168,7 @@ func (d *ContextMenuDialog) buildOpenMenuItems(markCount int) []MenuItem {
 			Action: func() error {
 				return nil
 			},
-			Enabled: true,
+			Enabled: hasDesktopEnv,
 		},
 	}
 }
@@ -293,6 +295,33 @@ func (d *ContextMenuDialog) buildSymlinkMenuItems(entry *fs.FileEntry, sourcePat
 	}
 }
 
+// moveToNextEnabledItem moves the cursor in the given direction, skipping disabled items.
+// direction: 1 for down, -1 for up
+// visibleItems: total number of visible items
+// If all items are disabled, the cursor will move once and stop (guard against infinite loop).
+func (d *ContextMenuDialog) moveToNextEnabledItem(direction int, visibleItems int) {
+	items := d.getCurrentPageItems()
+	if len(items) == 0 {
+		return
+	}
+
+	attempts := 0
+	for {
+		d.cursor += direction
+		// Handle wrapping
+		if d.cursor >= visibleItems {
+			d.cursor = 0
+		} else if d.cursor < 0 {
+			d.cursor = visibleItems - 1
+		}
+		attempts++
+		// Stop if we found an enabled item or checked all items
+		if items[d.cursor].Enabled || attempts >= visibleItems {
+			break
+		}
+	}
+}
+
 // Update handles keyboard input
 func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	if !d.IsActive() {
@@ -303,21 +332,21 @@ func (d *ContextMenuDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "j", "down":
-			// Move cursor down with boundary check
-			d.cursor++
+			// Move cursor down, skipping disabled items (FR3)
 			visibleItems := len(d.getCurrentPageItems())
-			if d.cursor >= visibleItems {
-				d.cursor = 0
+			if visibleItems == 0 {
+				return d, nil
 			}
+			d.moveToNextEnabledItem(1, visibleItems)
 			return d, nil
 
 		case "k", "up":
-			// Move cursor up with boundary check
-			d.cursor--
-			if d.cursor < 0 {
-				visibleItems := len(d.getCurrentPageItems())
-				d.cursor = visibleItems - 1
+			// Move cursor up, skipping disabled items (FR3)
+			visibleItems := len(d.getCurrentPageItems())
+			if visibleItems == 0 {
+				return d, nil
 			}
+			d.moveToNextEnabledItem(-1, visibleItems)
 			return d, nil
 
 		case "h", "left":
