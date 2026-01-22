@@ -11,6 +11,13 @@ import (
 
 // TestNewContextMenuDialog tests dialog creation
 func TestNewContextMenuDialog(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to true so all items are enabled
+	setDesktopEnvironmentForTest(true)
+
 	tests := []struct {
 		name       string
 		entry      *fs.FileEntry
@@ -82,6 +89,8 @@ func TestNewContextMenuDialog(t *testing.T) {
 				t.Errorf("got %d items, want %d items", len(dialog.items), tt.wantItems)
 			}
 
+			// With desktop environment enabled, first item (Open) is enabled,
+			// so cursor should be at 0
 			if dialog.cursor != 0 {
 				t.Errorf("initial cursor = %d, want 0", dialog.cursor)
 			}
@@ -1038,7 +1047,7 @@ func TestContextMenuDialog_OpenWithEnabledWhenDesktopAvailable(t *testing.T) {
 			if tt.markedCount > 0 {
 				pane = &Pane{}
 				pane.markedFiles = make(map[string]bool)
-				for i := 0; i < tt.markedCount; i++ {
+				for i := range tt.markedCount {
 					pane.markedFiles[fmt.Sprintf("file%d.txt", i)] = true
 				}
 			}
@@ -1118,7 +1127,7 @@ func TestBuildOpenMenuItems_DesktopEnvironment(t *testing.T) {
 			if tt.markCount > 0 {
 				pane = &Pane{}
 				pane.markedFiles = make(map[string]bool)
-				for i := 0; i < tt.markCount; i++ {
+				for i := range tt.markCount {
 					pane.markedFiles[fmt.Sprintf("file%d.txt", i)] = true
 				}
 			}
@@ -1234,5 +1243,152 @@ func TestNavigationAllDisabledItems(t *testing.T) {
 	// When all items are disabled, we allow cursor to move to any position
 	if dialog.cursor < 0 || dialog.cursor >= len(dialog.items) {
 		t.Errorf("cursor out of bounds: %d", dialog.cursor)
+	}
+}
+
+// TestFindFirstEnabledItem tests the findFirstEnabledItem helper function.
+func TestFindFirstEnabledItem(t *testing.T) {
+	tests := []struct {
+		name         string
+		items        []MenuItem
+		expectedIdx  int
+	}{
+		{
+			name: "first item enabled",
+			items: []MenuItem{
+				{ID: "item0", Label: "Item 0", Enabled: true},
+				{ID: "item1", Label: "Item 1", Enabled: true},
+				{ID: "item2", Label: "Item 2", Enabled: true},
+			},
+			expectedIdx: 0,
+		},
+		{
+			name: "first two items disabled",
+			items: []MenuItem{
+				{ID: "item0", Label: "Item 0", Enabled: false},
+				{ID: "item1", Label: "Item 1", Enabled: false},
+				{ID: "item2", Label: "Item 2", Enabled: true},
+				{ID: "item3", Label: "Item 3", Enabled: true},
+			},
+			expectedIdx: 2,
+		},
+		{
+			name: "only last item enabled",
+			items: []MenuItem{
+				{ID: "item0", Label: "Item 0", Enabled: false},
+				{ID: "item1", Label: "Item 1", Enabled: false},
+				{ID: "item2", Label: "Item 2", Enabled: false},
+				{ID: "item3", Label: "Item 3", Enabled: true},
+			},
+			expectedIdx: 3,
+		},
+		{
+			name: "all items disabled - defensive default returns 0",
+			items: []MenuItem{
+				{ID: "item0", Label: "Item 0", Enabled: false},
+				{ID: "item1", Label: "Item 1", Enabled: false},
+				{ID: "item2", Label: "Item 2", Enabled: false},
+			},
+			expectedIdx: 0,
+		},
+		{
+			name: "empty items - defensive default returns 0",
+			items: []MenuItem{},
+			expectedIdx: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base := NewBaseDialog(DialogDisplayPane)
+			dialog := &ContextMenuDialog{
+				BaseDialog:   base,
+				items:        tt.items,
+				currentPage:  0,
+				itemsPerPage: 9,
+			}
+
+			result := dialog.findFirstEnabledItem()
+			if result != tt.expectedIdx {
+				t.Errorf("findFirstEnabledItem() = %d, want %d", result, tt.expectedIdx)
+			}
+		})
+	}
+}
+
+// TestInitialCursorPositionWithDisabledItems tests that the initial cursor is positioned
+// at the first enabled item when desktop environment is unavailable.
+func TestInitialCursorPositionWithDisabledItems(t *testing.T) {
+	// Save original value and restore after test
+	originalValue := hasDesktop
+	defer func() { hasDesktop = originalValue }()
+
+	// Set desktop environment to false (simulating headless environment)
+	setDesktopEnvironmentForTest(false)
+
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	// Without desktop environment:
+	// - item 0 (Open) is disabled
+	// - item 1 (Open with) is disabled
+	// - item 2 (Copy) is enabled
+	// So initial cursor should be 2
+
+	if dialog.items[0].ID != "open" || dialog.items[0].Enabled {
+		t.Error("Open should be disabled without desktop environment")
+	}
+
+	if dialog.items[1].ID != "open_with" || dialog.items[1].Enabled {
+		t.Error("Open with should be disabled without desktop environment")
+	}
+
+	if dialog.items[2].ID != "copy" || !dialog.items[2].Enabled {
+		t.Error("Copy should be enabled")
+	}
+
+	// Cursor should be at first enabled item (Copy at index 2)
+	if dialog.cursor != 2 {
+		t.Errorf("initial cursor = %d, want 2 (first enabled item 'Copy')", dialog.cursor)
+	}
+}
+
+// TestViewDoesNotHighlightDisabledItem tests that disabled items are not highlighted
+// even if cursor happens to be on them.
+func TestViewDoesNotHighlightDisabledItem(t *testing.T) {
+	base := NewBaseDialog(DialogDisplayPane)
+	dialog := &ContextMenuDialog{
+		BaseDialog:   base,
+		items: []MenuItem{
+			{ID: "disabled1", Label: "Disabled Item 1", Enabled: false},
+			{ID: "enabled1", Label: "Enabled Item 1", Enabled: true},
+		},
+		cursor:       0, // Force cursor on disabled item
+		currentPage:  0,
+		itemsPerPage: 9,
+		minWidth:     40,
+		maxWidth:     60,
+	}
+	dialog.calculateWidth()
+	dialog.styles = NewDialogStyles(dialog.Width(), ColorPrimary)
+
+	view := dialog.View()
+
+	// The view should still render (not crash)
+	if view == "" {
+		t.Error("View() should return non-empty string")
+	}
+
+	// The disabled item should be rendered with muted color (not highlighted)
+	// This is a visual test, but we can at least verify the view contains both items
+	if !strings.Contains(view, "Disabled Item 1") {
+		t.Error("View should contain 'Disabled Item 1'")
+	}
+	if !strings.Contains(view, "Enabled Item 1") {
+		t.Error("View should contain 'Enabled Item 1'")
 	}
 }
