@@ -96,6 +96,7 @@ func NewContextMenuDialogWithPane(entry *fs.FileEntry, sourcePath, destPath stri
 	}
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
+	d.cursor = d.findFirstEnabledItem()
 	d.calculateWidth()
 	d.styles = NewDialogStyles(d.Width(), ColorPrimary)
 
@@ -118,6 +119,7 @@ func NewContextMenuDialogWithMockPane(entry *fs.FileEntry, sourcePath, destPath 
 	}
 
 	d.items = d.buildMenuItems(entry, sourcePath, destPath)
+	d.cursor = d.findFirstEnabledItem()
 	d.calculateWidth()
 	d.styles = NewDialogStyles(d.Width(), ColorPrimary)
 
@@ -295,6 +297,18 @@ func (d *ContextMenuDialog) buildSymlinkMenuItems(entry *fs.FileEntry, sourcePat
 	}
 }
 
+// findFirstEnabledItem returns the index of the first enabled item on the current page.
+// Returns 0 if no enabled item is found (defensive default).
+func (d *ContextMenuDialog) findFirstEnabledItem() int {
+	items := d.getCurrentPageItems()
+	for i, item := range items {
+		if item.Enabled {
+			return i
+		}
+	}
+	return 0
+}
+
 // moveToNextEnabledItem moves the cursor in the given direction, skipping disabled items.
 // direction: 1 for down, -1 for up
 // visibleItems: total number of visible items
@@ -463,8 +477,8 @@ func (d *ContextMenuDialog) View() string {
 
 		itemStyle := lipgloss.NewStyle().Width(width-4).Padding(0, 2)
 
-		// Highlight selected item
-		if i == d.cursor {
+		// Highlight selected item (only if enabled)
+		if i == d.cursor && item.Enabled {
 			itemStyle = itemStyle.
 				Background(lipgloss.Color(string(ColorPrimary))).
 				Foreground(lipgloss.Color("0"))
