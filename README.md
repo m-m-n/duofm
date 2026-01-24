@@ -17,8 +17,9 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Cursor management: Smart cursor positioning preserved across operations and navigation
 
 - **Navigation & Search**
-  - Search & Filter: Incremental (`/`) and regex (`Ctrl+F`) search with smart case
-  - SQL-like filtering: Advanced WHERE clause syntax (`Ctrl+G`) with size, date, type queries
+  - Search & Filter: Incremental (`/`) with live filtering, regex (`Ctrl+F`) and SQL-like query (`Ctrl+G`) via dialogs
+  - Search dialogs: Syntax hints, history navigation (Up/Down), and inline validation
+  - SQL-like filtering: Advanced WHERE clause syntax with size, date, type queries
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
   - Path jump: Direct navigation to any directory with `Ctrl+J` and Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
@@ -44,6 +45,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Unicode support: Proper display for Japanese, Chinese, Korean and emoji
   - East Asian Width: Configurable width for ambiguous characters (☆, ü, ①, →)
   - Context menu: Press `@` for visual action selection with number key shortcuts
+  - Desktop detection: Open/Open with menu items disabled when no desktop environment
   - Help system: Press `?` for scrollable keybinding reference with color palette
   - Dialog overlays: Dimmed background keeps file list visible during dialogs
   - Git branch display: Shows active branch in status bar when in Git repository
