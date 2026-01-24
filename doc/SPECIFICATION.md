@@ -172,16 +172,19 @@ Three display modes toggled with `I` key:
 #### Incremental Search (/)
 - Real-time filtering as you type
 - Smart case sensitivity
-- Minibuffer input at pane bottom
+- Minibuffer input at pane bottom (live filtering)
 
 #### Regex Search (Ctrl+F)
-- Full Go regex syntax
-- Filter applied on Enter
+- Full Go regex syntax via dedicated dialog
 - Smart case sensitivity
-- Advanced pattern matching capabilities
+- Syntax hints displayed (e.g., `^prefix`, `suffix$`, `\.txt$`)
+- History navigation with Up/Down keys
+- Enter applies filter, Esc cancels
+- Empty input clears filter
+- Validation errors shown inline
 
 #### SQL-like Query Filter (Ctrl+G)
-- SQL WHERE clause syntax for powerful filtering
+- SQL WHERE clause syntax for powerful filtering via dedicated dialog
 - Columns: name, size, mtime, type, ext, perm, owner, group, isdir, isfile, issymlink
 - Operators: =, !=, <, >, <=, >=, LIKE, ILIKE, IN, IS NULL
 - Size literals: KiB, MiB, GiB (binary) and KB, MB, GB (decimal)
@@ -189,6 +192,11 @@ Three display modes toggled with `I` key:
 - Duration support: now() - 7d, now() - 1h
 - String functions: lower(), upper()
 - Logical operators: AND, OR, NOT with parentheses grouping
+- Syntax hints displayed (e.g., `size > 1MB`, `ext = ".go"`)
+- History navigation with Up/Down keys
+- Enter applies filter, Esc cancels
+- Empty input clears filter
+- Validation errors shown inline
 - Examples: `size > 1GiB`, `mtime > now() - 7d`, `ext IN ('go', 'rs')`
 
 ### Sorting
@@ -252,6 +260,7 @@ Press `@` to show context menu with:
 - Symlink-specific options (logical/physical path)
 - Supports marked files for batch operations
 - Number keys 1-9 for direct selection
+- Desktop environment detection: Open/Open with items disabled (grayed out) when no desktop environment is detected (SSH sessions, headless servers)
 
 ### Configuration
 
