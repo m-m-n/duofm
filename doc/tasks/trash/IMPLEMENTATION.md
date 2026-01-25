@@ -1,15 +1,14 @@
-# Implementation Plan: Trash (Recycle Bin)
+# Implementation Plan: Trash Dialog
 
 ## Overview
 
-freedesktop.org Trash Specification準拠のゴミ箱機能を実装する。ファイルを安全にゴミ箱へ移動し、必要に応じて復元できる。
+ゴミ箱の表示を専用ダイアログ（TrashDialog）に変更する。画面中央に表示され、両ペインを暗転（DialogDisplayScreen）する方式を採用する。
 
 ## Objectives
 
-- 誤削除からファイルを保護する
-- 削除操作の取り消しを可能にする
-- デスクトップ環境（GNOME、KDE等）との互換性を維持する
-- キーボード駆動の直感的なゴミ箱操作を提供する
+- ゴミ箱操作をダイアログ内に分離し、キーバインド衝突を回避する
+- 直感的なゴミ箱管理UI（一覧表示、復元、空にする）を提供する
+- 既存のダイアログパターン（HelpDialog、BookmarkManagerDialog）に準拠する
 
 ## Prerequisites
 
@@ -18,14 +17,14 @@ freedesktop.org Trash Specification準拠のゴミ箱機能を実装する。フ
 - make（ビルド自動化用）
 
 ### Dependencies
-- 既存のdialog infrastructure（`internal/ui/dialog.go`、`internal/ui/confirm_dialog.go`等）
-- 既存のTaskManager（`internal/archive/task_manager.go`）をクロスファイルシステム操作に活用
-- 既存のファイル操作（`internal/fs/operations.go`）
+- 既存のダイアログ基盤（`internal/ui/dialog_base.go`、`internal/ui/dialog.go`）
+- 既存のトラッシュ操作（`internal/fs/trash.go`、`internal/fs/trashinfo.go`）
+- 既存のEmptyTrashDialog、RestoreConflictDialog
 
 ### Knowledge Requirements
-- freedesktop.org Trash Specification
-- Bubble Teaアーキテクチャ（Model-Update-View）
-- 既存のキーバインドシステム（`internal/ui/actions.go`、`internal/config/defaults.go`）
+- Bubble Teaのダイアログパターン
+- DialogDisplayScreen型の使用方法（HelpDialogを参照）
+- 既存のトラッシュインフラ
 
 ## Architecture Overview
 
@@ -33,351 +32,326 @@ freedesktop.org Trash Specification準拠のゴミ箱機能を実装する。フ
 - **Language**: Go 1.21+
 - **Framework**: Bubble Tea
 - **Key Libraries**:
-  - `os`、`path/filepath` - ファイル操作
-  - `net/url` - URLエンコーディング
-  - `time` - ISO 8601タイムスタンプ
+  - `github.com/charmbracelet/lipgloss` - スタイリング
+  - 既存の`internal/fs`パッケージ - ファイル操作
 
 ### Design Approach
-- ゴミ箱操作は`internal/fs/trash.go`に集約
-- UIコンポーネントは既存のダイアログパターンを継承
-- キーバインドは既存のアクションシステムに統合
+- TrashDialogをDialogDisplayScreen型で実装
+- HelpDialogに類似した全画面オーバーレイ
+- ダイアログ内で復元・空にするを完結
 
 ### Component Interaction
 ```
-User Input (Delete key)
+User Input (T key)
     |
     v
-Model.handleTrashMove()
+Model.handleOpenTrashDialog()
     |
     v
-fs.MoveToTrash()
-    |-- Same filesystem: os.Rename
-    |-- Cross filesystem: Copy + Delete (via TaskManager)
+TrashDialog (DialogDisplayScreen)
+    |-- j/k: カーソル移動
+    |-- Space: マーク切り替え
+    |-- R: 復元（restoreConflictResultMsg経由）
+    |-- Shift+E: 空にする（emptyTrashResultMsg経由）
     v
-Generate .trashinfo
+ダイアログ結果の処理
     |
     v
-Refresh pane
+ペインリフレッシュ
 ```
 
 ## Implementation Phases
 
-### Phase 1: Core Trash Infrastructure
+### Phase 1: TrashDialog基本実装
 
-**Goal**: ゴミ箱へのファイル移動とゴミ箱ナビゲーションを実現する
+**Goal**: TrashDialogの基本構造と表示機能、ナビゲーションを実現する
 
 **Files to Create**:
-- `internal/fs/trash.go` - ゴミ箱操作のコア機能
-- `internal/fs/trash_test.go` - ゴミ箱操作のテスト
-- `internal/fs/trashinfo.go` - .trashinfoファイルの生成・パース
-- `internal/fs/trashinfo_test.go` - .trashinfoのテスト
+- `internal/ui/trash_dialog.go` - TrashDialogの実装（ナビゲーション含む）
+- `internal/ui/trash_dialog_test.go` - TrashDialogのテスト
 
 **Files to Modify**:
-- `internal/ui/actions.go`:
-  - 新規アクションの追加（ActionTrash、ActionOpenTrash、ActionRestore、ActionEmptyTrash）
-- `internal/config/defaults.go`:
-  - デフォルトキーバインドの追加
-- `internal/ui/model_update_keyboard.go`:
-  - キーハンドラの追加
+- `internal/ui/model_update_trash.go`:
+  - `handleOpenTrash()` を削除し、`handleOpenTrashDialog()` に置き換え
+  - `handleRestore()` を完全削除（TrashDialog内のRキーハンドラに移行）
+  - `handleEmptyTrash()` を完全削除（TrashDialog内のShift+Eハンドラに移行）
+  - TrashDialogの生成と表示
+- `internal/ui/model_update.go`:
+  - trashDialogResultMsg等の新メッセージ処理追加
+  - Rキーのハンドラから `handleRestore()` 呼び出しを削除し、常に `handleRenameUI()` を呼び出す
 
 **Key Components**:
 
 | Component | Responsibility | Precondition | Postcondition |
 |-----------|----------------|--------------|---------------|
-| TrashDir | ゴミ箱ディレクトリパスの取得 | なし | `~/.local/share/Trash/`を返す |
-| EnsureTrashDirs | files/info/ディレクトリの作成確認 | なし | 両ディレクトリが存在 |
-| MoveToTrash | ファイルをゴミ箱へ移動 | ファイルが存在 | ファイルがゴミ箱に移動、.trashinfo生成 |
-| GenerateTrashinfo | .trashinfoファイル生成 | 元パスと削除日時 | 有効な.trashinfoファイル |
-| ResolveNameCollision | 衝突時の連番付与 | ゴミ箱内の既存ファイル名 | 一意のファイル名 |
+| TrashDialog | ゴミ箱アイテムの一覧表示・ナビゲーション | トラッシュディレクトリが存在 | 画面中央にダイアログ表示 |
+| TrashItem | 単一のゴミ箱アイテム情報 | .trashinfoが読み取り可能 | 名前・サイズ・削除日時・元パスを保持 |
+| loadTrashItems | トラッシュアイテムの読み込み | トラッシュディレクトリにアクセス可 | TrashItemのスライスを返す |
+| cursor | 現在選択中のアイテムインデックス | アイテムが1件以上 | 0〜len(items)-1の範囲 |
+| scrollOffset | スクロール位置 | なし | 表示範囲の開始位置 |
 
 **Processing Flow**:
 ```
-1. Delete keyが押される
-2. 選択ファイルのパスを取得
-3. ゴミ箱ディレクトリを確認/作成
-4. 衝突回避のためファイル名を解決
-   ├─ 衝突なし → 元のファイル名を使用
-   └─ 衝突あり → 連番付与（file.2.txt, file.3.txt...）
-5. .trashinfoファイルを生成
-6. ファイルを移動
-   ├─ 同一FS → os.Rename
-   └─ 異なるFS → コピー + 削除
-7. 移動失敗時のロールバック
-   └─ 失敗 → .trashinfoを削除してエラー返却
-8. ペインをリフレッシュ
+1. Tキーが押される
+2. handleOpenTrashDialog()が呼ばれる
+3. トラッシュディレクトリの存在確認
+   ├─ 失敗 → エラーメッセージ表示
+   └─ 成功 → 続行
+4. トラッシュアイテムの読み込み
+   └─ .trashinfoファイルを全件パース
+5. TrashDialogを生成
+   └─ DialogDisplayScreenタイプで作成
+6. m.dialogにセットしてダイアログ表示
 ```
 
 **Implementation Steps**:
 
-1. **ゴミ箱ディレクトリ管理**
-   - ゴミ箱パスの取得と検証
-   - files/info/ディレクトリの存在確認と作成
+1. **TrashItem構造体の定義**
+   - 名前、サイズ、削除日時、元パス、マーク状態を保持
    - Key considerations:
-     - XDG_DATA_HOME環境変数のサポート
-     - パーミッションエラーの適切な処理
+     - ディレクトリのサイズは"-"で表示
+     - 削除日時のフォーマット（YYYY-MM-DD HH:MM）
 
-2. **Trashinfo生成・パース**
-   - INI形式のファイル生成
-   - URLエンコーディング処理
-   - ISO 8601タイムスタンプ生成（ローカルタイム、タイムゾーンサフィックスなし）
+2. **TrashDialogの基本構造**
+   - BaseDialogを埋め込み
+   - DialogDisplayScreen型を使用
+   - スクロール対応（HelpDialogを参考）
    - Key considerations:
-     - 特殊文字（スペース、日本語等）の正確なエンコード
-     - パース時のエラー耐性
-     - DeletionDateはローカルタイムで記録（freedesktop仕様準拠）
+     - 幅を70に設定（ヘルプダイアログと同様）
+     - visibleHeightでスクロール範囲を管理
 
-3. **MoveToTrash実装**
-   - 名前衝突解決ロジック
-   - 同一ファイルシステム判定と適切な移動方法選択
-   - ロールバック処理（移動失敗時に.trashinfoを削除）
+3. **View関数の実装**
+   - タイトル行：「Trash」とアイテム数[N]
+   - ヘッダ行：Name、Size、Deleted、Original Path
+   - アイテム行：各カラムを適切な幅で表示
+   - フッタ行：キーバインドヒント
    - Key considerations:
-     - シンボリックリンクはリンク自体を移動（ターゲットを追跡しない）
-     - 複数ファイル選択時の一括処理
-     - 移動失敗時は生成した.trashinfoを削除してクリーンな状態に戻す
+     - 列幅の固定または動的調整
+     - パスが長い場合の省略表示（~を使用）
 
-4. **キーバインドとUI統合**
-   - ActionTrash、ActionOpenTrashの追加
-   - Deleteキー、Tキーのハンドラ実装
+4. **handleOpenTrashDialog()の実装**
+   - 既存のhandleOpenTrash()を置き換え
+   - アイテム読み込みとダイアログ生成
    - Key considerations:
-     - 既存のActionDeleteとの区別（dキーは直接削除を維持）
+     - 空のゴミ箱でも正常に表示
+
+5. **カーソル移動の実装**
+   - j/k/Up/Downで上下移動
+   - 境界処理（先頭/末尾でラップまたは停止）
+   - Key considerations:
+     - HelpDialogのスクロール実装を参考
+
+6. **スクロール処理**
+   - カーソルが表示範囲外に出たら自動スクロール
+   - visibleHeightを超える場合のみスクロール発生
+   - Key considerations:
+     - スムーズなスクロール体験
 
 **Dependencies**:
-- Requires: なし（フェーズ1は独立）
-- Blocks: Phase 2（復元機能はゴミ箱インフラに依存）
+- Requires: 既存のトラッシュインフラ
+- Blocks: Phase 2（マーク機能）
 
 **Testing Approach**:
 
 *Unit Tests*:
-- Trashinfo生成が正しいフォーマットを出力
-- URLエンコードが特殊文字を正しく処理
-- ISO 8601タイムスタンプが正確
-- 名前衝突時に正しい連番が付与される
+- TrashDialogの生成が正しい
+- Viewが正しいフォーマットで出力
+- 空のゴミ箱でも正常動作
+- カーソル移動が正しい
+- スクロール処理が正しい
 
 *Integration Tests*:
-- 単一ファイルの移動が成功
-- ディレクトリの再帰的移動が成功
-- クロスファイルシステム移動が成功
-- 権限エラーが適切に処理される
-- 移動失敗時に.trashinfoがロールバック削除される
+- Tキーでダイアログが開く
+- 両ペインが暗転する
 
 *Manual Testing*:
-- [ ] Deleteキーでファイルがゴミ箱へ移動
-- [ ] Tキーでゴミ箱ディレクトリが開く
-- [ ] 同名ファイル衝突時に連番が付与される
+- [ ] Tキーでダイアログが画面中央に表示
+- [ ] ゴミ箱アイテムが一覧表示される
+- [ ] 列（名前・サイズ・削除日時・元パス）が正しく表示
+- [ ] Escでダイアログが閉じる
+- [ ] j/kでカーソルが上下移動
+- [ ] アイテム数が多い場合にスクロール動作
 
 **Acceptance Criteria**:
-- [ ] DeleteキーでファイルがTrash/files/に移動される
-- [ ] 対応する.trashinfoがTrash/info/に生成される
-- [ ] 同名衝突時に.2, .3...の連番が付与される
-- [ ] Tキーでゴミ箱ディレクトリに移動できる
-- [ ] 同一FS移動は100ms未満で完了
+- [ ] TキーでTrashDialogが画面中央に表示される
+- [ ] 両ペインが暗転（DialogDisplayScreen）
+- [ ] アイテム一覧が表示される（Name, Size, Deleted, Original Path）
+- [ ] アイテム数がタイトルに表示[N]
+- [ ] Esc/qでダイアログが閉じる
+- [ ] j/k/Up/Downでカーソル移動
+- [ ] アイテム数>visibleHeightの場合にスクロール
+- [ ] カーソル位置がハイライト表示
 
-**Estimated Effort**: 中 (3-5 days)
+**Estimated Effort**: 中 (4-6 days)
 
 **Risks and Mitigation**:
-- **Risk**: クロスファイルシステム判定の複雑さ
-  - **Mitigation**: 既存のMoveFile()のフォールバックロジックを活用
-- **Risk**: XDG_DATA_HOME未設定時の動作
-  - **Mitigation**: デフォルト値（~/.local/share）へのフォールバック
+- **Risk**: 列幅の調整が難しい
+  - **Mitigation**: 固定幅を採用し、パスは省略表示
 
 ---
 
-### Phase 2: Restore and Management
+### Phase 2: マーク機能
 
-**Goal**: ゴミ箱からの復元とゴミ箱管理機能を実現する
-
-**Files to Create**:
-- `internal/ui/restore_conflict_dialog.go` - 復元時衝突解決ダイアログ
-- `internal/ui/restore_conflict_dialog_test.go` - ダイアログのテスト
-- `internal/ui/empty_trash_dialog.go` - ゴミ箱を空にする確認ダイアログ
-- `internal/ui/empty_trash_dialog_test.go` - ダイアログのテスト
+**Goal**: ダイアログ内でのマーク機能を実現する
 
 **Files to Modify**:
-- `internal/fs/trash.go`:
-  - RestoreFromTrash関数の追加
-  - EmptyTrash関数の追加
-- `internal/fs/trash_test.go`:
-  - 復元とEmptyのテスト追加
-- `internal/ui/pane.go`:
-  - ゴミ箱内判定メソッド
-- `internal/ui/pane_render.go`:
-  - ゴミ箱表示時の追加列レンダリング
-- `internal/ui/model_update_keyboard.go`:
-  - R、Shift+Eキーハンドラ
+- `internal/ui/trash_dialog.go`:
+  - Spaceでマーク切り替え
 
 **Key Components**:
 
 | Component | Responsibility | Precondition | Postcondition |
 |-----------|----------------|--------------|---------------|
-| RestoreFromTrash | ファイルを元の場所へ復元 | ファイルがゴミ箱内、.trashinfoあり | ファイルが元パスに復元、.trashinfo削除 |
-| EmptyTrash | ゴミ箱内全ファイル削除 | なし | files/とinfo/が空 |
-| IsInTrash | 現在のパスがゴミ箱内か判定 | なし | true/false |
-| RestoreConflictDialog | 衝突時の選択肢提示 | 復元先に同名ファイル存在 | ユーザー選択（上書き/リネーム/スキップ） |
-| EmptyTrashDialog | 確認ダイアログ表示 | なし | ユーザー確認（Yes/No） |
+| marked | マーク状態の管理（map[string]bool） | なし | 選択されたアイテムがtrue |
 
 **Processing Flow**:
 ```
-Restore Flow:
-1. Rキーが押される
-2. ゴミ箱内か確認
-   └─ No → 何もしない
-3. .trashinfoから元パスを読み取り
-4. 元パスに同名ファイルが存在するか確認
-   ├─ No → 直接復元
-   └─ Yes → 衝突ダイアログ表示
-5. ユーザー選択に応じて処理
-   ├─ 上書き → 既存ファイル削除後に復元
-   ├─ リネーム → 連番付与して復元
-   └─ スキップ → 操作中止
-6. .trashinfoファイル削除
-7. ペインをリフレッシュ
+マーク:
+1. Spaceキーが押される
+2. 現在カーソル位置のアイテムのマーク状態を切り替え
+3. カーソルを1つ下に移動
+4. 画面を再描画
+```
 
-Empty Trash Flow:
+**Implementation Steps**:
+
+1. **マーク機能**
+   - Space押下でマーク切り替え
+   - マークされたアイテムを視覚的に区別（先頭に*等）
+   - マーク後にカーソル自動移動
+   - Key considerations:
+     - BookmarkDialogのパターンを参考
+
+**Dependencies**:
+- Requires: Phase 1（TrashDialog基本実装・ナビゲーション）
+- Blocks: Phase 3（復元・空にする機能）
+
+**Testing Approach**:
+
+*Unit Tests*:
+- マーク状態の切り替えが正しい
+
+*Manual Testing*:
+- [ ] Spaceでマーク切り替え
+- [ ] マークされたアイテムに*が表示
+- [ ] マーク後にカーソルが下に移動
+
+**Acceptance Criteria**:
+- [ ] Spaceでマーク切り替え（視覚的フィードバック）
+- [ ] マークされたアイテムが視覚的に区別される
+
+**Estimated Effort**: 小 (1 day)
+
+---
+
+### Phase 3: 復元と空にする機能
+
+**Goal**: ダイアログ内からの復元・空にする操作を実現する
+
+**Files to Modify**:
+- `internal/ui/trash_dialog.go`:
+  - Rキーで復元処理（TrashDialog.Update内で処理）
+  - Shift+Eで空にする処理（TrashDialog.Update内で処理）
+- `internal/ui/model_update_trash.go`:
+  - 既存の`handleRestore()`を完全削除
+  - 既存の`handleEmptyTrash()`を完全削除
+  - TrashDialog専用のメッセージハンドラ追加:
+    - `trashDialogRestoreMsg` - ダイアログからの復元要求
+    - `trashDialogEmptyMsg` - ダイアログからの空にする要求
+  - 既存の`executeRestore()`, `executeRestoreWithOverwrite()`, `executeRestoreWithRename()`, `executeEmptyTrash()`は再利用
+- `internal/ui/model_update.go`:
+  - Rキーハンドラを単純化（常に`handleRenameUI()`を呼び出し、トラッシュ判定を削除）
+  - TrashDialog関連メッセージのルーティング
+
+**Key Components**:
+
+| Component | Responsibility | Precondition | Postcondition |
+|-----------|----------------|--------------|---------------|
+| trashDialogRestoreMsg | 復元要求メッセージ | 復元対象のtrashName | 復元処理開始 |
+| trashDialogEmptyMsg | 空にする要求メッセージ | 確認済み | EmptyTrash処理開始 |
+| restoreSelected | 選択/マークアイテムの復元 | アイテムが選択/マーク済み | 復元実行または衝突ダイアログ |
+
+**Processing Flow**:
+```
+復元:
+1. Rキーが押される
+2. マークされたアイテムがあるか確認
+   ├─ あり → マーク全件を復元対象
+   └─ なし → カーソル位置のアイテムを復元対象
+3. 各アイテムについて:
+   a. .trashinfoから元パスを取得
+   b. 元パスに同名ファイルが存在するか確認
+      ├─ 存在 → RestoreConflictDialogを表示
+      └─ 不在 → 直接復元
+4. 復元成功後にダイアログを更新（アイテム削除）
+5. 全件完了後にペインをリフレッシュ
+
+空にする:
 1. Shift+Eキーが押される
-2. ゴミ箱内か確認
-   └─ No → 何もしない
-3. 確認ダイアログ表示
-4. ユーザー確認
-   ├─ Yes → files/とinfo/内の全ファイル削除
-   └─ No → 操作中止
+2. EmptyTrashDialogで確認
+3. 確認後にEmptyTrash()を実行
+4. TrashDialogを閉じる
 5. ペインをリフレッシュ
 ```
 
 **Implementation Steps**:
 
-1. **ゴミ箱内判定**
-   - IsInTrashメソッドの実装
+1. **復元メッセージの定義**
+   - trashDialogRestoreMsg構造体
+   - 単一/バッチ復元の区別
    - Key considerations:
-     - パス比較時の正規化（末尾スラッシュ等）
+     - 既存のrestoreSuccessMsg/restoreErrorMsgを再利用
 
-2. **RestoreFromTrash実装**
-   - .trashinfoパースと元パス取得
-   - 元ディレクトリが存在しない場合の作成
+2. **Rキーハンドラ**
+   - マーク有無で対象を決定
+   - 衝突チェックと適切なダイアログ表示
    - Key considerations:
-     - 元ディレクトリの権限確認
-     - クロスファイルシステム復元
+     - RestoreConflictDialogを子ダイアログとして表示
+     - TrashDialogを閉じずに衝突解決
 
-3. **衝突解決ダイアログ**
-   - 既存のdialog_base.goパターンに従う
-   - O/R/Sキーで選択
+3. **Shift+Eキーハンドラ**
+   - EmptyTrashDialogを表示
+   - 確認後にEmptyTrash()実行
    - Key considerations:
-     - 複数ファイル復元時のバッチ処理
+     - 既存のemptyTrashResultMsgを再利用
 
-4. **EmptyTrash実装**
-   - files/とinfo/の全エントリ削除
+4. **ダイアログ更新処理**
+   - 復元成功時にアイテムリストから削除
+   - 空になった場合のダイアログ自動クローズ
    - Key considerations:
-     - 削除中のエラー継続処理
-
-5. **ゴミ箱表示用追加列**
-   - 元パスと削除日時の列表示
-   - .trashinfoからのメタデータ読み取り（全件読み取り方式）
-   - Key considerations:
-     - シンプルな全件読み取りを採用（大量ファイル時の遅延は許容）
-     - 列幅の動的調整
+     - 部分的な復元失敗時の状態管理
 
 **Dependencies**:
-- Requires: Phase 1（ゴミ箱インフラ）
+- Requires: Phase 2（ナビゲーションとマーク）
 - Blocks: なし
 
 **Testing Approach**:
 
 *Unit Tests*:
-- .trashinfoパースが正しく元パスを取得
-- 元ディレクトリ不在時に作成される
-- 衝突解決の各オプションが正しく動作
+- Rキーで復元メッセージが発行される
+- Shift+Eで確認ダイアログが表示される
+- マーク有無で復元対象が正しく決定される
 
 *Integration Tests*:
-- 復元が元の場所に正しくファイルを戻す
-- 衝突時のダイアログが正しく表示される
-- EmptyTrashが全ファイルを削除
+- 復元が元の場所にファイルを戻す
+- 衝突時にダイアログが表示される
+- EmptyTrashで全ファイルが削除される
 
 *Manual Testing*:
-- [ ] Rキーで選択ファイルが元の場所へ復元
-- [ ] 復元先に同名ファイル存在時にダイアログ表示
+- [ ] Rキーで選択アイテムが復元される
+- [ ] Spaceでマーク後、Rでバッチ復元
+- [ ] 復元先衝突時にダイアログ表示
 - [ ] Shift+Eで確認後にゴミ箱が空になる
-- [ ] ゴミ箱表示時に元パスと削除日時が表示
+- [ ] 復元成功後にダイアログ内のアイテムが更新される
 
 **Acceptance Criteria**:
-- [ ] Rキーで.trashinfoに記録された元パスへ復元される
-- [ ] 復元先衝突時に上書き/リネーム/スキップが選択できる
-- [ ] Shift+Eで確認ダイアログが表示される
-- [ ] 確認後にゴミ箱内の全ファイルが削除される
-- [ ] ゴミ箱内で元パスと削除日時が列として表示される
+- [ ] Rキーで選択/マークアイテムが元の場所へ復元
+- [ ] 復元先衝突時にRestoreConflictDialog表示
+- [ ] Shift+EでEmptyTrashDialog表示後に全削除
+- [ ] 復元/削除後にダイアログ内リストが更新される
+- [ ] TrashDialog内のRキーはリネームにならない
 
 **Estimated Effort**: 中 (3-5 days)
-
-**Risks and Mitigation**:
-- **Risk**: 大量ファイルのメタデータ読み取りによるパフォーマンス低下
-  - **Mitigation**: 遅延読み込みまたはキャッシュの検討
-- **Risk**: 復元先ディレクトリが削除されている場合
-  - **Mitigation**: 親ディレクトリを再帰的に作成
-
----
-
-### Phase 3: Extended (External Device Support)
-
-**Goal**: 外部デバイスでのゴミ箱サポートを実現する
-
-**Files to Modify**:
-- `internal/fs/trash.go`:
-  - デバイスごとのゴミ箱パス解決
-  - .Trash-$UIDディレクトリの処理
-
-**Key Components**:
-
-| Component | Responsibility | Precondition | Postcondition |
-|-----------|----------------|--------------|---------------|
-| GetTrashDirForPath | パスに応じたゴミ箱ディレクトリ取得 | ファイルパス | 適切なゴミ箱パス |
-| CreateDeviceTrash | 外部デバイス上にゴミ箱作成 | デバイスマウントポイント | .Trash-$UIDが存在 |
-
-**Processing Flow**:
-```
-1. ファイルパスからマウントポイントを特定
-2. マウントポイントがホームと同一FSか確認
-   ├─ Yes → ~/.local/share/Trash/を使用
-   └─ No → マウントポイント/.Trash-$UID/を使用
-3. デバイス固有のゴミ箱が存在しない場合は作成
-4. 通常のゴミ箱操作を実行
-```
-
-**Implementation Steps**:
-
-1. **マウントポイント検出**
-   - ファイルパスからマウントポイントを特定
-   - Key considerations:
-     - Linux固有の/proc/mountsパース
-
-2. **デバイス別ゴミ箱パス解決**
-   - .Trash-$UIDディレクトリの検出・作成
-   - Key considerations:
-     - セキュリティ（.Trashディレクトリのパーミッション確認）
-
-**Dependencies**:
-- Requires: Phase 1、Phase 2
-- Blocks: なし
-
-**Testing Approach**:
-
-*Unit Tests*:
-- マウントポイント検出が正確
-- デバイス別ゴミ箱パスが正しく解決される
-
-*Integration Tests*:
-- 外部デバイス上のファイルが正しくゴミ箱へ移動
-- 外部デバイスからの復元が正しく動作
-
-*Manual Testing*:
-- [ ] USBドライブ上のファイルがデバイス内ゴミ箱へ移動
-- [ ] デバイス内ゴミ箱からの復元が成功
-
-**Acceptance Criteria**:
-- [ ] 外部デバイス上のファイルが.Trash-$UIDへ移動される
-- [ ] デバイスごとにゴミ箱が分離される
-
-**Estimated Effort**: 小 (1-2 days)
-
-**Risks and Mitigation**:
-- **Risk**: マウントポイント検出の信頼性
-  - **Mitigation**: /proc/mountsに加えてstatfsのデバイスID比較
 
 ---
 
@@ -386,30 +360,23 @@ Empty Trash Flow:
 ```
 internal/
 ├── fs/
-│   ├── trash.go              # ゴミ箱操作のコア機能
-│   ├── trash_test.go         # ゴミ箱操作のテスト
-│   ├── trashinfo.go          # .trashinfoファイルの生成・パース
-│   └── trashinfo_test.go     # .trashinfoのテスト
-├── ui/
-│   ├── actions.go            # (modified) 新規アクション追加
-│   ├── restore_conflict_dialog.go     # 復元時衝突解決ダイアログ
-│   ├── restore_conflict_dialog_test.go
-│   ├── empty_trash_dialog.go          # ゴミ箱を空にする確認ダイアログ
-│   ├── empty_trash_dialog_test.go
-│   ├── pane.go               # (modified) IsInTrashメソッド追加
-│   ├── pane_render.go        # (modified) ゴミ箱表示用列追加
-│   └── model_update_keyboard.go # (modified) キーハンドラ追加
-└── config/
-    └── defaults.go           # (modified) デフォルトキーバインド追加
+│   ├── trash.go              # 既存: ゴミ箱操作のコア機能
+│   ├── trash_test.go         # 既存: ゴミ箱操作のテスト
+│   ├── trashinfo.go          # 既存: .trashinfoファイルの生成・パース
+│   └── trashinfo_test.go     # 既存: .trashinfoのテスト
+└── ui/
+    ├── trash_dialog.go       # 新規: TrashDialog実装
+    ├── trash_dialog_test.go  # 新規: TrashDialogテスト
+    ├── restore_conflict_dialog.go    # 既存: 復元時衝突解決ダイアログ
+    ├── empty_trash_dialog.go         # 既存: ゴミ箱を空にする確認ダイアログ
+    ├── model_update_trash.go         # 修正: handleOpenTrashDialog追加
+    └── model_update.go               # 修正: TrashDialogメッセージ処理追加
 ```
 
 **File Descriptions**:
-- `trash.go`: MoveToTrash、RestoreFromTrash、EmptyTrash等のコア操作
-- `trashinfo.go`: .trashinfoファイルのINI形式生成・パース、URLエンコード処理
-- `restore_conflict_dialog.go`: 復元時衝突解決のUI（上書き/リネーム/スキップ）
-- `empty_trash_dialog.go`: ゴミ箱を空にする確認ダイアログ（既存ConfirmDialogをラップ）
-- `actions.go`: ActionTrash、ActionOpenTrash、ActionRestore、ActionEmptyTrash追加
-- `defaults.go`: Delete→trash、T→open_trash、R→restore、Shift+E→empty_trash
+- `trash_dialog.go`: TrashDialog本体（BaseDialog埋め込み、DialogDisplayScreen型）
+- `model_update_trash.go`: ダイアログ生成とメッセージハンドリング
+- 既存ファイルは最小限の修正
 
 ## Testing Strategy
 
@@ -418,230 +385,128 @@ internal/
 **Approach**:
 - Go標準の`testing`パッケージを使用
 - テーブル駆動テストで複数シナリオをカバー
-- ファイルシステム操作は一時ディレクトリを使用
 
 **Test Coverage Goals**:
-- ゴミ箱操作（trash.go）: 90%+
-- Trashinfoパース（trashinfo.go）: 95%+
-- UIコンポーネント: 70%+
+- TrashDialog: 80%+
+- メッセージハンドリング: 80%+
 
 **Key Test Areas**:
 
-1. **Trashinfo生成・パース** (`internal/fs/trashinfo_test.go`)
-   - 有効な.trashinfoフォーマット生成
-   - 特殊文字のURLエンコード
-   - ISO 8601タイムスタンプ
-   - 不正なファイルのエラーハンドリング
+1. **TrashDialog生成・表示** (`internal/ui/trash_dialog_test.go`)
+   - 正常なダイアログ生成
+   - 空のゴミ箱での生成
+   - View出力のフォーマット検証
 
-2. **名前衝突解決** (`internal/fs/trash_test.go`)
-   - 衝突なし: 元のファイル名使用
-   - 初回衝突: .2を付与
-   - 複数衝突: カウンタをインクリメント
-   - 拡張子付きファイルの正しい処理
+2. **ナビゲーション** (`internal/ui/trash_dialog_test.go`)
+   - カーソル移動の境界処理
+   - スクロール処理
+   - マーク切り替え
 
-3. **ゴミ箱操作** (`internal/fs/trash_test.go`)
-   - 単一ファイル移動
-   - ディレクトリ再帰移動
-   - クロスファイルシステム移動
-   - 復元操作
-   - EmptyTrash操作
-
-### Integration Testing
-
-**Scenarios**:
-1. Delete→Restore往復テスト
-2. 複数ファイル選択時のバッチ操作
-3. ゴミ箱表示時のメタデータ読み取り
-
-**Approach**:
-- 一時ディレクトリでゴミ箱環境を構築
-- 実際のファイルシステム操作を検証
+3. **キー入力処理** (`internal/ui/trash_dialog_test.go`)
+   - Rキーで復元メッセージ発行
+   - Shift+Eで確認ダイアログ表示
+   - Escでダイアログクローズ
 
 ### Manual Testing Checklist
 
-Based on spec test scenarios:
-- [ ] Deleteキーでファイルがゴミ箱へ移動
-- [ ] Tキーでゴミ箱ディレクトリが開く
-- [ ] Rキーでファイルが元の場所へ復元（ゴミ箱内）
-- [ ] Rキーがゴミ箱外で無効
-- [ ] Shift+Eで確認後にゴミ箱が空になる
-- [ ] 元パス列がゴミ箱内で表示
-- [ ] 削除日時列がゴミ箱内で表示
-- [ ] Unicode文字を含むファイル名の処理
-- [ ] 長いパス名の処理
-- [ ] シンボリックリンクの移動（リンク自体を移動）
-- [ ] 空のゴミ箱でShift+E押下
-- [ ] 復元時に元の親ディレクトリが削除されている場合
+- [ ] Tキーでダイアログが画面中央に表示
+- [ ] 両ペインが暗転
+- [ ] j/kでカーソル移動
+- [ ] Spaceでマーク切り替え
+- [ ] Rキーで復元（ダイアログ内）
+- [ ] Rキーでリネーム（通常ファイルリスト）
+- [ ] Shift+Eで空にする確認
+- [ ] Esc/qでダイアログクローズ
+- [ ] 空のゴミ箱でも正常表示
 
 ## Dependencies
 
-### External Dependencies
-
-| Package | Version | Purpose | Installation |
-|---------|---------|---------|--------------|
-| github.com/charmbracelet/bubbletea | existing | TUIフレームワーク | already installed |
-| github.com/charmbracelet/lipgloss | existing | スタイリング | already installed |
-
 ### Internal Dependencies
 
-**Implementation Order** (respecting dependencies):
-1. Phase 1（ゴミ箱インフラ）- 独立
-2. Phase 2（復元と管理）- Phase 1に依存
-3. Phase 3（外部デバイス）- Phase 1, 2に依存
+**Implementation Order**:
+1. Phase 1（TrashDialog基本実装・ナビゲーション）
+2. Phase 2（マーク機能）
+3. Phase 3（復元と空にする機能）
 
 **Component Dependencies**:
-- `trash.go` depends on `trashinfo.go`
-- `restore_conflict_dialog.go` depends on `dialog_base.go`
-- `pane_render.go` depends on `trash.go` (IsInTrash)
-- `model_update_keyboard.go` depends on `actions.go`
+- `trash_dialog.go` depends on `dialog_base.go`
+- `trash_dialog.go` depends on `internal/fs/trash.go`, `internal/fs/trashinfo.go`
+- `model_update_trash.go` depends on `trash_dialog.go`
 
 ## Risk Assessment
 
 ### Technical Risks
 
-1. **クロスファイルシステム操作の複雑さ**
-   - **Risk**: 異なるFS間の移動でエラーが発生
+1. **ダイアログ内での子ダイアログ表示**
+   - **Risk**: RestoreConflictDialogをTrashDialog内で表示する際の状態管理
    - **Likelihood**: Medium
-   - **Impact**: High
-   - **Mitigation**:
-     - 既存のMoveFile()のフォールバックロジックを活用
-     - TaskManagerによるプログレス表示
-
-2. **大量ファイルのメタデータ読み取り**
-   - **Risk**: 1000ファイル超のゴミ箱で表示遅延
-   - **Likelihood**: Medium
-   - **Impact**: Low（許容される遅延）
-   - **Mitigation**:
-     - シンプルな全件読み取りを採用
-     - 大量ファイル時の遅延は許容する設計方針
-
-3. **パス正規化の一貫性**
-   - **Risk**: 末尾スラッシュ等でゴミ箱内判定が失敗
-   - **Likelihood**: Low
    - **Impact**: Medium
-   - **Mitigation**:
-     - filepath.Cleanによる正規化
-     - 比較前のパス正規化を徹底
+   - **Mitigation**: 一旦TrashDialogを閉じてRestoreConflictDialogを表示し、完了後にTrashDialogを再開
 
-### Implementation Risks
-
-1. **既存キーバインドとの衝突**
-   - **Risk**: Delete、R等の既存アクションとの整合性
-   - **Mitigation**:
-     - ActionDeleteを直接削除として維持（dキー）
-     - ActionTrashを新規追加（Deleteキー）
-     - Rキーはコンテキスト依存: ゴミ箱内ではrestore、ゴミ箱外ではrename
-     - ゴミ箱内ではrenameアクションを無効化
-
-2. **デスクトップ環境との互換性**
-   - **Risk**: freedesktop仕様への準拠不足
-   - **Mitigation**: 仕様書を厳密に参照、他のファイルマネージャでの動作確認
-
-3. **エラー時の暗黙的フォールバック**
-   - **Risk**: ゴミ箱使用不可時に直接削除にフォールバックするとデータ損失の危険
-   - **Mitigation**:
-     - ゴミ箱操作失敗時はエラー表示して操作を中止
-     - 直接削除へのフォールバックは行わない
-     - ユーザーが直接削除を望む場合は明示的に`d`キーを使用
+2. **大量ファイルのスクロール性能**
+   - **Risk**: 1000ファイル超で描画遅延
+   - **Likelihood**: Low
+   - **Impact**: Low（許容範囲）
+   - **Mitigation**: シンプルな実装を維持、必要に応じて仮想化を検討
 
 ## Performance Considerations
 
-1. **ゴミ箱移動**
-   - 同一FS: os.Rename（即座）
-   - 異なるFS: コピー+削除（TaskManagerで進捗表示）
+1. **トラッシュアイテム読み込み**
+   - ダイアログ表示時に全件読み込み
+   - 大量ファイル時の遅延は許容
 
-2. **ゴミ箱表示**
-   - .trashinfoの全件読み取り方式を採用
-   - 大量ファイル時の遅延は許容（シンプルさを優先）
-
-3. **EmptyTrash**
-   - os.RemoveAllによる効率的な削除
-   - 大量ファイル時は進捗表示を検討
+2. **描画性能**
+   - スクロール時は表示範囲のみ再描画
+   - lipglossによる効率的なレンダリング
 
 ## Security Considerations
 
 1. **パス検証**
+   - 既存のvalidateTrashName()を使用
    - ディレクトリトラバーサル防止
-   - filepath.Cleanによる正規化
 
 2. **権限確認**
-   - ゴミ箱ディレクトリへの書き込み権限
-   - 復元先ディレクトリへの書き込み権限
-
-3. **シンボリックリンク**
-   - リンク自体を移動（ターゲットを追跡しない）
-   - リンク切れの適切な処理
-
-4. **URLエンコード**
-   - .trashinfoのPathフィールドを正しくエンコード/デコード
-   - 特殊文字によるインジェクション防止
+   - 既存のトラッシュ操作の権限チェックを継承
 
 ## Open Questions
 
-### From Specification:
-- なし（すべての要件が明確化済み）
-
-### Implementation-Specific:
-- 外部デバイス対応の詳細仕様（Phase 3で対応）
-
-## Future Enhancements
-
-Items deferred to later phases or releases:
-
-### Out of Scope (per SPEC):
-- ゴミ箱の自動削除（期間経過後の自動クリーンアップ）
-- ゴミ箱サイズ制限
-- ネットワークドライブ対応
-- Undo機能（直前の削除を即座に取り消し）
+なし - 全ての要件がSPEC.mdで明確化済み
 
 ## Success Metrics
 
 ### Functional Completeness
-- [ ] Phase 1の全機能要件が実装済み
-- [ ] Phase 2の全機能要件が実装済み
-- [ ] freedesktop.org Trash Specification準拠
+- [ ] TrashDialogが画面中央に表示される
+- [ ] 両ペインが暗転（DialogDisplayScreen）
+- [ ] j/k/Space/R/Shift+Eが正しく動作
+- [ ] Rキーがダイアログ内で復元、ダイアログ外でリネーム
 
 ### Quality Metrics
-- [ ] テストカバレッジが目標達成（90%+ for core）
+- [ ] テストカバレッジ80%+
 - [ ] 手動テストで重大なバグなし
-- [ ] Goベストプラクティスに準拠
-
-### Performance Metrics
-- [ ] 同一FSゴミ箱移動 < 100ms
-- [ ] ゴミ箱一覧表示が正常に動作（大量ファイル時の遅延は許容）
-- [ ] キーボード入力への応答 < 100ms
 
 ### User Experience
 - [ ] 直感的なキーボード操作
 - [ ] 明確なエラーメッセージ
-- [ ] デスクトップ環境との相互運用性
 
 ## References
 
 - **Specification**: `doc/tasks/trash/SPEC.md`
-- **Requirements**: `doc/tasks/trash/要件定義書.md`
-- **freedesktop.org Trash Specification**: https://specifications.freedesktop.org/trash-spec/trashspec-latest.html
-- **Bubble Tea Documentation**: https://github.com/charmbracelet/bubbletea
-- **Go Testing**: https://go.dev/doc/tutorial/add-a-test
+- **Existing Dialogs**: `internal/ui/help_dialog.go`、`internal/ui/bookmark_dialog.go`
+- **Existing Trash Infrastructure**: `internal/fs/trash.go`、`internal/fs/trashinfo.go`
 
 ## Next Steps
 
-After reviewing this implementation plan:
+1. **実装開始**
+   - Phase 1から順に実装
+   - 既存のダイアログパターンを参考
 
-1. **Review and Approval**
-   - ステークホルダーレビュー
-   - オープンクエスチョンの解決
-   - アプローチとタイムラインの確認
+2. **テスト作成**
+   - 各フェーズでユニットテストを作成
+   - 手動テストチェックリストで検証
 
-2. **Environment Setup**
-   - 依存関係の確認
-   - 開発環境のセットアップ
-
-3. **Begin Implementation**
-   - Phase 1から開始
-   - TDDアプローチ（テストを先に書く）
-   - インクリメンタルにコミット
-
-4. **Continuous Integration**
-   - CIパイプラインでテスト自動実行
-   - コード品質チェックの適用
+3. **既存機能の完全削除と移行**
+   - `handleOpenTrash()` を削除し、`handleOpenTrashDialog()` に置き換え
+   - `handleRestore()` を完全削除（ダイアログ方式に完全移行）
+   - `handleEmptyTrash()` を完全削除（ダイアログ方式に完全移行）
+   - Rキーハンドラのトラッシュ判定ロジックを削除（常にリネーム動作）
+   - ペインナビゲーションでゴミ箱に移動する機能は提供しない

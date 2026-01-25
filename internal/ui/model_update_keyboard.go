@@ -438,13 +438,17 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m.handleTrash()
 
 	case ActionOpenTrash:
-		return m.handleOpenTrash()
+		return m.handleOpenTrashDialog()
 
 	case ActionRestore:
-		return m.handleRestore()
+		// Restore is now handled within TrashDialog only
+		// R key outside dialog now always does rename
+		return m.handleRenameUI()
 
 	case ActionEmptyTrash:
-		return m.handleEmptyTrash()
+		// Empty trash is now handled within TrashDialog only
+		// This action does nothing outside the dialog
+		return m, nil
 	}
 
 	return m, nil

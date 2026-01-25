@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implement a trash/recycle bin feature compliant with the freedesktop.org Trash Specification. Users can safely move files to trash instead of permanent deletion, and restore them when needed.
+Implement a trash/recycle bin feature compliant with the freedesktop.org Trash Specification. Users can safely move files to trash instead of permanent deletion, and restore them when needed. **Trash contents are displayed in a dedicated dialog**, keeping trash operations isolated from normal file management.
 
 ## Objectives
 
@@ -10,6 +10,7 @@ Implement a trash/recycle bin feature compliant with the freedesktop.org Trash S
 - Enable recovery of deleted files
 - Maintain compatibility with desktop environments (GNOME, KDE, etc.)
 - Provide intuitive keyboard-driven trash operations
+- Keep trash operations in a separate dialog to avoid keybinding conflicts
 
 ## User Stories
 
@@ -22,26 +23,28 @@ As a user, I want to move files to trash using the Delete key, so that I can rec
 - [ ] Corresponding `.trashinfo` file is created
 - [ ] File list updates immediately
 
-### US2: Navigate to Trash
-As a user, I want to quickly open the trash directory, so that I can see what I've deleted.
+### US2: Open Trash Dialog
+As a user, I want to quickly open the trash dialog, so that I can see what I've deleted.
 
 **Acceptance Criteria:**
-- [ ] `T` key navigates active pane to trash directory
-- [ ] Trash contents are displayed like any other directory
+- [ ] `T` key opens the trash dialog at screen center
+- [ ] Both panes are dimmed behind the dialog
+- [ ] Trash contents displayed with columns: Name, Size, Deleted, Original Path
 
 ### US3: Restore File from Trash
 As a user, I want to restore files from trash to their original location, so that I can recover deleted files.
 
 **Acceptance Criteria:**
-- [ ] `R` key restores selected file to original path
+- [ ] `R` key in trash dialog restores selected file to original path
 - [ ] Conflict resolution dialog appears if file exists at destination
 - [ ] `.trashinfo` file is removed after successful restore
+- [ ] `R` key in normal file list performs rename (no conflict)
 
 ### US4: Empty Trash
 As a user, I want to empty the trash to reclaim disk space, so that deleted files don't consume storage indefinitely.
 
 **Acceptance Criteria:**
-- [ ] `Shift+E` prompts for confirmation
+- [ ] `Shift+E` in trash dialog prompts for confirmation
 - [ ] Confirmation dialog prevents accidental data loss
 - [ ] All files and `.trashinfo` files are permanently deleted
 
@@ -49,9 +52,10 @@ As a user, I want to empty the trash to reclaim disk space, so that deleted file
 As a user, I want to see the original path and deletion date of trashed files, so that I can identify which file to restore.
 
 **Acceptance Criteria:**
-- [ ] Original path is displayed as a column in file list
-- [ ] Deletion date is displayed as a column in file list
-- [ ] Columns are only visible when inside trash directory
+- [ ] Name column shows file/directory name
+- [ ] Size column shows file size
+- [ ] Deleted column shows deletion date/time
+- [ ] Original Path column shows where the file came from
 
 ## Domain Rules
 
@@ -59,8 +63,8 @@ As a user, I want to see the original path and deletion date of trashed files, s
 - **Trashinfo Format**: INI-style file with `[Trash Info]` section, `Path` and `DeletionDate` keys
 - **Name Collision**: When moving to trash, if same name exists, append counter (file.txt -> file.2.txt)
 - **Restore Collision**: User must choose: overwrite, rename, or skip
-- **Trash-only Operations**: `R` (restore) and `Shift+E` (empty) only work inside trash directory
-- **Context-Dependent R Key**: Inside trash directory, `R` performs restore (rename is disabled); outside trash, `R` performs rename
+- **Dialog Isolation**: Trash dialog is a separate modal; `R` key has different functions inside/outside the dialog
+- **No Keybinding Conflict**: `R` = restore (in trash dialog), `R` = rename (in normal file list)
 
 ## Technical Requirements
 
@@ -71,16 +75,18 @@ As a user, I want to see the original path and deletion date of trashed files, s
 - **FR1.1**: `Delete` key moves selected file(s) to `~/.local/share/Trash/files/`
 - **FR1.2**: Generate `.trashinfo` file in `~/.local/share/Trash/info/` with original path and deletion timestamp
 - **FR1.3**: Handle name collisions by appending counter (file.txt -> file.2.txt, file.3.txt, ...)
-- **FR1.4**: `T` key navigates active pane to trash directory
-- **FR1.5**: Same-filesystem moves use `os.Rename` for efficiency
-- **FR1.6**: Cross-filesystem moves use copy+delete (leverage existing TaskManager)
+- **FR1.4**: `T` key opens trash dialog (screen-centered, both panes dimmed)
+- **FR1.5**: Trash dialog displays: Name, Size, Deleted, Original Path columns
+- **FR1.6**: Same-filesystem moves use `os.Rename` for efficiency
+- **FR1.7**: Cross-filesystem moves use copy+delete (leverage existing TaskManager)
+- **FR1.8**: j/k navigation within trash dialog
 
 #### Phase 2 (Restore and Management)
 
-- **FR2.1**: `R` key restores file to original path (read from `.trashinfo`)
+- **FR2.1**: `R` key in trash dialog restores file to original path (read from `.trashinfo`)
 - **FR2.2**: Display conflict resolution dialog when restore destination exists (overwrite/rename/skip)
-- **FR2.3**: `Shift+E` empties trash with confirmation dialog
-- **FR2.4**: Display original path and deletion date as columns when inside trash directory
+- **FR2.3**: `Shift+E` in trash dialog empties trash with confirmation dialog
+- **FR2.4**: Space key marks/unmarks files in trash dialog for batch operations
 
 #### Phase 3 (Extended)
 
@@ -89,20 +95,31 @@ As a user, I want to see the original path and deletion date of trashed files, s
 ### Non-Functional Requirements
 
 - **NFR1.1 - Performance**: Same-filesystem trash operation < 100ms
-- **NFR1.2 - Performance**: Trash directory listing with 1000 files < 100ms
+- **NFR1.2 - Performance**: Trash dialog opening with 1000 files < 100ms
 - **NFR1.3 - Compatibility**: Full compliance with freedesktop.org Trash Specification
 - **NFR1.4 - Security**: Validate paths to prevent directory traversal attacks
 
 ## Key Bindings
 
-| Key | Action | Context |
-|-----|--------|---------|
-| `Delete` | Move to trash | Always |
-| `d` | Direct delete (existing) | Always |
-| `T` (Shift+t) | Open trash directory | Always |
-| `R` | Restore from trash | Trash directory only (rename disabled) |
-| `R` | Rename file | Outside trash only |
-| `Shift+E` | Empty trash | Trash directory only |
+### Global (Normal File List)
+
+| Key | Action |
+|-----|--------|
+| `Delete` | Move selected file(s) to trash |
+| `d` | Direct delete (existing, unchanged) |
+| `T` (Shift+t) | Open trash dialog |
+| `R` | Rename file (unchanged) |
+
+### Trash Dialog Only
+
+| Key | Action |
+|-----|--------|
+| `j` / `Down` | Move cursor down |
+| `k` / `Up` | Move cursor up |
+| `Space` | Mark/unmark file |
+| `R` | Restore selected/marked file(s) |
+| `Shift+E` | Empty trash (with confirmation) |
+| `Esc` / `q` | Close dialog |
 
 ## Trash Directory Structure
 
@@ -139,17 +156,17 @@ stateDiagram-v2
     TrashMove --> Normal: Success
     TrashMove --> Error: Failure
 
-    Normal --> TrashDir: T key
-    TrashDir --> Normal: Navigate away
+    Normal --> TrashDialog: T key
+    TrashDialog --> Normal: Esc/q
 
-    TrashDir --> RestorePrompt: R key (file selected)
-    RestorePrompt --> TrashDir: Success/Cancel
+    TrashDialog --> RestorePrompt: R key (file selected)
+    RestorePrompt --> TrashDialog: Success/Cancel
     RestorePrompt --> ConflictDialog: Destination exists
-    ConflictDialog --> TrashDir: User choice applied
+    ConflictDialog --> TrashDialog: User choice applied
 
-    TrashDir --> EmptyConfirm: Shift+E
-    EmptyConfirm --> TrashDir: Confirmed (empty)
-    EmptyConfirm --> TrashDir: Cancelled
+    TrashDialog --> EmptyConfirm: Shift+E
+    EmptyConfirm --> TrashDialog: Confirmed (empty)
+    EmptyConfirm --> TrashDialog: Cancelled
 ```
 
 ## Interface Contract
@@ -216,21 +233,31 @@ stateDiagram-v2
 
 ## UI Layout
 
-### Trash Directory View
+### Trash Dialog (Screen Center)
 
-When inside trash directory, display additional columns:
+The trash dialog is displayed at the **screen center** with **both panes dimmed** behind it. This is a full-screen dialog similar to the Help dialog.
 
 ```
- ~/.local/share/Trash/files
- Marked 0/5  12.3 MiB                                          922.5 GiB Free
- ───────────────────────────────────────────────────────────────────────────────
- Name                    Size   Deleted              Original Path
- ───────────────────────────────────────────────────────────────────────────────
- ..                         -
- document.txt           2.1K   2026-01-25 10:30    /home/user/Documents/
- photo.jpg              1.2M   2026-01-24 15:45    /home/user/Pictures/
- project/                  -   2026-01-23 09:00    /home/user/src/
+┌─────────────────────────────────────────────────────────────────┐
+│ Trash                                                     [5]   │
+├─────────────────────────────────────────────────────────────────┤
+│ Name                Size    Deleted              Original Path  │
+├─────────────────────────────────────────────────────────────────┤
+│ document.txt        2.1K    2026-01-25 10:30    ~/Documents/    │
+│ photo.jpg           1.2M    2026-01-24 15:45    ~/Pictures/     │
+│ project/               -    2026-01-23 09:00    ~/src/          │
+│ backup.tar.gz      45.2M    2026-01-22 14:20    ~/Downloads/    │
+│ notes.md            512B    2026-01-21 09:15    ~/Documents/    │
+├─────────────────────────────────────────────────────────────────┤
+│ R:Restore  Shift+E:Empty  Space:Mark  Esc:Close                 │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+**Dialog Elements:**
+- **Title**: "Trash" with item count in brackets [N]
+- **Columns**: Name, Size, Deleted (date/time), Original Path
+- **Footer**: Keybinding hints
+- **Display Type**: `DialogDisplayScreen` (both panes dimmed)
 
 ### Conflict Resolution Dialog
 
@@ -260,19 +287,22 @@ When inside trash directory, display additional columns:
 ## Implementation Phases
 
 ### Phase 1: MVP
-**Goals:** Basic trash functionality
+**Goals:** Basic trash functionality with dialog
 **Deliverables:**
 - `Delete` key moves files to trash
 - `.trashinfo` file generation
 - Name collision handling
-- `T` key navigation to trash
+- `T` key opens trash dialog (screen center, both panes dimmed)
+- Trash dialog with Name, Size, Deleted, Original Path columns
+- j/k navigation in dialog (FR1.8)
 
 ### Phase 2: Restore and Management
 **Goals:** Full trash management
 **Deliverables:**
 - `R` key restore with conflict handling
 - `Shift+E` empty trash with confirmation
-- Trash metadata display (original path, deletion date)
+- Space key for marking files
+- Batch restore/delete for marked files
 
 ### Phase 3: Extended
 **Goals:** External device support
@@ -309,6 +339,13 @@ When inside trash directory, display additional columns:
 - [ ] Cross-filesystem move works
 - [ ] Permission denied handled gracefully
 
+#### Trash Dialog
+- [ ] Dialog opens at screen center
+- [ ] Both panes are dimmed
+- [ ] All columns displayed correctly
+- [ ] j/k navigation works
+- [ ] Space marks/unmarks files
+
 #### Restore from Trash
 - [ ] Restore to original location
 - [ ] Handle missing destination directory
@@ -325,12 +362,12 @@ When inside trash directory, display additional columns:
 ### E2E Tests
 
 - [ ] Delete key moves file to trash
-- [ ] T key opens trash directory
-- [ ] R key restores file (inside trash)
-- [ ] R key does nothing (outside trash)
+- [ ] T key opens trash dialog
+- [ ] R key in dialog restores file
+- [ ] R key outside dialog renames file (no conflict)
 - [ ] Shift+E empties trash with confirmation
-- [ ] Original path column displayed in trash
-- [ ] Deletion date column displayed in trash
+- [ ] Esc closes trash dialog
+- [ ] All columns visible in trash dialog
 
 ### Edge Cases
 
@@ -340,6 +377,7 @@ When inside trash directory, display additional columns:
 - [ ] Symlinks (move link, not target)
 - [ ] Empty trash when already empty
 - [ ] Restore when original parent directory deleted
+- [ ] Open trash dialog when trash is empty
 
 ## Security Considerations
 
@@ -352,7 +390,7 @@ When inside trash directory, display additional columns:
 
 - Go standard library `os`, `path/filepath`, `net/url`
 - Existing TaskManager for cross-filesystem operations
-- Existing dialog infrastructure
+- Existing dialog infrastructure (`DialogDisplayScreen` type)
 
 ## Success Criteria
 
