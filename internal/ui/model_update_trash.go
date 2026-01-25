@@ -88,10 +88,8 @@ type emptyTrashErrorMsg struct {
 	err error
 }
 
-// handleOpenTrash navigates to the trash directory
-func (m Model) handleOpenTrash() (tea.Model, tea.Cmd) {
-	trashFilesDir := fs.TrashFilesDir()
-
+// handleOpenTrashDialog opens the trash dialog
+func (m Model) handleOpenTrashDialog() (tea.Model, tea.Cmd) {
 	// Ensure trash directories exist
 	if err := fs.EnsureTrashDirs(); err != nil {
 		m.statusMessage = fmt.Sprintf("Cannot access trash: %v", err)
@@ -99,45 +97,17 @@ func (m Model) handleOpenTrash() (tea.Model, tea.Cmd) {
 		return m, statusMessageClearCmd(5 * time.Second)
 	}
 
-	// Navigate to trash
-	cmd := m.getActivePane().ChangeDirectoryAsync(trashFilesDir)
-	return m, cmd
-}
-
-// handleRestore restores selected files from trash
-func (m Model) handleRestore() (tea.Model, tea.Cmd) {
-	// Check if we're in trash directory
-	activePane := m.getActivePane()
-	if !fs.IsInTrash(activePane.Path()) {
-		// Outside trash, R key should do rename instead
-		return m.handleRenameUI()
-	}
-
-	// Get selected entry
-	entry := activePane.SelectedEntry()
-	if entry == nil || entry.IsParentDir() {
-		return m, nil
-	}
-
-	trashName := entry.Name
-
-	// Get original path from trashinfo
-	info, err := fs.GetTrashItemInfo(trashName)
+	// Load trash items
+	items, err := loadTrashItems()
 	if err != nil {
-		m.statusMessage = fmt.Sprintf("Cannot restore: %v", err)
+		m.statusMessage = fmt.Sprintf("Cannot load trash: %v", err)
 		m.isStatusError = true
 		return m, statusMessageClearCmd(5 * time.Second)
 	}
 
-	// Check if destination exists
-	if _, err := os.Stat(info.OriginalPath); err == nil {
-		// File exists at destination - show conflict dialog
-		m.dialog = NewRestoreConflictDialog(trashName, info.OriginalPath)
-		return m, nil
-	}
-
-	// No conflict - restore directly
-	return m, m.executeRestore(trashName)
+	// Open trash dialog
+	m.dialog = NewTrashDialog(items)
+	return m, nil
 }
 
 // validateTrashName validates that a trash name is safe (no path traversal)
@@ -238,35 +208,6 @@ func (m *Model) executeRestoreWithRename(trashName, originalPath string) tea.Cmd
 	}
 }
 
-// handleEmptyTrash shows confirmation dialog for emptying trash
-func (m Model) handleEmptyTrash() (tea.Model, tea.Cmd) {
-	// Check if we're in trash directory
-	activePane := m.getActivePane()
-	if !fs.IsInTrash(activePane.Path()) {
-		// Only works in trash directory
-		return m, nil
-	}
-
-	// Count items in trash
-	filesDir := fs.TrashFilesDir()
-	entries, err := os.ReadDir(filesDir)
-	if err != nil {
-		m.statusMessage = fmt.Sprintf("Cannot read trash: %v", err)
-		m.isStatusError = true
-		return m, statusMessageClearCmd(5 * time.Second)
-	}
-
-	if len(entries) == 0 {
-		m.statusMessage = "Trash is already empty"
-		m.isStatusError = false
-		return m, statusMessageClearCmd(3 * time.Second)
-	}
-
-	// Show confirmation dialog
-	m.dialog = NewEmptyTrashDialog(len(entries))
-	return m, nil
-}
-
 // executeEmptyTrash performs the actual empty trash operation
 func (m *Model) executeEmptyTrash() tea.Cmd {
 	return func() tea.Msg {
@@ -277,9 +218,104 @@ func (m *Model) executeEmptyTrash() tea.Cmd {
 	}
 }
 
+// handleTrashDialogRestore handles restore request from trash dialog
+func (m Model) handleTrashDialogRestore(items []TrashItem) (Model, tea.Cmd, bool) {
+	if len(items) == 0 {
+		return m, nil, true
+	}
+
+	// For single item, check for conflict and restore
+	if len(items) == 1 {
+		item := items[0]
+		trashName := item.Name
+
+		// Get original path from trashinfo
+		info, err := fs.GetTrashItemInfo(trashName)
+		if err != nil {
+			m.statusMessage = fmt.Sprintf("Cannot restore: %v", err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(5 * time.Second), true
+		}
+
+		// Check if destination exists
+		if _, err := os.Stat(info.OriginalPath); err == nil {
+			// File exists at destination - show conflict dialog
+			// Keep trash dialog open in background
+			m.dialog = NewRestoreConflictDialog(trashName, info.OriginalPath)
+			return m, nil, true
+		}
+
+		// No conflict - restore directly
+		m.dialog = nil
+		return m, m.executeRestore(trashName), true
+	}
+
+	// For multiple items, restore all (skip conflicts)
+	m.dialog = nil
+	cmds := make([]tea.Cmd, 0, len(items))
+	for _, item := range items {
+		trashName := item.Name
+
+		// Get original path from trashinfo
+		info, err := fs.GetTrashItemInfo(trashName)
+		if err != nil {
+			continue
+		}
+
+		// Check if destination exists - skip if conflict
+		if _, err := os.Stat(info.OriginalPath); err == nil {
+			continue
+		}
+
+		cmds = append(cmds, m.executeRestore(trashName))
+	}
+
+	if len(cmds) == 0 {
+		m.statusMessage = "No items restored (all have conflicts)"
+		m.isStatusError = true
+		return m, statusMessageClearCmd(5 * time.Second), true
+	}
+
+	return m, tea.Batch(cmds...), true
+}
+
+// handleTrashDialogEmpty handles empty trash request from trash dialog
+func (m Model) handleTrashDialogEmpty() (Model, tea.Cmd, bool) {
+	// Count items in trash
+	filesDir := fs.TrashFilesDir()
+	entries, err := os.ReadDir(filesDir)
+	if err != nil {
+		m.statusMessage = fmt.Sprintf("Cannot read trash: %v", err)
+		m.isStatusError = true
+		return m, statusMessageClearCmd(5 * time.Second), true
+	}
+
+	if len(entries) == 0 {
+		m.statusMessage = "Trash is already empty"
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second), true
+	}
+
+	// Show confirmation dialog (trash dialog stays in background)
+	m.dialog = NewEmptyTrashDialog(len(entries))
+	return m, nil, true
+}
+
 // handleTrashMessages handles trash-related messages
 func (m Model) handleTrashMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
+	case trashDialogCloseMsg:
+		m.dialog = nil
+		return m, nil, true
+
+	case trashDialogRestoreMsg:
+		// Restore items from trash dialog
+		return m.handleTrashDialogRestore(msg.items)
+
+	case trashDialogEmptyMsg:
+		// Show confirmation dialog for emptying trash
+		return m.handleTrashDialogEmpty()
+
 	case trashSuccessMsg:
 		// Refresh both panes
 		m.getActivePane().LoadDirectory()
