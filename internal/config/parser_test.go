@@ -85,6 +85,10 @@ func TestNormalizeKey_SpecialKeys(t *testing.T) {
 		{"Backspace", "backspace", false},
 		{"PageUp", "pgup", false},
 		{"PageDown", "pgdown", false},
+		{"Delete", "delete", false},
+		{"Insert", "insert", false},
+		{"Home", "home", false},
+		{"End", "end", false},
 	}
 
 	for _, tt := range tests {
