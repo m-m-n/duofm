@@ -12,7 +12,7 @@ func TestDefaultKeybindings(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedActions := 38 // Includes sql_filter
+	expectedActions := 42 // Includes sql_filter, trash, open_trash, restore, empty_trash
 	if len(defaults) != expectedActions {
 		t.Errorf("DefaultKeybindings() length = %d, want %d", len(defaults), expectedActions)
 	}
@@ -263,7 +263,7 @@ func TestAllActions(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedCount := 38 // Includes sql_filter
+	expectedCount := 42 // Includes sql_filter, trash, open_trash, restore, empty_trash
 	if len(actions) != expectedCount {
 		t.Errorf("AllActions() length = %d, want %d", len(actions), expectedCount)
 	}
@@ -308,6 +308,10 @@ func TestAllActions(t *testing.T) {
 		"add_bookmark",
 		"permission",
 		"path_jump",
+		"trash",
+		"open_trash",
+		"restore",
+		"empty_trash",
 	}
 
 	actionSet := make(map[string]bool)
@@ -349,8 +353,14 @@ func TestAllActions_MatchDefaultKeybindings(t *testing.T) {
 func TestDefaultKeybindings_NonEmpty(t *testing.T) {
 	defaults := DefaultKeybindings()
 
+	// Actions that intentionally have no default keybinding
+	// (e.g., context-dependent actions handled by other keys)
+	emptyAllowed := map[string]bool{
+		"restore": true, // R key is context-dependent: restore in trash, rename outside
+	}
+
 	for action, keys := range defaults {
-		if len(keys) == 0 {
+		if len(keys) == 0 && !emptyAllowed[action] {
 			t.Errorf("DefaultKeybindings()[%s] is empty, but all default actions should have at least one key", action)
 		}
 

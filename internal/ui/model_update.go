@@ -55,6 +55,11 @@ func (m Model) handleCustomMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return newModel, cmd, true
 	}
 
+	// トラッシュ関連メッセージ
+	if newModel, cmd, handled := m.handleTrashMessages(msg); handled {
+		return newModel, cmd, true
+	}
+
 	return m, nil, false
 }
 

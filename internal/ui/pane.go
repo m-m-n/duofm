@@ -228,6 +228,11 @@ func (p *Pane) Path() string {
 	return p.path
 }
 
+// IsInTrash はペインがゴミ箱ディレクトリ内かどうかを判定
+func (p *Pane) IsInTrash() bool {
+	return fs.IsInTrash(p.path)
+}
+
 // SetSize はペインサイズを設定
 func (p *Pane) SetSize(width, height int) {
 	p.width = width

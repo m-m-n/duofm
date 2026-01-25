@@ -61,6 +61,12 @@ func DefaultKeybindings() map[string][]string {
 
 		// Path navigation
 		"path_jump": {"Ctrl+J"},
+
+		// Trash operations
+		"trash":       {"Delete"},
+		"open_trash":  {"Shift+T"},
+		"restore":     {}, // R key context-dependent: restore in trash, rename outside
+		"empty_trash": {"Shift+E"},
 	}
 }
 
@@ -105,5 +111,9 @@ func AllActions() []string {
 		"add_bookmark",
 		"permission",
 		"path_jump",
+		"trash",
+		"open_trash",
+		"restore",
+		"empty_trash",
 	}
 }

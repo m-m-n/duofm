@@ -433,6 +433,18 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 	case ActionPathJump:
 		m.dialog = NewPathJumpDialog()
 		return m, nil
+
+	case ActionTrash:
+		return m.handleTrash()
+
+	case ActionOpenTrash:
+		return m.handleOpenTrash()
+
+	case ActionRestore:
+		return m.handleRestore()
+
+	case ActionEmptyTrash:
+		return m.handleEmptyTrash()
 	}
 
 	return m, nil

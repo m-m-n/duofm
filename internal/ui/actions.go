@@ -55,6 +55,11 @@ const (
 	ActionPathJump
 	// Rename with full name
 	ActionRenameFullName
+	// Trash operations
+	ActionTrash
+	ActionOpenTrash
+	ActionRestore
+	ActionEmptyTrash
 )
 
 // actionNames maps Action values to their string names.
@@ -98,6 +103,10 @@ var actionNames = map[Action]string{
 	ActionPermission:     "permission",
 	ActionPathJump:       "path_jump",
 	ActionRenameFullName: "rename_full_name",
+	ActionTrash:          "trash",
+	ActionOpenTrash:      "open_trash",
+	ActionRestore:        "restore",
+	ActionEmptyTrash:     "empty_trash",
 }
 
 // nameToAction maps string names to Action values.
@@ -140,6 +149,10 @@ var nameToAction = map[string]Action{
 	"permission":       ActionPermission,
 	"path_jump":        ActionPathJump,
 	"rename_full_name": ActionRenameFullName,
+	"trash":            ActionTrash,
+	"open_trash":       ActionOpenTrash,
+	"restore":          ActionRestore,
+	"empty_trash":      ActionEmptyTrash,
 }
 
 // String returns the string name of the action.
