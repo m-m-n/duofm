@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -337,6 +338,7 @@ func (p *Pane) formatMinimalEntry(entry fs.FileEntry, nameWidth int) string {
 }
 
 // formatBasicEntry は基本情報（名前 + サイズ + タイムスタンプ）をフォーマット
+// ゴミ箱内では削除日時と元パスのディレクトリ部分を表示
 func (p *Pane) formatBasicEntry(entry fs.FileEntry, nameWidth int) string {
 	// ファイル名
 	name := entry.DisplayNameWithLimit(nameWidth)
@@ -351,9 +353,6 @@ func (p *Pane) formatBasicEntry(entry fs.FileEntry, nameWidth int) string {
 		sizeStr = FormatSize(entry.Size)
 	}
 
-	// タイムスタンプ
-	timestamp := FormatTimestamp(entry.ModTime)
-
 	// カラムを組み立て
 	// 名前幅を確保（nameWidthまで）
 	namePadding := nameWidth - runewidth.StringWidth(name)
@@ -364,7 +363,44 @@ func (p *Pane) formatBasicEntry(entry fs.FileEntry, nameWidth int) string {
 	// サイズは右揃えで10文字
 	sizePadded := fmt.Sprintf("%10s", sizeStr)
 
+	// ゴミ箱内では削除日時と元パスのディレクトリ部分を表示
+	if p.IsInTrash() && !entry.IsParentDir() {
+		return p.formatTrashEntry(name, namePadding, sizePadded, entry.Name)
+	}
+
+	// タイムスタンプ
+	timestamp := FormatTimestamp(entry.ModTime)
+
 	return fmt.Sprintf("%s%s  %s  %s", name, strings.Repeat(" ", namePadding), sizePadded, timestamp)
+}
+
+// formatTrashEntry はゴミ箱内でのエントリをフォーマット（削除日時 + 元パス）
+func (p *Pane) formatTrashEntry(name string, namePadding int, sizePadded, trashName string) string {
+	// trashinfoから情報を取得
+	info, err := fs.GetTrashItemInfo(trashName)
+	if err != nil {
+		// trashinfoがない場合は通常表示
+		return fmt.Sprintf("%s%s  %s  ?", name, strings.Repeat(" ", namePadding), sizePadded)
+	}
+
+	// 削除日時
+	deletedTime := FormatTimestamp(info.DeletionDate)
+
+	// 元パスのディレクトリ部分（ファイル名は除く）
+	originalDir := filepath.Dir(info.OriginalPath)
+	// ホームディレクトリを ~ に置換
+	home, _ := fs.HomeDirectory()
+	if strings.HasPrefix(originalDir, home) {
+		originalDir = "~" + strings.TrimPrefix(originalDir, home)
+	}
+
+	// 幅が足りない場合は切り詰め
+	maxDirWidth := 30
+	if runewidth.StringWidth(originalDir) > maxDirWidth {
+		originalDir = truncateStringWithEllipsis(originalDir, maxDirWidth)
+	}
+
+	return fmt.Sprintf("%s%s  %s  %s  %s", name, strings.Repeat(" ", namePadding), sizePadded, deletedTime, originalDir)
 }
 
 // formatDetailEntry は詳細情報（名前 + パーミッション + 所有者 + グループ）をフォーマット
