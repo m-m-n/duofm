@@ -82,11 +82,11 @@ func (d *TrashDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return d, func() tea.Msg {
 					return trashDialogCloseMsg{}
 				}
-			case "R":
-				// Restore (Shift+R from keyboard is "R")
+			case "r", "R":
+				// Restore (accept both lowercase and uppercase for consistency)
 				return d.handleRestore()
-			case "E":
-				// Empty trash (Shift+E from keyboard is "E")
+			case "e", "E":
+				// Empty trash (accept both lowercase and uppercase for consistency)
 				return d.handleEmptyTrash()
 			}
 
@@ -282,7 +282,7 @@ func (d *TrashDialog) View() string {
 
 	// Footer
 	b.WriteString("\n")
-	b.WriteString(d.styles.Footer.Render("[j/k: move] [Space: mark] [R: restore] [Shift+E: empty] [Esc/q: close]"))
+	b.WriteString(d.styles.Footer.Render("[j/k: move] [Space: mark] [r: restore] [e: empty] [Esc/q: close]"))
 
 	return d.styles.Box.Render(b.String())
 }
@@ -330,7 +330,7 @@ func (d *TrashDialog) handleRestore() (Dialog, tea.Cmd) {
 	}
 }
 
-// handleEmptyTrash handles the Shift+E key press for emptying trash
+// handleEmptyTrash handles the e/E key press for emptying trash
 func (d *TrashDialog) handleEmptyTrash() (Dialog, tea.Cmd) {
 	if len(d.items) == 0 {
 		return d, nil

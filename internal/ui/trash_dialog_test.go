@@ -481,6 +481,23 @@ func TestTrashDialog_Restore(t *testing.T) {
 		}
 	})
 
+	t.Run("r key (lowercase) triggers restore message", func(t *testing.T) {
+		dialog.cursor = 0
+		dialog.SetActive(true)
+
+		_, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}})
+
+		if cmd == nil {
+			t.Error("r key should return a command")
+		}
+
+		// Execute the command and check the message type
+		msg := cmd()
+		if _, ok := msg.(trashDialogRestoreMsg); !ok {
+			t.Errorf("expected trashDialogRestoreMsg, got %T", msg)
+		}
+	})
+
 	t.Run("restore message contains selected item", func(t *testing.T) {
 		dialog.cursor = 0
 		dialog.SetActive(true)
@@ -524,13 +541,29 @@ func TestTrashDialog_EmptyTrash(t *testing.T) {
 	items, _ := loadTrashItems()
 	dialog := NewTrashDialog(items)
 
-	t.Run("Shift+E triggers empty trash message", func(t *testing.T) {
+	t.Run("E key triggers empty trash message", func(t *testing.T) {
 		dialog.SetActive(true)
 
 		_, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'E'}})
 
 		if cmd == nil {
-			t.Error("Shift+E should return a command")
+			t.Error("E key should return a command")
+		}
+
+		// Execute the command and check the message type
+		msg := cmd()
+		if _, ok := msg.(trashDialogEmptyMsg); !ok {
+			t.Errorf("expected trashDialogEmptyMsg, got %T", msg)
+		}
+	})
+
+	t.Run("e key (lowercase) triggers empty trash message", func(t *testing.T) {
+		dialog.SetActive(true)
+
+		_, cmd := dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+
+		if cmd == nil {
+			t.Error("e key should return a command")
 		}
 
 		// Execute the command and check the message type
@@ -547,7 +580,7 @@ func TestTrashDialog_EmptyTrash(t *testing.T) {
 		_, cmd := emptyDialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'E'}})
 
 		if cmd != nil {
-			t.Error("Shift+E on empty dialog should not return a command")
+			t.Error("E key on empty dialog should not return a command")
 		}
 	})
 }

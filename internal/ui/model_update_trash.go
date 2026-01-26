@@ -11,39 +11,43 @@ import (
 	"github.com/sakura/duofm/internal/fs"
 )
 
-// handleTrash moves selected files to trash
+// handleTrash shows confirmation dialog before moving files to trash
 func (m Model) handleTrash() (tea.Model, tea.Cmd) {
 	activePane := m.getActivePane()
 	markedFiles := activePane.GetMarkedFiles()
 
+	var paths []string
+
 	if len(markedFiles) > 0 {
-		// Batch trash operation
-		return m.handleTrashBatch(markedFiles)
+		// Multiple files are marked
+		paths = markedFiles
+	} else {
+		// Single file operation
+		entry := activePane.SelectedEntry()
+		if entry == nil || entry.IsParentDir() {
+			return m, nil
+		}
+		paths = []string{filepath.Join(activePane.Path(), entry.Name)}
 	}
 
-	// Single file operation
-	entry := activePane.SelectedEntry()
-	if entry == nil || entry.IsParentDir() {
-		return m, nil
-	}
-
-	srcPath := filepath.Join(activePane.Path(), entry.Name)
-	return m, m.executeTrash(srcPath)
+	// Show confirmation dialog
+	m.dialog = NewMoveToTrashDialog(paths)
+	return m, nil
 }
 
-// handleTrashBatch handles trashing multiple files
-func (m Model) handleTrashBatch(files []string) (tea.Model, tea.Cmd) {
-	if len(files) == 0 {
-		return m, nil
+// handleTrashConfirmed executes trash after user confirmation
+func (m Model) handleTrashConfirmed(paths []string) (Model, tea.Cmd, bool) {
+	if len(paths) == 0 {
+		return m, nil, true
 	}
 
 	// Execute trash for each file
-	cmds := make([]tea.Cmd, 0, len(files))
-	for _, path := range files {
+	cmds := make([]tea.Cmd, 0, len(paths))
+	for _, path := range paths {
 		cmds = append(cmds, m.executeTrash(path))
 	}
 
-	return m, tea.Batch(cmds...)
+	return m, tea.Batch(cmds...), true
 }
 
 // executeTrash executes the trash operation for a single file
@@ -304,6 +308,13 @@ func (m Model) handleTrashDialogEmpty() (Model, tea.Cmd, bool) {
 // handleTrashMessages handles trash-related messages
 func (m Model) handleTrashMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	switch msg := msg.(type) {
+	case trashConfirmResultMsg:
+		m.dialog = nil
+		if msg.confirmed && len(msg.paths) > 0 {
+			return m.handleTrashConfirmed(msg.paths)
+		}
+		return m, nil, true
+
 	case trashDialogCloseMsg:
 		m.dialog = nil
 		return m, nil, true
