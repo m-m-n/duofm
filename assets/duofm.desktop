@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=duofm
+Comment=Dual-pane file manager
+Exec=gnome-terminal -- /usr/bin/duofm
+Icon=/path/to/duofm/assets/icon.svg
+Terminal=false
+Type=Application
+Categories=System;FileTools;FileManager;
+Keywords=file;manager;dual;pane;
