@@ -43,8 +43,8 @@ func (d *PermissionErrorReportDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyEnter, tea.KeyEsc:
-			// Enter or Esc で閉じる
+		case tea.KeyEnter, tea.KeyEsc, tea.KeyCtrlC:
+			// Enter or Esc or Ctrl+C で閉じる
 			d.Close()
 			return d, nil
 

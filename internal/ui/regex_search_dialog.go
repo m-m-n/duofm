@@ -63,7 +63,7 @@ func (d *RegexSearchDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return regexSearchResultMsg{pattern: pattern}
 			}
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return regexSearchResultMsg{cancelled: true}

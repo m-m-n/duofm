@@ -65,22 +65,17 @@ func TestNewDiskSpaceWarningDialog(t *testing.T) {
 func TestArchiveWarningDialog_Update_Cancel(t *testing.T) {
 	tests := []struct {
 		name string
-		key  string
+		msg  tea.KeyMsg
 	}{
-		{"Escape key", "esc"},
-		{"n key", "n"},
+		{"Escape key", tea.KeyMsg{Type: tea.KeyEsc}},
+		{"Ctrl+C key", tea.KeyMsg{Type: tea.KeyCtrlC}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dialog := NewCompressionBombWarningDialog("/test/archive.tar.gz", 1024, 2048000, 2000.0)
 
-			msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(tt.key)}
-			if tt.key == "esc" {
-				msg = tea.KeyMsg{Type: tea.KeyEsc}
-			}
-
-			_, cmd := dialog.Update(msg)
+			_, cmd := dialog.Update(tt.msg)
 
 			if dialog.active {
 				t.Error("Expected dialog to be inactive after cancel")
@@ -109,8 +104,9 @@ func TestArchiveWarningDialog_Update_Cancel(t *testing.T) {
 func TestArchiveWarningDialog_Update_Continue(t *testing.T) {
 	dialog := NewCompressionBombWarningDialog("/test/archive.tar.gz", 1024, 2048000, 2000.0)
 
-	// Press 'y' to continue
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+	// Select Continue button (index 0) with left arrow, then press Enter
+	dialog.Update(tea.KeyMsg{Type: tea.KeyLeft})
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
 	_, cmd := dialog.Update(msg)
 
 	if dialog.active {

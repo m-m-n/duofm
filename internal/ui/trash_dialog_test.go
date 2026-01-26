@@ -239,7 +239,7 @@ func TestTrashDialog_Close(t *testing.T) {
 		key  tea.KeyMsg
 	}{
 		{"escape", tea.KeyMsg{Type: tea.KeyEsc}},
-		{"q", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
+		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
 	}
 
 	for _, tt := range tests {

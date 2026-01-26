@@ -65,7 +65,7 @@ func (d *InputDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				}
 			}
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return inputDialogResultMsg{
