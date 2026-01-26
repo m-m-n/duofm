@@ -335,9 +335,8 @@ func (m Model) handleExtensionRenameResult(msg extensionRenameResultMsg) (tea.Mo
 
 	// Execute rename operation
 	oldPath := filepath.Join(msg.dirPath, msg.oldName)
-	newPath := filepath.Join(msg.dirPath, msg.newName)
 
-	if err := fs.Rename(oldPath, newPath); err != nil {
+	if err := fs.Rename(oldPath, msg.newName); err != nil {
 		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to rename: %v", err))
 		return m, nil
 	}
