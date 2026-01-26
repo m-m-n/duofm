@@ -205,7 +205,9 @@ func (m Model) overlaySortDialogOnPane(dimmedPane string, paneWidth, paneHeight 
 		if trimmed == "" {
 			result.WriteString(paneLine)
 		} else {
-			result.WriteString(dialogLine)
+			// ダイアログ行をペイン幅に調整（切り詰めまたはパディング）
+			adjusted := truncateOrPadLineToWidth(dialogLine, paneWidth)
+			result.WriteString(adjusted)
 		}
 		if i < len(paneLines)-1 {
 			result.WriteString("\n")
@@ -242,11 +244,61 @@ func (m Model) overlayDialogOnPane(dimmedPane string, paneWidth, paneHeight int)
 		if trimmed == "" {
 			result.WriteString(paneLine)
 		} else {
-			result.WriteString(dialogLine)
+			// ダイアログ行をペイン幅に調整（切り詰めまたはパディング）
+			adjusted := truncateOrPadLineToWidth(dialogLine, paneWidth)
+			result.WriteString(adjusted)
 		}
 		if i < len(paneLines)-1 {
 			result.WriteString("\n")
 		}
+	}
+
+	return result.String()
+}
+
+// truncateOrPadLineToWidth は文字列を指定した表示幅に調整する
+// ANSIエスケープシーケンスを考慮し、表示幅のみをカウントする
+// 幅を超える場合は切り詰め、足りない場合はスペースでパディングする
+func truncateOrPadLineToWidth(s string, targetWidth int) string {
+	var result strings.Builder
+	currentWidth := 0
+	i := 0
+	runes := []rune(s)
+
+	for i < len(runes) {
+		// ANSIエスケープシーケンスの検出（\x1b[...m）
+		if runes[i] == '\x1b' && i+1 < len(runes) && runes[i+1] == '[' {
+			// エスケープシーケンスの終わりを探す
+			escStart := i
+			i += 2 // \x1b[ をスキップ
+			for i < len(runes) && runes[i] != 'm' {
+				i++
+			}
+			if i < len(runes) {
+				i++ // 'm' をスキップ
+			}
+			// エスケープシーケンス全体を結果に追加（幅はカウントしない）
+			result.WriteString(string(runes[escStart:i]))
+			continue
+		}
+
+		// 通常の文字
+		r := runes[i]
+		rw := runewidth.RuneWidth(r)
+
+		// 幅を超える場合は終了
+		if currentWidth+rw > targetWidth {
+			break
+		}
+
+		result.WriteRune(r)
+		currentWidth += rw
+		i++
+	}
+
+	// 幅が足りない場合はスペースでパディング
+	if currentWidth < targetWidth {
+		result.WriteString(strings.Repeat(" ", targetWidth-currentWidth))
 	}
 
 	return result.String()
