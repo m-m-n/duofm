@@ -109,21 +109,12 @@ func (d *ArchiveWarningDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 					archivePath: d.archivePath,
 				}
 			}
-		case "esc", "n":
+		case "esc", "ctrl+c":
 			d.Close()
 			return d, func() tea.Msg {
 				return archiveWarningResultMsg{
 					warningType: d.warningType,
 					choice:      ArchiveWarningCancel,
-					archivePath: d.archivePath,
-				}
-			}
-		case "y":
-			d.Close()
-			return d, func() tea.Msg {
-				return archiveWarningResultMsg{
-					warningType: d.warningType,
-					choice:      ArchiveWarningContinue,
 					archivePath: d.archivePath,
 				}
 			}
@@ -198,7 +189,7 @@ func (d *ArchiveWarningDialog) View() string {
 	b.WriteString(lipgloss.NewStyle().Width(width - 4).Align(lipgloss.Center).Render(buttonLine))
 
 	b.WriteString("\n\n")
-	b.WriteString(d.styles.Footer.Render("[y] Continue  [n/Esc] Cancel  [Tab/Arrow] Switch"))
+	b.WriteString(d.styles.Footer.Render("[Enter] Confirm  [Esc] Cancel  [Tab/Arrow] Switch"))
 
 	return d.styles.Box.Render(b.String())
 }

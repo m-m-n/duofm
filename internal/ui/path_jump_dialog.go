@@ -78,7 +78,7 @@ func (d *PathJumpDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return pathJumpResultMsg{path: path}
 			}
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return pathJumpCancelMsg{}

@@ -63,13 +63,6 @@ func NewSortDialog(current SortConfig) *SortDialog {
 
 // HandleKey processes key input and returns confirmed/cancelled status.
 func (d *SortDialog) HandleKey(key string) (confirmed bool, cancelled bool) {
-	// q always cancels the dialog, even when dropdown is expanded
-	if key == "q" {
-		d.config = d.originalConfig
-		d.Close()
-		return false, true
-	}
-
 	// Check if any dropdown is expanded
 	if d.fieldDropdown.IsExpanded() {
 		return d.handleExpandedDropdownKey(d.fieldDropdown, key, true)
@@ -154,7 +147,7 @@ func (d *SortDialog) handleDialogKey(key string) (confirmed bool, cancelled bool
 		}
 		return false, false
 
-	case "esc":
+	case "esc", "ctrl+c":
 		// Cancel dialog
 		d.config = d.originalConfig
 		d.Close()
@@ -243,7 +236,7 @@ func (d *SortDialog) View() string {
 	b.WriteString("\n\n")
 
 	// Help text
-	b.WriteString(d.styles.Footer.Render("j/k:move  Enter:select  q:quit"))
+	b.WriteString(d.styles.Footer.Render("j/k:move  Enter:select  Esc:quit"))
 
 	return d.styles.Box.Render(b.String())
 }

@@ -135,23 +135,6 @@ func TestSortDialog_HandleKey_EscapeClosesExpandedDropdown(t *testing.T) {
 	}
 }
 
-func TestSortDialog_HandleKey_QCancelsDialogEvenWhenDropdownExpanded(t *testing.T) {
-	original := SortConfig{Field: SortByName, Order: SortAsc}
-	dialog := NewSortDialog(original)
-
-	// Expand the dropdown
-	dialog.fieldDropdown.Expand()
-
-	confirmed, cancelled := dialog.HandleKey("q")
-
-	if confirmed {
-		t.Error("q should not confirm")
-	}
-	if !cancelled {
-		t.Error("q should cancel dialog even when dropdown is expanded")
-	}
-}
-
 func TestSortDialog_HandleKey_DropdownNavigation(t *testing.T) {
 	dialog := NewSortDialog(SortConfig{Field: SortByName, Order: SortAsc})
 

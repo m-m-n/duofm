@@ -1249,9 +1249,9 @@ func TestNavigationAllDisabledItems(t *testing.T) {
 // TestFindFirstEnabledItem tests the findFirstEnabledItem helper function.
 func TestFindFirstEnabledItem(t *testing.T) {
 	tests := []struct {
-		name         string
-		items        []MenuItem
-		expectedIdx  int
+		name        string
+		items       []MenuItem
+		expectedIdx int
 	}{
 		{
 			name: "first item enabled",
@@ -1292,8 +1292,8 @@ func TestFindFirstEnabledItem(t *testing.T) {
 			expectedIdx: 0,
 		},
 		{
-			name: "empty items - defensive default returns 0",
-			items: []MenuItem{},
+			name:        "empty items - defensive default returns 0",
+			items:       []MenuItem{},
 			expectedIdx: 0,
 		},
 	}
@@ -1362,7 +1362,7 @@ func TestInitialCursorPositionWithDisabledItems(t *testing.T) {
 func TestViewDoesNotHighlightDisabledItem(t *testing.T) {
 	base := NewBaseDialog(DialogDisplayPane)
 	dialog := &ContextMenuDialog{
-		BaseDialog:   base,
+		BaseDialog: base,
 		items: []MenuItem{
 			{ID: "disabled1", Label: "Disabled Item 1", Enabled: false},
 			{ID: "enabled1", Label: "Enabled Item 1", Enabled: true},

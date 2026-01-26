@@ -115,7 +115,7 @@ func (d *ExtensionRenameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			d.Close()
 			return d, d.createResultCmd(false)
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, d.createResultCmd(true)
 

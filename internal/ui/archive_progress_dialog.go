@@ -58,7 +58,7 @@ func (d *ArchiveProgressDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			// Escapeでキャンセル
 			if d.onCancel != nil {
 				d.onCancel()

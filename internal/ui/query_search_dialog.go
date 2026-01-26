@@ -63,7 +63,7 @@ func (d *QuerySearchDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return querySearchResultMsg{query: query}
 			}
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return querySearchResultMsg{cancelled: true}

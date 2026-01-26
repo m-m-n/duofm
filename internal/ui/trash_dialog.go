@@ -77,11 +77,6 @@ func (d *TrashDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			case "k":
 				d.moveCursorUp()
 				return d, nil
-			case "q":
-				d.Close()
-				return d, func() tea.Msg {
-					return trashDialogCloseMsg{}
-				}
 			case "r", "R":
 				// Restore (accept both lowercase and uppercase for consistency)
 				return d.handleRestore()
@@ -102,7 +97,7 @@ func (d *TrashDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 			d.toggleMark()
 			return d, nil
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return trashDialogCloseMsg{}
@@ -193,7 +188,7 @@ func (d *TrashDialog) View() string {
 		emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color(string(ColorMuted)))
 		b.WriteString(emptyStyle.Render("Trash is empty"))
 		b.WriteString("\n\n")
-		b.WriteString(d.styles.Footer.Render("[Esc/q: close]"))
+		b.WriteString(d.styles.Footer.Render("[Esc: close]"))
 		return d.styles.Box.Render(b.String())
 	}
 
@@ -282,7 +277,7 @@ func (d *TrashDialog) View() string {
 
 	// Footer
 	b.WriteString("\n")
-	b.WriteString(d.styles.Footer.Render("[j/k: move] [Space: mark] [r: restore] [e: empty] [Esc/q: close]"))
+	b.WriteString(d.styles.Footer.Render("[j/k: move] [Space: mark] [r: restore] [e: empty] [Esc: close]"))
 
 	return d.styles.Box.Render(b.String())
 }

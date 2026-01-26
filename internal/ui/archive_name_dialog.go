@@ -40,7 +40,7 @@ func (d *ArchiveNameDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 		d.errorMsg = ""
 
 		switch msg.Type {
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			// Escapeでキャンセル
 			d.Close()
 			return d, func() tea.Msg {

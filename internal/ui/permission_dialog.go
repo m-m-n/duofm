@@ -108,7 +108,7 @@ func (d *PermissionDialog) Update(msg tea.Msg) (Dialog, tea.Cmd) {
 				return permissionDialogCancelMsg{}
 			}
 
-		case tea.KeyEsc:
+		case tea.KeyEsc, tea.KeyCtrlC:
 			d.Close()
 			return d, func() tea.Msg {
 				return permissionDialogCancelMsg{}
