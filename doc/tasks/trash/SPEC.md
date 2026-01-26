@@ -18,8 +18,9 @@ Implement a trash/recycle bin feature compliant with the freedesktop.org Trash S
 As a user, I want to move files to trash using the Delete key, so that I can recover them if needed.
 
 **Acceptance Criteria:**
-- [ ] Delete key moves selected file(s) to trash
-- [ ] File appears in `~/.local/share/Trash/files/`
+- [ ] Delete key shows confirmation dialog before moving to trash
+- [ ] Confirmation dialog displays file name and warning about disk space
+- [ ] File moves to `~/.local/share/Trash/files/` after confirmation
 - [ ] Corresponding `.trashinfo` file is created
 - [ ] File list updates immediately
 
@@ -36,7 +37,8 @@ As a user, I want to restore files from trash to their original location, so tha
 
 **Acceptance Criteria:**
 - [ ] `R` key in trash dialog restores selected file to original path
-- [ ] Conflict resolution dialog appears if file exists at destination
+- [ ] For single item restore: Conflict resolution dialog appears if file exists at destination
+- [ ] For batch restore (multiple marked items): Items with conflicts are skipped
 - [ ] `.trashinfo` file is removed after successful restore
 - [ ] `R` key in normal file list performs rename (no conflict)
 
@@ -44,7 +46,7 @@ As a user, I want to restore files from trash to their original location, so tha
 As a user, I want to empty the trash to reclaim disk space, so that deleted files don't consume storage indefinitely.
 
 **Acceptance Criteria:**
-- [ ] `Shift+E` in trash dialog prompts for confirmation
+- [ ] `e` or `E` key in trash dialog prompts for confirmation
 - [ ] Confirmation dialog prevents accidental data loss
 - [ ] All files and `.trashinfo` files are permanently deleted
 
@@ -62,7 +64,8 @@ As a user, I want to see the original path and deletion date of trashed files, s
 - **Trash Location**: `~/.local/share/Trash/` with `files/` and `info/` subdirectories
 - **Trashinfo Format**: INI-style file with `[Trash Info]` section, `Path` and `DeletionDate` keys
 - **Name Collision**: When moving to trash, if same name exists, append counter (file.txt -> file.2.txt)
-- **Restore Collision**: User must choose: overwrite, rename, or skip
+- **Restore Collision (Single)**: User must choose: overwrite, rename, or skip
+- **Restore Collision (Batch)**: Items with conflicts are automatically skipped (showing conflict dialogs for each item would be impractical)
 - **Dialog Isolation**: Trash dialog is a separate modal; `R` key has different functions inside/outside the dialog
 - **No Keybinding Conflict**: `R` = restore (in trash dialog), `R` = rename (in normal file list)
 
@@ -72,20 +75,22 @@ As a user, I want to see the original path and deletion date of trashed files, s
 
 #### Phase 1 (MVP)
 
-- **FR1.1**: `Delete` key moves selected file(s) to `~/.local/share/Trash/files/`
-- **FR1.2**: Generate `.trashinfo` file in `~/.local/share/Trash/info/` with original path and deletion timestamp
-- **FR1.3**: Handle name collisions by appending counter (file.txt -> file.2.txt, file.3.txt, ...)
-- **FR1.4**: `T` key opens trash dialog (screen-centered, both panes dimmed)
-- **FR1.5**: Trash dialog displays: Name, Size, Deleted, Original Path columns
-- **FR1.6**: Same-filesystem moves use `os.Rename` for efficiency
-- **FR1.7**: Cross-filesystem moves use copy+delete (leverage existing TaskManager)
-- **FR1.8**: j/k navigation within trash dialog
+- **FR1.1**: `Delete` key shows confirmation dialog before moving to trash
+- **FR1.2**: Confirmation dialog displays file name and disk space warning
+- **FR1.3**: After confirmation, move selected file(s) to `~/.local/share/Trash/files/`
+- **FR1.4**: Generate `.trashinfo` file in `~/.local/share/Trash/info/` with original path and deletion timestamp
+- **FR1.5**: Handle name collisions by appending counter (file.txt -> file.2.txt, file.3.txt, ...)
+- **FR1.6**: `T` key opens trash dialog (screen-centered, both panes dimmed)
+- **FR1.7**: Trash dialog displays: Name, Size, Deleted, Original Path columns
+- **FR1.8**: Same-filesystem moves use `os.Rename` for efficiency
+- **FR1.9**: Cross-filesystem moves use copy+delete (leverage existing TaskManager)
+- **FR1.10**: j/k navigation within trash dialog
 
 #### Phase 2 (Restore and Management)
 
 - **FR2.1**: `R` key in trash dialog restores file to original path (read from `.trashinfo`)
-- **FR2.2**: Display conflict resolution dialog when restore destination exists (overwrite/rename/skip)
-- **FR2.3**: `Shift+E` in trash dialog empties trash with confirmation dialog
+- **FR2.2**: Display conflict resolution dialog when restore destination exists (overwrite/rename/skip) for single item restore; skip conflicting items in batch restore
+- **FR2.3**: `e` or `E` in trash dialog empties trash with confirmation dialog
 - **FR2.4**: Space key marks/unmarks files in trash dialog for batch operations
 
 #### Phase 3 (Extended)
@@ -117,8 +122,8 @@ As a user, I want to see the original path and deletion date of trashed files, s
 | `j` / `Down` | Move cursor down |
 | `k` / `Up` | Move cursor up |
 | `Space` | Mark/unmark file |
-| `R` | Restore selected/marked file(s) |
-| `Shift+E` | Empty trash (with confirmation) |
+| `r` / `R` | Restore selected/marked file(s) |
+| `e` / `E` | Empty trash (with confirmation) |
 | `Esc` / `q` | Close dialog |
 
 ## Trash Directory Structure
@@ -152,22 +157,31 @@ DeletionDate=2026-01-25T10:30:00
 stateDiagram-v2
     [*] --> Normal
 
-    Normal --> TrashMove: Delete key
+    Normal --> TrashConfirm: Delete key
+    TrashConfirm --> Normal: Cancelled
+    TrashConfirm --> TrashMove: Confirmed
     TrashMove --> Normal: Success
     TrashMove --> Error: Failure
 
     Normal --> TrashDialog: T key
     TrashDialog --> Normal: Esc/q
 
-    TrashDialog --> RestorePrompt: R key (file selected)
-    RestorePrompt --> TrashDialog: Success/Cancel
-    RestorePrompt --> ConflictDialog: Destination exists
-    ConflictDialog --> TrashDialog: User choice applied
+    TrashDialog --> ConflictDialog: R key (single, conflict exists)
+    TrashDialog --> Normal: R key (restore success)
+    ConflictDialog --> Normal: User choice applied
+    note right of ConflictDialog: Child dialog replaces parent (no dialog stack)
 
     TrashDialog --> EmptyConfirm: Shift+E
-    EmptyConfirm --> TrashDialog: Confirmed (empty)
-    EmptyConfirm --> TrashDialog: Cancelled
+    EmptyConfirm --> Normal: Confirmed (empty)
+    EmptyConfirm --> Normal: Cancelled
+    note right of EmptyConfirm: Child dialog replaces parent (no dialog stack)
 ```
+
+### Dialog Behavior Notes
+
+- **No Dialog Stack**: When a child dialog (RestoreConflictDialog, EmptyTrashDialog) opens, the parent TrashDialog is closed. This is intentional to keep implementation simple.
+- **Batch Restore**: When restoring multiple marked items, conflicts are silently skipped without opening dialogs.
+- **After Restore/Empty**: User returns to Normal state (file panes) rather than TrashDialog. To continue trash operations, user must reopen TrashDialog with `T` key.
 
 ## Interface Contract
 
@@ -271,6 +285,40 @@ The trash dialog is displayed at the **screen center** with **both panes dimmed*
 └─────────────────────────────────────────┘
 ```
 
+### Move to Trash Confirmation
+
+Displayed when user presses `Delete` key on selected file(s).
+
+#### Single File
+```
+┌─────────────────────────────────────────┐
+│ Move to Trash                           │
+│                                         │
+│ Move 'filename.txt' to trash?           │
+│                                         │
+│ File will not be permanently deleted.   │
+│ Disk space will not be freed until      │
+│ trash is emptied.                       │
+│                                         │
+│        [Y]es         [N]o               │
+└─────────────────────────────────────────┘
+```
+
+#### Multiple Files
+```
+┌─────────────────────────────────────────┐
+│ Move to Trash                           │
+│                                         │
+│ Move 3 items to trash?                  │
+│                                         │
+│ Files will not be permanently deleted.  │
+│ Disk space will not be freed until      │
+│ trash is emptied.                       │
+│                                         │
+│        [Y]es         [N]o               │
+└─────────────────────────────────────────┘
+```
+
 ### Empty Trash Confirmation
 
 ```
@@ -312,6 +360,14 @@ The trash dialog is displayed at the **screen center** with **both panes dimmed*
 ## Test Scenarios
 
 ### Unit Tests
+
+#### Move to Trash Confirmation Dialog
+- [ ] Single file: displays "Move 'filename.txt' to trash?"
+- [ ] Multiple files: displays "Move N items to trash?"
+- [ ] Shows disk space warning note
+- [ ] Y key confirms and proceeds with trash operation
+- [ ] N key cancels and returns to normal mode
+- [ ] Esc key cancels and returns to normal mode
 
 #### Trashinfo Generation
 - [ ] Generate valid .trashinfo with correct format
@@ -361,7 +417,10 @@ The trash dialog is displayed at the **screen center** with **both panes dimmed*
 
 ### E2E Tests
 
-- [ ] Delete key moves file to trash
+- [ ] Delete key shows confirmation dialog
+- [ ] Confirming (Y) moves file to trash
+- [ ] Cancelling (N/Esc) keeps file in place
+- [ ] Multiple file selection shows "N items" in confirmation
 - [ ] T key opens trash dialog
 - [ ] R key in dialog restores file
 - [ ] R key outside dialog renames file (no conflict)
