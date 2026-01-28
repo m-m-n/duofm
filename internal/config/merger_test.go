@@ -428,6 +428,8 @@ move_down = ["J"]
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %d\n", k, GetDefaultColorValue(k)))
 		}
 		keybindingsToml.WriteString("\nhistory_limit = 1000\n")
+		// Add MIME placeholder comment so it won't be added
+		keybindingsToml.WriteString("\n# [enter_behavior_mime]\n")
 
 		tmpFile := createTempFile(t, keybindingsToml.String())
 		defer os.Remove(tmpFile)
@@ -675,6 +677,116 @@ func formatTestArray(values []string) string {
 		quoted[i] = fmt.Sprintf("%q", v)
 	}
 	return "[" + strings.Join(quoted, ", ") + "]"
+}
+
+func TestIsMissingEnterBehaviorMIME(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    map[string][]string
+		expected bool
+	}{
+		{
+			name:     "nil map",
+			input:    nil,
+			expected: true,
+		},
+		{
+			name:     "empty map",
+			input:    map[string][]string{},
+			expected: false,
+		},
+		{
+			name: "non-empty map",
+			input: map[string][]string{
+				"text/*": {"less"},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := IsMissingEnterBehaviorMIME(tt.input)
+			if result != tt.expected {
+				t.Errorf("IsMissingEnterBehaviorMIME(%v) = %v, want %v", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestMergeConfig_EnterBehaviorMIME(t *testing.T) {
+	t.Run("adds enter_behavior_mime placeholder when missing", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "less"
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "less"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: nil, // Section is missing
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+		contentStr := string(content)
+
+		// Should contain the placeholder comment
+		if !strings.Contains(contentStr, `# [enter_behavior_mime]`) {
+			t.Errorf("Missing [enter_behavior_mime] placeholder comment\nContent:\n%s", contentStr)
+		}
+		if !strings.Contains(contentStr, `# "text/html" = ["vim", "-R"]`) {
+			t.Errorf("Missing example entry\nContent:\n%s", contentStr)
+		}
+	})
+
+	t.Run("does not add placeholder when section exists", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+
+[enter_behavior_mime]
+"text/*" = ["less"]
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: map[string][]string{
+				"text/*": {"less"},
+			},
+		}
+
+		contentBefore, _ := os.ReadFile(tmpFile)
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		contentAfter, _ := os.ReadFile(tmpFile)
+
+		// Count occurrences of the MIME section header
+		beforeCount := strings.Count(string(contentBefore), "enter_behavior_mime")
+		afterCount := strings.Count(string(contentAfter), "enter_behavior_mime")
+
+		if afterCount > beforeCount {
+			t.Errorf("Should not add duplicate enter_behavior_mime section\nBefore count: %d, After count: %d\nContent:\n%s",
+				beforeCount, afterCount, string(contentAfter))
+		}
+	})
 }
 
 // TestIsMissingEnterBehavior tests the IsMissingEnterBehavior function.
