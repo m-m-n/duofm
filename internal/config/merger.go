@@ -9,15 +9,16 @@ import (
 
 // mergeResult holds the missing configuration items to be merged.
 type mergeResult struct {
-	Keybindings   map[string][]string
-	Colors        map[string]int
-	HistoryLimit  *int    // nil means not missing
-	EnterBehavior *string // nil means not missing
+	Keybindings       map[string][]string
+	Colors            map[string]int
+	HistoryLimit      *int    // nil means not missing
+	EnterBehavior     *string // nil means not missing
+	EnterBehaviorMIME bool    // true means section is missing
 }
 
 // hasContent returns true if there are any missing items to merge.
 func (m mergeResult) hasContent() bool {
-	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil
+	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME
 }
 
 // FindMissingKeybindings returns keybindings that exist in defaults but not in config.
@@ -71,6 +72,18 @@ func IsMissingEnterBehavior(enterBehavior *string) bool {
 	return enterBehavior == nil
 }
 
+// IsMissingEnterBehaviorMIME returns true if [enter_behavior_mime] section is not present in config.
+// A nil map indicates the section was not defined in the config file.
+func IsMissingEnterBehaviorMIME(enterBehaviorMIME map[string][]string) bool {
+	return enterBehaviorMIME == nil
+}
+
+// hasEnterBehaviorMIMEComment checks if the file content contains a commented-out
+// [enter_behavior_mime] section, which indicates the placeholder has been added.
+func hasEnterBehaviorMIMEComment(content string) bool {
+	return strings.Contains(content, "# [enter_behavior_mime]")
+}
+
 // formatKeybinding formats a keybinding entry as TOML.
 // Example: move_down = ["J", "Down"]
 func formatKeybinding(key string, values []string) string {
@@ -105,11 +118,6 @@ func MergeConfig(path string, existing *rawConfig) error {
 		result.EnterBehavior = &defaultEnterBehavior
 	}
 
-	// Check if there's anything to merge
-	if !result.hasContent() {
-		return nil
-	}
-
 	// Get file info to preserve permissions
 	fileInfo, err := os.Stat(path)
 	if err != nil {
@@ -121,6 +129,11 @@ func MergeConfig(path string, existing *rawConfig) error {
 	existingContent, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Check if [enter_behavior_mime] section is missing AND no commented placeholder exists
+	if IsMissingEnterBehaviorMIME(existing.EnterBehaviorMIME) && !hasEnterBehaviorMIMEComment(string(existingContent)) {
+		result.EnterBehaviorMIME = true
 	}
 
 	// Generate the merged content
@@ -255,6 +268,9 @@ func generateMergedFile(original string, result mergeResult) string {
 	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		needsSeparator = true
 	}
+	if result.EnterBehaviorMIME {
+		needsSeparator = true
+	}
 
 	if needsSeparator {
 		appendContent.WriteString("\n# --- Auto-merged settings (added by duofm) ---\n")
@@ -278,6 +294,13 @@ func generateMergedFile(original string, result mergeResult) string {
 	if colorsSection == nil && len(result.Colors) > 0 {
 		appendContent.WriteString("\n[colors]\n")
 		appendContent.WriteString(generateColorsEntries(result.Colors))
+	}
+
+	// Add [enter_behavior_mime] section placeholder if it doesn't exist
+	if result.EnterBehaviorMIME {
+		appendContent.WriteString("\n# MIME type based file opening (used when enter_behavior = \"mime:\")\n")
+		appendContent.WriteString("# [enter_behavior_mime]\n")
+		appendContent.WriteString("# \"text/html\" = [\"vim\", \"-R\"]\n")
 	}
 
 	return content + appendContent.String()
