@@ -63,7 +63,7 @@ func main() {
 	theme := ui.NewTheme(cfg.Colors)
 
 	p := tea.NewProgram(
-		ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.EnterBehavior),
+		ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.EnterBehavior, cfg.MIMEBehavior),
 		tea.WithAltScreen(),       // 代替画面バッファを使用
 		tea.WithMouseCellMotion(), // マウスサポート（将来用）
 	)

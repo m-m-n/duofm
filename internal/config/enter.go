@@ -15,6 +15,8 @@ const (
 	EnterBehaviorXDGOpen
 	// EnterBehaviorCustom opens files with a custom application (foreground)
 	EnterBehaviorCustom
+	// EnterBehaviorMIME opens files based on MIME type configuration
+	EnterBehaviorMIME
 )
 
 // EnterBehavior represents the configured enter key behavior.
@@ -40,6 +42,8 @@ func ParseEnterBehavior(value string) (EnterBehavior, string) {
 		return EnterBehavior{Type: EnterBehaviorLess}, ""
 	case "xdg-open":
 		return EnterBehavior{Type: EnterBehaviorXDGOpen}, ""
+	case "mime:":
+		return EnterBehavior{Type: EnterBehaviorMIME}, ""
 	default:
 		if strings.HasPrefix(value, "path:") {
 			path := strings.TrimSpace(strings.TrimPrefix(value, "path:"))
@@ -67,6 +71,8 @@ func (e EnterBehavior) String() string {
 		return "xdg-open"
 	case EnterBehaviorCustom:
 		return "path:" + e.CustomPath
+	case EnterBehaviorMIME:
+		return "mime:"
 	default:
 		return "less"
 	}

@@ -3,6 +3,8 @@ package ui
 import (
 	"os"
 	"testing"
+
+	"github.com/sakura/duofm/internal/config"
 )
 
 func TestCheckReadPermission(t *testing.T) {
@@ -384,5 +386,131 @@ func TestOpenWithCustomForegroundReturnsCmd(t *testing.T) {
 	cmd := openWithCustomForeground("cat", f.Name(), tmpDir)
 	if cmd == nil {
 		t.Error("openWithCustomForeground() returned nil command")
+	}
+}
+
+func TestOpenWithMIME(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tests := []struct {
+		name       string
+		filename   string
+		mimeConfig config.MIMEBehaviorConfig
+		wantNil    bool
+	}{
+		{
+			name:     "text file with text/* rule",
+			filename: "test.txt",
+			mimeConfig: config.MIMEBehaviorConfig{
+				Rules: map[string][]string{
+					"text/*": {"cat"},
+				},
+			},
+			wantNil: false,
+		},
+		{
+			name:     "exact MIME match takes priority",
+			filename: "test.txt",
+			mimeConfig: config.MIMEBehaviorConfig{
+				Rules: map[string][]string{
+					"text/plain": {"head"},
+					"text/*":     {"cat"},
+				},
+			},
+			wantNil: false,
+		},
+		{
+			name:       "no matching rule falls back to pager",
+			filename:   "test.xyz",
+			mimeConfig: config.MIMEBehaviorConfig{},
+			wantNil:    false,
+		},
+		{
+			name:     "empty rules falls back to pager",
+			filename: "test.txt",
+			mimeConfig: config.MIMEBehaviorConfig{
+				Rules: map[string][]string{},
+			},
+			wantNil: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create the test file
+			filePath := tmpDir + "/" + tt.filename
+			f, err := os.Create(filePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			f.Close()
+
+			cmd := openWithMIME(filePath, tmpDir, tt.mimeConfig)
+			if (cmd == nil) != tt.wantNil {
+				t.Errorf("openWithMIME() returned nil = %v, want nil = %v", cmd == nil, tt.wantNil)
+			}
+		})
+	}
+}
+
+func TestOpenWithMIME_CommandNotFound(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_notfound")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	filePath := tmpDir + "/test.txt"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// Configure with a non-existent command followed by a valid one
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{
+			"text/*": {"nonexistent_command_xyz", "cat"},
+		},
+	}
+
+	// Should return a command (will try first, fail, then try second)
+	cmd := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return a command even with first command not found")
+	}
+}
+
+func TestOpenWithMIME_AllCommandsNotFound(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_allfail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	filePath := tmpDir + "/test.txt"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// Configure with only non-existent commands
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{
+			"text/*": {"nonexistent_cmd_1", "nonexistent_cmd_2"},
+		},
+	}
+
+	// Should fall back to pager
+	cmd := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should fall back to pager when all commands fail")
 	}
 }

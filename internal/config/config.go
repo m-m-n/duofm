@@ -14,6 +14,7 @@ type Config struct {
 	Colors        *ColorConfig
 	HistoryLimit  int `toml:"history_limit"`
 	EnterBehavior EnterBehavior
+	MIMEBehavior  MIMEBehaviorConfig
 }
 
 // DefaultHistoryLimit is the default number of shell command history entries.
@@ -21,10 +22,11 @@ const DefaultHistoryLimit = 20000
 
 // rawConfig is used for TOML parsing to handle the [keybindings] and [colors] sections.
 type rawConfig struct {
-	Keybindings   map[string][]string    `toml:"keybindings"`
-	Colors        map[string]interface{} `toml:"colors"`
-	HistoryLimit  *int                   `toml:"history_limit"`
-	EnterBehavior *string                `toml:"enter_behavior"`
+	Keybindings       map[string][]string    `toml:"keybindings"`
+	Colors            map[string]interface{} `toml:"colors"`
+	HistoryLimit      *int                   `toml:"history_limit"`
+	EnterBehavior     *string                `toml:"enter_behavior"`
+	EnterBehaviorMIME map[string][]string    `toml:"enter_behavior_mime"`
 }
 
 // LoadConfig loads the configuration from the specified path.
@@ -75,6 +77,15 @@ func LoadConfig(path string) (*Config, []string) {
 		cfg.EnterBehavior = enterBehavior
 		if warning != "" {
 			warnings = append(warnings, fmt.Sprintf("Warning: %s", warning))
+		}
+	}
+
+	// Load MIME behavior if enter_behavior is "mime:"
+	if cfg.EnterBehavior.Type == EnterBehaviorMIME {
+		mimeBehavior, mimeWarnings := ParseMIMEBehavior(raw.EnterBehaviorMIME)
+		cfg.MIMEBehavior = mimeBehavior
+		for _, w := range mimeWarnings {
+			warnings = append(warnings, fmt.Sprintf("Warning: %s", w))
 		}
 	}
 

@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/config"
 )
 
 // execFinishedMsg is sent when external command completes
@@ -148,4 +150,37 @@ func openWithCustom(application string, files []string, workDir string) tea.Cmd 
 
 		return openWithFinishedMsg{err: nil}
 	}
+}
+
+// openWithMIME opens a file based on MIME type configuration.
+// It detects the MIME type from the filename, finds matching rules,
+// and tries each configured command in order until one succeeds.
+// If no match or all commands fail, falls back to pager.
+func openWithMIME(filePath, workDir string, mimeCfg config.MIMEBehaviorConfig) tea.Cmd {
+	// Detect MIME type from filename
+	filename := filepath.Base(filePath)
+	mimeType := config.GetMIMEType(filename)
+
+	// Find matching rule
+	commands, found := mimeCfg.FindMatchingRule(mimeType)
+	if !found || len(commands) == 0 {
+		// No match - fall back to pager
+		return openWithViewer(filePath, workDir)
+	}
+
+	// Try to find the first available command
+	for _, cmd := range commands {
+		_, err := exec.LookPath(cmd)
+		if err == nil {
+			// Command found - use it
+			c := exec.Command(cmd, filePath)
+			c.Dir = workDir
+			return tea.ExecProcess(c, func(err error) tea.Msg {
+				return execFinishedMsg{err: err}
+			})
+		}
+	}
+
+	// All commands not found - fall back to pager
+	return openWithViewer(filePath, workDir)
 }

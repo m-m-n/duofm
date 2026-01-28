@@ -568,3 +568,204 @@ func TestLoadConfig_EnterBehaviorFileNotExists(t *testing.T) {
 		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess", cfg.EnterBehavior.Type)
 	}
 }
+
+func TestLoadConfig_EnterBehaviorMIME(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "mime:"
+
+[keybindings]
+quit = ["Q"]
+
+[enter_behavior_mime]
+"text/plain" = ["less", "cat"]
+"image/*" = ["feh", "eog"]
+"application/pdf" = ["zathura"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, warnings := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Should have no unexpected warnings
+	for _, w := range warnings {
+		if strings.Contains(w, "enter_behavior") && strings.Contains(w, "invalid") {
+			t.Errorf("Unexpected warning about enter_behavior: %s", w)
+		}
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorMIME {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorMIME", cfg.EnterBehavior.Type)
+	}
+
+	// Check MIME behavior rules
+	if cfg.MIMEBehavior.Rules == nil {
+		t.Fatal("MIMEBehavior.Rules is nil")
+	}
+
+	if len(cfg.MIMEBehavior.Rules) != 3 {
+		t.Errorf("MIMEBehavior.Rules count = %d, want 3", len(cfg.MIMEBehavior.Rules))
+	}
+
+	// Check text/plain rule
+	if cmds, ok := cfg.MIMEBehavior.Rules["text/plain"]; !ok {
+		t.Error("text/plain rule not found")
+	} else if len(cmds) != 2 || cmds[0] != "less" || cmds[1] != "cat" {
+		t.Errorf("text/plain commands = %v, want [less cat]", cmds)
+	}
+
+	// Check image/* rule
+	if cmds, ok := cfg.MIMEBehavior.Rules["image/*"]; !ok {
+		t.Error("image/* rule not found")
+	} else if len(cmds) != 2 {
+		t.Errorf("image/* commands = %v, want [feh eog]", cmds)
+	}
+}
+
+func TestLoadConfig_MIMEWithoutSection(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "mime:"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorMIME {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorMIME", cfg.EnterBehavior.Type)
+	}
+
+	// MIMEBehavior should have empty rules
+	if cfg.MIMEBehavior.Rules == nil {
+		t.Error("MIMEBehavior.Rules should not be nil")
+	}
+
+	if len(cfg.MIMEBehavior.Rules) != 0 {
+		t.Errorf("MIMEBehavior.Rules count = %d, want 0", len(cfg.MIMEBehavior.Rules))
+	}
+}
+
+func TestLoadConfig_MIMEInvalidEntries(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "mime:"
+
+[keybindings]
+quit = ["Q"]
+
+[enter_behavior_mime]
+"text/plain" = ["less"]
+"" = ["cat"]
+"image/*" = []
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, warnings := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Should have warnings for invalid entries
+	warningCount := 0
+	for _, w := range warnings {
+		if strings.Contains(w, "empty MIME type") || strings.Contains(w, "empty command list") {
+			warningCount++
+		}
+	}
+	if warningCount != 2 {
+		t.Errorf("Expected 2 warnings for invalid entries, got %d", warningCount)
+	}
+
+	// Only valid rule should be stored
+	if len(cfg.MIMEBehavior.Rules) != 1 {
+		t.Errorf("MIMEBehavior.Rules count = %d, want 1", len(cfg.MIMEBehavior.Rules))
+	}
+}
+
+func TestLoadConfig_NonMIMEIgnoresMIMESection(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `enter_behavior = "less"
+
+[keybindings]
+quit = ["Q"]
+
+[enter_behavior_mime]
+"text/plain" = ["less"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.EnterBehavior.Type != EnterBehaviorLess {
+		t.Errorf("EnterBehavior.Type = %v, want EnterBehaviorLess", cfg.EnterBehavior.Type)
+	}
+
+	// MIMEBehavior should be empty when enter_behavior is not "mime:"
+	if cfg.MIMEBehavior.Rules != nil && len(cfg.MIMEBehavior.Rules) > 0 {
+		t.Errorf("MIMEBehavior.Rules should be empty when not using mime: behavior, got %v", cfg.MIMEBehavior.Rules)
+	}
+}
+
+func TestGenerateDefaultConfig_HasMIMEOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	err := GenerateDefaultConfig(configPath)
+	if err != nil {
+		t.Fatalf("GenerateDefaultConfig() returned error: %v", err)
+	}
+
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("Failed to read generated config: %v", err)
+	}
+
+	contentStr := string(content)
+
+	// Check for mime: option in comments
+	if !contains(contentStr, "mime:") {
+		t.Error("Generated config missing mime: option")
+	}
+
+	// Check for enter_behavior_mime section example
+	if !contains(contentStr, "enter_behavior_mime") {
+		t.Error("Generated config missing enter_behavior_mime section")
+	}
+
+	// Check for example MIME patterns
+	if !contains(contentStr, "text/plain") {
+		t.Error("Generated config missing text/plain example")
+	}
+
+	if !contains(contentStr, "image/*") {
+		t.Error("Generated config missing image/* example")
+	}
+}
