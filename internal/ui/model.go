@@ -63,9 +63,10 @@ type Model struct {
 	batchOpManager *BatchOperationManager // Batch copy/move manager (delegated)
 
 	// Configuration
-	keybindingMap *KeybindingMap       // キーバインドマップ
-	theme         *Theme               // カラーテーマ
-	enterBehavior config.EnterBehavior // Enterキーの動作設定
+	keybindingMap *KeybindingMap            // キーバインドマップ
+	theme         *Theme                    // カラーテーマ
+	enterBehavior config.EnterBehavior      // Enterキーの動作設定
+	mimeBehavior  config.MIMEBehaviorConfig // MIME type to command mapping
 
 	// Bookmarks (delegated)
 	bookmarkManager *BookmarkManager
@@ -86,13 +87,14 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior())
+	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{})
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
 // historyLimit: 0=無効、>0=履歴エントリ数上限
 // enterBehavior: Enterキー押下時のファイルオープン動作
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior) Model {
+// mimeBehavior: MIME type based file opening configuration
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -149,6 +151,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		configWarnings:   warnings,
 		theme:            theme,
 		enterBehavior:    enterBehavior,
+		mimeBehavior:     mimeBehavior,
 		bookmarkManager:  bookmarkManager,
 		batchOpManager:   NewBatchOperationManager(),
 		archiveOpManager: NewArchiveOperationManager(),

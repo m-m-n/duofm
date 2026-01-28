@@ -17,7 +17,19 @@ const defaultConfigTemplate = `# duofm configuration file
 #   "less"     - Open with pager (foreground, default)
 #   "xdg-open" - Open with system default app (background)
 #   "path:/path/to/app" - Open with custom app (foreground)
+#   "mime:"    - Open based on MIME type (configure in [enter_behavior_mime])
 enter_behavior = "less"
+
+# MIME type based file opening (used when enter_behavior = "mime:")
+# Format: "MIME/type" = ["command1", "command2", ...]
+# Wildcard patterns supported: "image/*", "text/*", etc.
+# Commands are tried in order until one is found in PATH.
+# If no match or all commands fail, falls back to pager.
+# [enter_behavior_mime]
+# "text/plain" = ["bat", "less"]
+# "text/*" = ["less"]
+# "image/*" = ["feh", "eog", "xdg-open"]
+# "application/pdf" = ["zathura", "evince"]
 
 [keybindings]
 

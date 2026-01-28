@@ -479,6 +479,7 @@ func (m Model) handleMoveRight() (tea.Model, tea.Cmd) {
 //   - less: ページャーで開く（フォアグラウンド、デフォルト）
 //   - xdg-open: システムのデフォルトアプリで開く（バックグラウンド）
 //   - path:XXX: 指定されたアプリケーションで開く（フォアグラウンド）
+//   - mime: MIME type に基づいてアプリケーションを選択（フォアグラウンド）
 func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	entry := m.getActivePane().SelectedEntry()
 	if entry != nil && !entry.IsParentDir() && !entry.IsDir {
@@ -500,6 +501,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, openWithXDG(fullPath, workDir)
 		case config.EnterBehaviorCustom:
 			return m, openWithCustomForeground(m.enterBehavior.CustomPath, fullPath, workDir)
+		case config.EnterBehaviorMIME:
+			return m, openWithMIME(fullPath, workDir, m.mimeBehavior)
 		default: // EnterBehaviorLess
 			return m, openWithViewer(fullPath, workDir)
 		}
