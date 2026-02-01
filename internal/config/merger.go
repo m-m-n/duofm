@@ -9,16 +9,17 @@ import (
 
 // mergeResult holds the missing configuration items to be merged.
 type mergeResult struct {
-	Keybindings       map[string][]string
-	Colors            map[string]int
-	HistoryLimit      *int    // nil means not missing
-	EnterBehavior     *string // nil means not missing
-	EnterBehaviorMIME bool    // true means section is missing
+	Keybindings         map[string][]string
+	Colors              map[string]int
+	HistoryLimit        *int    // nil means not missing
+	EnterBehavior       *string // nil means not missing
+	EnterBehaviorMIME   bool    // true means section is missing
+	MIMEFallbackMissing bool    // true means section exists but fallback key is absent
 }
 
 // hasContent returns true if there are any missing items to merge.
 func (m mergeResult) hasContent() bool {
-	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME
+	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME || m.MIMEFallbackMissing
 }
 
 // FindMissingKeybindings returns keybindings that exist in defaults but not in config.
@@ -78,12 +79,6 @@ func IsMissingEnterBehaviorMIME(enterBehaviorMIME map[string][]string) bool {
 	return enterBehaviorMIME == nil
 }
 
-// hasEnterBehaviorMIMEComment checks if the file content contains a commented-out
-// [enter_behavior_mime] section, which indicates the placeholder has been added.
-func hasEnterBehaviorMIMEComment(content string) bool {
-	return strings.Contains(content, "# [enter_behavior_mime]")
-}
-
 // formatKeybinding formats a keybinding entry as TOML.
 // Example: move_down = ["J", "Down"]
 func formatKeybinding(key string, values []string) string {
@@ -131,9 +126,15 @@ func MergeConfig(path string, existing *rawConfig) error {
 		return fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	// Check if [enter_behavior_mime] section is missing AND no commented placeholder exists
-	if IsMissingEnterBehaviorMIME(existing.EnterBehaviorMIME) && !hasEnterBehaviorMIMEComment(string(existingContent)) {
+	// Check if [enter_behavior_mime] section is missing
+	if IsMissingEnterBehaviorMIME(existing.EnterBehaviorMIME) {
+		// Section missing (regardless of commented placeholder) - add active section with fallback
 		result.EnterBehaviorMIME = true
+	} else {
+		// Section exists - check if fallback key is present
+		if _, hasFallback := existing.EnterBehaviorMIME["fallback"]; !hasFallback {
+			result.MIMEFallbackMissing = true
+		}
 	}
 
 	// Generate the merged content
@@ -161,6 +162,7 @@ func generateMergedFile(original string, result mergeResult) string {
 	}
 	var keybindingsSection *sectionInfo
 	var colorsSection *sectionInfo
+	var enterBehaviorMIMESection *sectionInfo
 	currentSection := ""
 	firstSectionLine := -1
 
@@ -177,6 +179,8 @@ func generateMergedFile(original string, result mergeResult) string {
 				keybindingsSection.end = i - 1
 			} else if currentSection == "colors" && colorsSection != nil {
 				colorsSection.end = i - 1
+			} else if currentSection == "enter_behavior_mime" && enterBehaviorMIMESection != nil {
+				enterBehaviorMIMESection.end = i - 1
 			}
 
 			// Start new section
@@ -187,6 +191,8 @@ func generateMergedFile(original string, result mergeResult) string {
 				keybindingsSection = &sectionInfo{start: i, end: -1}
 			} else if sectionName == "colors" {
 				colorsSection = &sectionInfo{start: i, end: -1}
+			} else if sectionName == "enter_behavior_mime" {
+				enterBehaviorMIMESection = &sectionInfo{start: i, end: -1}
 			}
 		}
 	}
@@ -202,6 +208,8 @@ func generateMergedFile(original string, result mergeResult) string {
 		keybindingsSection.end = lastLineIdx
 	} else if currentSection == "colors" && colorsSection != nil && colorsSection.end == -1 {
 		colorsSection.end = lastLineIdx
+	} else if currentSection == "enter_behavior_mime" && enterBehaviorMIMESection != nil && enterBehaviorMIMESection.end == -1 {
+		enterBehaviorMIMESection.end = lastLineIdx
 	}
 
 	// Build output
@@ -241,6 +249,11 @@ func generateMergedFile(original string, result mergeResult) string {
 		if colorsSection != nil && i == colorsSection.end && len(result.Colors) > 0 {
 			sb.WriteString("\n")
 			sb.WriteString(generateColorsEntries(result.Colors))
+		}
+
+		// Insert missing fallback at the end of enter_behavior_mime section
+		if enterBehaviorMIMESection != nil && i == enterBehaviorMIMESection.end && result.MIMEFallbackMissing {
+			sb.WriteString("\nfallback = [\"xdg-open\"]\n")
 		}
 	}
 
@@ -296,11 +309,11 @@ func generateMergedFile(original string, result mergeResult) string {
 		appendContent.WriteString(generateColorsEntries(result.Colors))
 	}
 
-	// Add [enter_behavior_mime] section placeholder if it doesn't exist
+	// Add [enter_behavior_mime] section with fallback if it doesn't exist
 	if result.EnterBehaviorMIME {
-		appendContent.WriteString("\n# MIME type based file opening (used when enter_behavior = \"mime:\")\n")
-		appendContent.WriteString("# [enter_behavior_mime]\n")
+		appendContent.WriteString("\n[enter_behavior_mime]\n")
 		appendContent.WriteString("# \"text/html\" = [\"vim\", \"-R\"]\n")
+		appendContent.WriteString("fallback = [\"xdg-open\"]\n")
 	}
 
 	return content + appendContent.String()

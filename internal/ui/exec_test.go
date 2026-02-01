@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/sakura/duofm/internal/config"
@@ -397,10 +398,11 @@ func TestOpenWithMIME(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	tests := []struct {
-		name       string
-		filename   string
-		mimeConfig config.MIMEBehaviorConfig
-		wantNil    bool
+		name          string
+		filename      string
+		mimeConfig    config.MIMEBehaviorConfig
+		wantNil       bool
+		wantStatusMsg bool
 	}{
 		{
 			name:     "text file with text/* rule",
@@ -410,7 +412,8 @@ func TestOpenWithMIME(t *testing.T) {
 					"text/*": {"cat"},
 				},
 			},
-			wantNil: false,
+			wantNil:       false,
+			wantStatusMsg: false,
 		},
 		{
 			name:     "exact MIME match takes priority",
@@ -421,13 +424,15 @@ func TestOpenWithMIME(t *testing.T) {
 					"text/*":     {"cat"},
 				},
 			},
-			wantNil: false,
+			wantNil:       false,
+			wantStatusMsg: false,
 		},
 		{
-			name:       "no matching rule falls back to pager",
-			filename:   "test.xyz",
-			mimeConfig: config.MIMEBehaviorConfig{},
-			wantNil:    false,
+			name:          "no matching rule falls back to pager",
+			filename:      "test.xyz",
+			mimeConfig:    config.MIMEBehaviorConfig{},
+			wantNil:       false,
+			wantStatusMsg: false,
 		},
 		{
 			name:     "empty rules falls back to pager",
@@ -435,7 +440,19 @@ func TestOpenWithMIME(t *testing.T) {
 			mimeConfig: config.MIMEBehaviorConfig{
 				Rules: map[string][]string{},
 			},
-			wantNil: false,
+			wantNil:       false,
+			wantStatusMsg: false,
+		},
+		{
+			name:     "command with options",
+			filename: "test.txt",
+			mimeConfig: config.MIMEBehaviorConfig{
+				Rules: map[string][]string{
+					"text/*": {"head -n 20"},
+				},
+			},
+			wantNil:       false,
+			wantStatusMsg: false,
 		},
 	}
 
@@ -449,9 +466,15 @@ func TestOpenWithMIME(t *testing.T) {
 			}
 			f.Close()
 
-			cmd := openWithMIME(filePath, tmpDir, tt.mimeConfig)
+			cmd, statusMsg := openWithMIME(filePath, tmpDir, tt.mimeConfig)
 			if (cmd == nil) != tt.wantNil {
 				t.Errorf("openWithMIME() returned nil = %v, want nil = %v", cmd == nil, tt.wantNil)
+			}
+			if tt.wantStatusMsg && statusMsg == "" {
+				t.Error("openWithMIME() expected status message but got empty")
+			}
+			if !tt.wantStatusMsg && statusMsg != "" {
+				t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
 			}
 		})
 	}
@@ -479,10 +502,14 @@ func TestOpenWithMIME_CommandNotFound(t *testing.T) {
 		},
 	}
 
-	// Should return a command (will try first, fail, then try second)
-	cmd := openWithMIME(filePath, tmpDir, mimeConfig)
+	// Should return a command (will try first, fail LookPath, then try second)
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
 	if cmd == nil {
 		t.Error("openWithMIME() should return a command even with first command not found")
+	}
+	// Second command (cat) should be found, so no status message
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
 	}
 }
 
@@ -508,9 +535,272 @@ func TestOpenWithMIME_AllCommandsNotFound(t *testing.T) {
 		},
 	}
 
-	// Should fall back to pager
-	cmd := openWithMIME(filePath, tmpDir, mimeConfig)
+	// Should fall back to pager with status message
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
 	if cmd == nil {
 		t.Error("openWithMIME() should fall back to pager when all commands fail")
+	}
+	if statusMsg == "" {
+		t.Error("openWithMIME() should return status message when all commands fail")
+	}
+	// Status message should mention the failed commands
+	if !strings.Contains(statusMsg, "nonexistent_cmd_1") || !strings.Contains(statusMsg, "nonexistent_cmd_2") {
+		t.Errorf("status message should contain failed command names, got: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_FallbackNoMIMEMatch(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_fallback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with unknown MIME type
+	filePath := tmpDir + "/test.xyz"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// No MIME match, fallback has valid command (cat)
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules:    map[string][]string{},
+		Fallback: []string{"cat"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return command from fallback")
+	}
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_FallbackAllCommandsMissing(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_fallback_fail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with unknown MIME type
+	filePath := tmpDir + "/test.xyz"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// No MIME match, all fallback commands missing
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules:    map[string][]string{},
+		Fallback: []string{"nonexist1", "nonexist2"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should fall back to pager")
+	}
+	if statusMsg == "" {
+		t.Error("openWithMIME() should return status message when all fallback commands fail")
+	}
+	if !strings.Contains(statusMsg, "nonexist1") || !strings.Contains(statusMsg, "nonexist2") {
+		t.Errorf("status message should contain failed fallback command names, got: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_FallbackNoFallbackConfigured(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_no_fallback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with unknown MIME type
+	filePath := tmpDir + "/test.xyz"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// No MIME match, no fallback configured
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should fall back to pager")
+	}
+	// No status message when no fallback configured (silent fallback)
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_AllMIMEFailFallbackWorks(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_fail_fallback_ok")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	filePath := tmpDir + "/test.txt"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// MIME rule matches but all commands fail, fallback has valid command
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{
+			"text/*": {"nonexistent_mime_cmd"},
+		},
+		Fallback: []string{"cat"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return command from fallback")
+	}
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_MIMEMatchFallbackNotUsed(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_match_no_fallback")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	filePath := tmpDir + "/test.txt"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// MIME rule matches and command is available, fallback should NOT be used
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{
+			"text/*": {"cat"},
+		},
+		Fallback: []string{"nonexistent_fallback_cmd"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return MIME rule command")
+	}
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_FallbackTriesInOrder(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_fallback_order")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with unknown MIME type
+	filePath := tmpDir + "/test.xyz"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// First fallback command missing, second valid
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules:    map[string][]string{},
+		Fallback: []string{"nonexist_cmd", "cat"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return second fallback command")
+	}
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_FallbackWithOptions(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_fallback_opts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a file with unknown MIME type
+	filePath := tmpDir + "/test.xyz"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// Fallback command with options
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules:    map[string][]string{},
+		Fallback: []string{"head -n 20"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should return fallback command with options")
+	}
+	if statusMsg != "" {
+		t.Errorf("openWithMIME() unexpected status message: %q", statusMsg)
+	}
+}
+
+func TestOpenWithMIME_AllMIMEAndFallbackFail(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "test_mime_all_fail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create a text file
+	filePath := tmpDir + "/test.txt"
+	f, err := os.Create(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	// MIME rule matches but all commands fail, fallback also fails
+	mimeConfig := config.MIMEBehaviorConfig{
+		Rules: map[string][]string{
+			"text/*": {"nonexistent_mime_1", "nonexistent_mime_2"},
+		},
+		Fallback: []string{"nonexistent_fb_1", "nonexistent_fb_2"},
+	}
+
+	cmd, statusMsg := openWithMIME(filePath, tmpDir, mimeConfig)
+	if cmd == nil {
+		t.Error("openWithMIME() should fall back to pager")
+	}
+	if statusMsg == "" {
+		t.Error("openWithMIME() should return status message when all commands fail")
+	}
+	// Status message should include both MIME and fallback command names
+	if !strings.Contains(statusMsg, "nonexistent_mime_1") {
+		t.Errorf("status message should contain MIME command name, got: %q", statusMsg)
+	}
+	if !strings.Contains(statusMsg, "nonexistent_fb_1") {
+		t.Errorf("status message should contain fallback command name, got: %q", statusMsg)
 	}
 }

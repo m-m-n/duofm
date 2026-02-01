@@ -183,6 +183,8 @@ func (c *MIMEBehaviorConfig) FindMatchingRule(mimeType string) ([]string, bool)
 
 // MatchesMIMEPattern checks if a MIME type matches a pattern.
 // Supports exact match and wildcard patterns (e.g., "text/*").
+// Note: FindMatchingRule uses optimized map lookup internally instead of this function.
+// This is exported as a utility for external callers needing single-pattern matching.
 func MatchesMIMEPattern(mimeType, pattern string) bool
 ```
 
@@ -190,9 +192,11 @@ func MatchesMIMEPattern(mimeType, pattern string) bool
 
 ```go
 // openWithMIME opens a file using MIME-type based command selection.
-// Tries commands in order until one succeeds.
-// Falls back to pager if all commands fail or no match is found.
-func openWithMIME(file, workDir string, config MIMEBehaviorConfig) tea.Cmd
+// Tries commands in order until one is found via LookPath.
+// Falls back to pager if no command is found or no match exists.
+// Returns (tea.Cmd, statusMessage). statusMessage is empty when a command is found.
+// Commands may include options (e.g., "vim -R") which are split by whitespace.
+func openWithMIME(filePath, workDir string, mimeCfg MIMEBehaviorConfig) (tea.Cmd, string)
 ```
 
 ### MIME Type Detection
@@ -319,15 +323,15 @@ internal/
 |-----------|---------|
 | Empty MIME type key | "empty MIME type key in enter_behavior_mime" |
 | Empty command array | "empty command list for MIME type: {type}" |
-| Command not found | Status: "Command not found: {command}" |
-| All commands failed | Status: "All commands failed, using pager" |
+| Command not found (LookPath) | Status: "Command not found: {command}, trying next..." |
+| All commands failed (LookPath) | Status: "All configured commands failed, using pager" |
 
 ### Error Flow
 
 ```
 Config Parse Error → Log Warning → Use Empty Rules → Fall back to pager
 
-Command Execution Error → Try Next Command → All Failed → Use Pager
+Command Not Found (LookPath) → Try Next Command → All Failed → Use Pager
 ```
 
 ## Performance Optimization
