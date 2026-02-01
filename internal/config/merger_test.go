@@ -749,8 +749,11 @@ move_down = ["J"]
 		if !strings.Contains(contentStr, `fallback = ["xdg-open"]`) {
 			t.Errorf("Missing fallback entry\nContent:\n%s", contentStr)
 		}
-		if !strings.Contains(contentStr, `# "text/html" = ["vim", "-R"]`) {
+		if !strings.Contains(contentStr, `# "text/plain" = ["bat", "less"]`) {
 			t.Errorf("Missing example entry\nContent:\n%s", contentStr)
+		}
+		if !strings.Contains(contentStr, `# MIME type based file opening`) {
+			t.Errorf("Missing description comments\nContent:\n%s", contentStr)
 		}
 	})
 
@@ -1256,6 +1259,12 @@ move_down = ["J"]
 		}
 		if !strings.Contains(got, `fallback = ["xdg-open"]`) {
 			t.Errorf("Missing fallback in new section\nGot:\n%s", got)
+		}
+		if !strings.Contains(got, `# MIME type based file opening`) {
+			t.Errorf("Missing description comments\nGot:\n%s", got)
+		}
+		if !strings.Contains(got, `# "text/plain" = ["bat", "less"]`) {
+			t.Errorf("Missing example entries\nGot:\n%s", got)
 		}
 	})
 }

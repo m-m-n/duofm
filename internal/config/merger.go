@@ -311,8 +311,17 @@ func generateMergedFile(original string, result mergeResult) string {
 
 	// Add [enter_behavior_mime] section with fallback if it doesn't exist
 	if result.EnterBehaviorMIME {
-		appendContent.WriteString("\n[enter_behavior_mime]\n")
-		appendContent.WriteString("# \"text/html\" = [\"vim\", \"-R\"]\n")
+		appendContent.WriteString("\n# MIME type based file opening (used when enter_behavior = \"mime:\")\n")
+		appendContent.WriteString("# Format: \"MIME/type\" = [\"command1\", \"command2\", ...]\n")
+		appendContent.WriteString("# Wildcard patterns supported: \"image/*\", \"text/*\", etc.\n")
+		appendContent.WriteString("# Commands are tried in order until one is found in PATH.\n")
+		appendContent.WriteString("# If no MIME rule matches, fallback commands are tried.\n")
+		appendContent.WriteString("# If all commands fail, falls back to pager.\n")
+		appendContent.WriteString("[enter_behavior_mime]\n")
+		appendContent.WriteString("# \"text/plain\" = [\"bat\", \"less\"]\n")
+		appendContent.WriteString("# \"text/*\" = [\"less\"]\n")
+		appendContent.WriteString("# \"image/*\" = [\"feh\", \"eog\", \"xdg-open\"]\n")
+		appendContent.WriteString("# \"application/pdf\" = [\"zathura\", \"evince\"]\n")
 		appendContent.WriteString("fallback = [\"xdg-open\"]\n")
 	}
 
