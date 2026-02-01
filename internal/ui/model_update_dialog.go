@@ -207,8 +207,8 @@ func (m Model) handleConfirmDialogResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 		if err := m.pendingAction(); err != nil {
 			m.dialog = NewErrorDialog(fmt.Sprintf("Failed to delete: %v", err))
 		} else {
-			m.getActivePane().LoadDirectory()
-			m.getInactivePane().LoadDirectory()
+			m.getActivePane().RefreshDirectoryPreserveCursor()
+			m.getInactivePane().RefreshDirectoryPreserveCursor()
 		}
 		m.pendingAction = nil
 		return m, nil, true
@@ -318,8 +318,8 @@ func (m Model) handleRenameInputResult(msg renameInputResultMsg) (tea.Model, tea
 	if err != nil {
 		m.dialog = NewErrorDialog(fmt.Sprintf("Failed to %s: %v", msg.operation, err))
 	} else {
-		m.getActivePane().LoadDirectory()
-		m.getInactivePane().LoadDirectory()
+		m.getActivePane().RefreshDirectoryPreserveCursor()
+		m.getInactivePane().RefreshDirectoryPreserveCursor()
 	}
 	return m, nil
 }
@@ -342,8 +342,8 @@ func (m Model) handleExtensionRenameResult(msg extensionRenameResultMsg) (tea.Mo
 	}
 
 	// Refresh panes
-	m.getActivePane().LoadDirectory()
-	m.getInactivePane().LoadDirectory()
+	m.getActivePane().RefreshDirectoryPreserveCursor()
+	m.getInactivePane().RefreshDirectoryPreserveCursor()
 
 	// Move cursor to renamed file
 	m.moveCursorToFileAfterRename(msg.oldName, msg.newName)
@@ -366,8 +366,8 @@ func (m Model) handleInputDialogResult(msg inputDialogResultMsg) (tea.Model, tea
 		return m, statusMessageClearCmd(5 * time.Second)
 	}
 
-	m.getActivePane().LoadDirectory()
-	m.getInactivePane().LoadDirectory()
+	m.getActivePane().RefreshDirectoryPreserveCursor()
+	m.getInactivePane().RefreshDirectoryPreserveCursor()
 
 	switch msg.operation {
 	case "create_file", "create_dir":
@@ -384,7 +384,7 @@ func (m Model) handleFileOperationComplete(msg fileOperationCompleteMsg) (tea.Mo
 		srcPath := m.batchOpManager.CurrentFile()
 		return m, m.advanceBatchOperation(true, srcPath)
 	}
-	m.getActivePane().LoadDirectory()
-	m.getInactivePane().LoadDirectory()
+	m.getActivePane().RefreshDirectoryPreserveCursor()
+	m.getInactivePane().RefreshDirectoryPreserveCursor()
 	return m, nil
 }

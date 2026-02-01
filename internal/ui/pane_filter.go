@@ -235,10 +235,12 @@ func (p *Pane) formatFilterIndicator() string {
 }
 
 // RefreshDirectoryPreserveCursor reloads directory contents while preserving cursor position.
-// If the previously selected file no longer exists, cursor resets to the beginning.
+// If the previously selected file still exists, cursor moves to that file's new index.
+// If not found, cursor is clamped to the old index position (min(oldCursor, len(entries)-1)).
 func (p *Pane) RefreshDirectoryPreserveCursor() error {
-	// Store current selected file name
+	// Store current selected file name and cursor index
 	var selectedName string
+	oldCursor := p.cursor
 	if entry := p.SelectedEntry(); entry != nil {
 		selectedName = entry.Name
 	}
@@ -262,7 +264,7 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 	p.filterMode = SearchModeNone
 
 	// Find the previously selected file in new entries
-	newCursor := 0 // Default to beginning if file not found
+	newCursor := -1
 	if selectedName != "" {
 		for i, e := range entries {
 			if e.Name == selectedName {
@@ -270,6 +272,11 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 				break
 			}
 		}
+	}
+
+	// If filename match failed, fall back to clamped old index
+	if newCursor < 0 {
+		newCursor = max(0, min(oldCursor, len(entries)-1))
 	}
 
 	p.cursor = newCursor

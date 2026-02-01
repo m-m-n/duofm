@@ -10,19 +10,21 @@
 #   ./run_all_tests.sh --list       # List available test categories
 #
 # Available categories:
-#   basic, directory, file-ops, copy-move, cursor, sort,
-#   shell, config, bookmark, mark, history
+#   basic, directory, file-ops, copy-move, cursor, cursor-preserve,
+#   sort, shell, config, bookmark, mark, history, archive
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Save runner's SCRIPT_DIR since sourced test files may overwrite it
+RUNNER_DIR="${SCRIPT_DIR}"
 
-if [ ! -f "${SCRIPT_DIR}/helpers.sh" ]; then
-    echo "Error: helpers.sh not found at ${SCRIPT_DIR}/helpers.sh" >&2
+if [ ! -f "${RUNNER_DIR}/helpers.sh" ]; then
+    echo "Error: helpers.sh not found at ${RUNNER_DIR}/helpers.sh" >&2
     exit 1
 fi
 
-source "${SCRIPT_DIR}/helpers.sh"
+source "${RUNNER_DIR}/helpers.sh"
 
 # Test category mapping
 declare -A TEST_FILES=(
@@ -38,6 +40,7 @@ declare -A TEST_FILES=(
     ["mark"]="mark_tests.sh"
     ["history"]="history_tests.sh"
     ["archive"]="archive_tests.sh"
+    ["cursor-preserve"]="cursor_preserve_tests.sh"
 )
 
 # Show usage
@@ -63,7 +66,7 @@ list_categories() {
     for category in "${!TEST_FILES[@]}"; do
         local file="${TEST_FILES[$category]}"
         local count
-        count=$(grep -c "^test_" "${SCRIPT_DIR}/tests/${file}" 2>/dev/null || echo "?")
+        count=$(grep -c "^test_" "${RUNNER_DIR}/tests/${file}" 2>/dev/null || echo "?")
         printf "  %-12s %s (%s tests)\n" "$category" "$file" "$count"
     done | sort
 }
@@ -80,7 +83,7 @@ run_category() {
         exit 1
     fi
 
-    local test_file="${SCRIPT_DIR}/tests/${file}"
+    local test_file="${RUNNER_DIR}/tests/${file}"
     if [ ! -f "$test_file" ]; then
         echo "Error: Test file not found: $test_file"
         exit 1
@@ -111,7 +114,7 @@ run_all() {
 
     # Source all test files
     for file in "${TEST_FILES[@]}"; do
-        source "${SCRIPT_DIR}/tests/${file}"
+        source "${RUNNER_DIR}/tests/${file}"
     done
 
     # Basic tests
@@ -256,6 +259,24 @@ run_all() {
     run_test test_compress_complete_workflow
     run_test test_extract_complete_workflow
     run_test test_multifile_compress
+
+    # Cursor preserve tests
+    echo ""
+    echo "=== Cursor Preserve Tests ==="
+    run_test test_single_move_cursor_preserved
+    run_test test_single_move_dest_cursor_preserved
+    run_test test_move_last_file_cursor
+    run_test test_copy_cursor_preserved
+    run_test test_copy_dest_cursor_preserved
+    run_test test_rename_cursor_preserved
+    run_test test_batch_move_cursor_up
+    run_test test_batch_move_cursor_down
+    run_test test_batch_move_all_cursor_zero
+    run_test test_batch_cancel_cursor
+    run_test test_single_file_dir_move_cursor
+    run_test test_delete_cursor_not_regressed
+    run_test test_batch_delete_cursor_not_regressed
+    run_test test_directory_nav_cursor_not_regressed
 }
 
 # Main entry point

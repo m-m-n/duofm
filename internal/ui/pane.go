@@ -454,3 +454,45 @@ func (p *Pane) calculateCursorAfterDeletion(deletedIndex int) int {
 	// Empty directory (should not happen, but handle gracefully)
 	return 0
 }
+
+// calculateCursorTargetAfterBatchMove determines the filename to position the cursor on
+// after a batch move operation removes marked files from the source pane.
+//
+// Algorithm:
+//  1. Search upward from cursor position (inclusive), skipping ".." entries
+//  2. Return the first unmarked filename found
+//  3. If none found upward, search downward from cursor+1
+//  4. Return the first unmarked filename found
+//  5. If all files are marked, return "" (empty string)
+//
+// Parameters:
+//   - markedFiles: map of filenames that will be removed by the batch move
+//
+// Returns:
+//   - string: the target filename to set cursor on, or "" if all files are marked
+func (p *Pane) calculateCursorTargetAfterBatchMove(markedFiles map[string]bool) string {
+	// Search upward from cursor (inclusive)
+	for i := p.cursor; i >= 0; i-- {
+		name := p.entries[i].Name
+		if p.entries[i].IsParentDir() {
+			continue
+		}
+		if !markedFiles[name] {
+			return name
+		}
+	}
+
+	// Search downward from cursor+1
+	for i := p.cursor + 1; i < len(p.entries); i++ {
+		name := p.entries[i].Name
+		if p.entries[i].IsParentDir() {
+			continue
+		}
+		if !markedFiles[name] {
+			return name
+		}
+	}
+
+	// All files are marked
+	return ""
+}
