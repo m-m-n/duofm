@@ -502,7 +502,13 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		case config.EnterBehaviorCustom:
 			return m, openWithCustomForeground(m.enterBehavior.CustomPath, fullPath, workDir)
 		case config.EnterBehaviorMIME:
-			return m, openWithMIME(fullPath, workDir, m.mimeBehavior)
+			cmd, statusMsg := openWithMIME(fullPath, workDir, m.mimeBehavior)
+			if statusMsg != "" {
+				m.statusMessage = statusMsg
+				m.isStatusError = true
+				return m, tea.Batch(cmd, statusMessageClearCmd(5*time.Second))
+			}
+			return m, cmd
 		default: // EnterBehaviorLess
 			return m, openWithViewer(fullPath, workDir)
 		}

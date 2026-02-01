@@ -13,14 +13,21 @@ type MIMEBehaviorConfig struct {
 	// Key: MIME type pattern (e.g., "text/plain", "image/*")
 	// Value: List of commands to try in order
 	Rules map[string][]string
+
+	// Fallback holds the command list to try when no MIME rule matches.
+	// Commands are tried in order; first available command is used.
+	// If all fail, falls back to pager.
+	Fallback []string
 }
 
 // ParseMIMEBehavior parses the [enter_behavior_mime] section from TOML.
 // It validates each entry and generates warnings for invalid configurations.
 //
-// Invalid entries are skipped:
-//   - Empty MIME type key
-//   - Empty command array
+// Key classification:
+//   - "fallback" -> extracted to Fallback field
+//   - Keys containing "/" -> MIME type patterns, stored in Rules
+//   - Empty key -> warning generated, skipped
+//   - Other keys -> unknown, warning generated, skipped
 //
 // Returns the parsed config and any warning messages.
 func ParseMIMEBehavior(raw map[string][]string) (MIMEBehaviorConfig, []string) {
@@ -33,21 +40,35 @@ func ParseMIMEBehavior(raw map[string][]string) (MIMEBehaviorConfig, []string) {
 		return config, warnings
 	}
 
-	for mimeType, commands := range raw {
-		// Validate MIME type key
-		if mimeType == "" {
+	for key, commands := range raw {
+		// Empty key
+		if key == "" {
 			warnings = append(warnings, "empty MIME type key in enter_behavior_mime, skipping")
 			continue
 		}
 
-		// Validate command array
-		if len(commands) == 0 {
-			warnings = append(warnings, fmt.Sprintf("empty command list for MIME type '%s', skipping", mimeType))
+		// Fallback key
+		if key == "fallback" {
+			if len(commands) == 0 {
+				warnings = append(warnings, "empty command list for fallback, skipping")
+				continue
+			}
+			config.Fallback = commands
 			continue
 		}
 
-		// Store valid entry
-		config.Rules[mimeType] = commands
+		// MIME type pattern (contains "/")
+		if strings.Contains(key, "/") {
+			if len(commands) == 0 {
+				warnings = append(warnings, fmt.Sprintf("empty command list for MIME type '%s', skipping", key))
+				continue
+			}
+			config.Rules[key] = commands
+			continue
+		}
+
+		// Unknown key
+		warnings = append(warnings, fmt.Sprintf("unknown key '%s' in enter_behavior_mime, skipping", key))
 	}
 
 	return config, warnings

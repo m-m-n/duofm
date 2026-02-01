@@ -419,6 +419,8 @@ move_down = ["J"]
 		allKeybindings := DefaultKeybindings()
 		var keybindingsToml strings.Builder
 		keybindingsToml.WriteString("enter_behavior = \"less\"\n\n")
+		keybindingsToml.WriteString("[enter_behavior_mime]\n")
+		keybindingsToml.WriteString("fallback = [\"xdg-open\"]\n\n")
 		keybindingsToml.WriteString("[keybindings]\n")
 		for k, v := range allKeybindings {
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %v\n", k, formatTestArray(v)))
@@ -428,8 +430,6 @@ move_down = ["J"]
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %d\n", k, GetDefaultColorValue(k)))
 		}
 		keybindingsToml.WriteString("\nhistory_limit = 1000\n")
-		// Add MIME placeholder comment so it won't be added
-		keybindingsToml.WriteString("\n# [enter_behavior_mime]\n")
 
 		tmpFile := createTempFile(t, keybindingsToml.String())
 		defer os.Remove(tmpFile)
@@ -449,6 +449,9 @@ move_down = ["J"]
 			Colors:        colors,
 			HistoryLimit:  &historyLimit,
 			EnterBehavior: &enterBehavior,
+			EnterBehaviorMIME: map[string][]string{
+				"fallback": {"xdg-open"},
+			},
 		}
 
 		err := MergeConfig(tmpFile, raw)
@@ -715,7 +718,7 @@ func TestIsMissingEnterBehaviorMIME(t *testing.T) {
 }
 
 func TestMergeConfig_EnterBehaviorMIME(t *testing.T) {
-	t.Run("adds enter_behavior_mime placeholder when missing", func(t *testing.T) {
+	t.Run("adds enter_behavior_mime section with fallback when missing", func(t *testing.T) {
 		tmpFile := createTempFile(t, `enter_behavior = "less"
 
 [keybindings]
@@ -739,9 +742,12 @@ move_down = ["J"]
 		content, _ := os.ReadFile(tmpFile)
 		contentStr := string(content)
 
-		// Should contain the placeholder comment
-		if !strings.Contains(contentStr, `# [enter_behavior_mime]`) {
-			t.Errorf("Missing [enter_behavior_mime] placeholder comment\nContent:\n%s", contentStr)
+		// Should contain an active section with fallback
+		if !strings.Contains(contentStr, `[enter_behavior_mime]`) {
+			t.Errorf("Missing [enter_behavior_mime] section\nContent:\n%s", contentStr)
+		}
+		if !strings.Contains(contentStr, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback entry\nContent:\n%s", contentStr)
 		}
 		if !strings.Contains(contentStr, `# "text/html" = ["vim", "-R"]`) {
 			t.Errorf("Missing example entry\nContent:\n%s", contentStr)
@@ -982,6 +988,16 @@ func TestMergeResultHasContent(t *testing.T) {
 			},
 			want: false,
 		},
+		{
+			name: "has MIMEFallbackMissing",
+			result: mergeResult{
+				Keybindings:         map[string][]string{},
+				Colors:              map[string]int{},
+				HistoryLimit:        nil,
+				MIMEFallbackMissing: true,
+			},
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -992,4 +1008,254 @@ func TestMergeResultHasContent(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMergeConfig_MIMEFallback(t *testing.T) {
+	t.Run("section missing no placeholder - adds active section with fallback", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: nil, // Section is missing
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+		contentStr := string(content)
+
+		// Should contain an active (non-commented) section with fallback
+		if !strings.Contains(contentStr, "[enter_behavior_mime]") {
+			t.Errorf("Missing [enter_behavior_mime] section\nContent:\n%s", contentStr)
+		}
+		if !strings.Contains(contentStr, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback entry\nContent:\n%s", contentStr)
+		}
+	})
+
+	t.Run("section exists fallback missing - appends fallback", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+
+[enter_behavior_mime]
+"text/*" = ["less"]
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: map[string][]string{
+				"text/*": {"less"},
+			},
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+		contentStr := string(content)
+
+		// Should contain fallback appended to existing section
+		if !strings.Contains(contentStr, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback entry in existing section\nContent:\n%s", contentStr)
+		}
+		// Original rule should still be there
+		if !strings.Contains(contentStr, `"text/*" = ["less"]`) {
+			t.Errorf("Original MIME rule missing\nContent:\n%s", contentStr)
+		}
+	})
+
+	t.Run("section exists fallback present - no change", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+
+[enter_behavior_mime]
+"text/*" = ["less"]
+fallback = ["xdg-open"]
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: map[string][]string{
+				"text/*":   {"less"},
+				"fallback": {"xdg-open"},
+			},
+		}
+
+		contentBefore, _ := os.ReadFile(tmpFile)
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		contentAfter, _ := os.ReadFile(tmpFile)
+
+		// Count fallback occurrences - should not have duplicates
+		beforeCount := strings.Count(string(contentBefore), "fallback")
+		afterCount := strings.Count(string(contentAfter), "fallback")
+
+		if afterCount > beforeCount {
+			t.Errorf("Should not add duplicate fallback\nBefore count: %d, After count: %d\nContent:\n%s",
+				beforeCount, afterCount, string(contentAfter))
+		}
+	})
+
+	t.Run("commented placeholder - replaces with active section", func(t *testing.T) {
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+
+# MIME type based file opening (used when enter_behavior = "mime:")
+# [enter_behavior_mime]
+# "text/html" = ["vim", "-R"]
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings: map[string][]string{
+				"move_down": {"J"},
+			},
+			EnterBehaviorMIME: nil, // Section is missing (only commented placeholder exists)
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+		contentStr := string(content)
+
+		// Should contain an active section with fallback
+		if !strings.Contains(contentStr, "[enter_behavior_mime]") {
+			t.Errorf("Missing active [enter_behavior_mime] section\nContent:\n%s", contentStr)
+		}
+		if !strings.Contains(contentStr, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback entry\nContent:\n%s", contentStr)
+		}
+	})
+
+	t.Run("idempotency - second merge makes no changes", func(t *testing.T) {
+		// Start with a config that already has fallback
+		tmpFile := createTempFile(t, `enter_behavior = "mime:"
+history_limit = 20000
+
+[enter_behavior_mime]
+"text/*" = ["less"]
+fallback = ["xdg-open"]
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		allKeybindings := DefaultKeybindings()
+		// Override with the custom value
+		allKeybindings["move_down"] = []string{"J"}
+
+		allColors := make(map[string]interface{})
+		for _, k := range AllColorKeys() {
+			allColors[k] = GetDefaultColorValue(k)
+		}
+
+		historyLimit := 20000
+		raw := &rawConfig{
+			EnterBehavior: func() *string { s := "mime:"; return &s }(),
+			Keybindings:   allKeybindings,
+			Colors:        allColors,
+			HistoryLimit:  &historyLimit,
+			EnterBehaviorMIME: map[string][]string{
+				"text/*":   {"less"},
+				"fallback": {"xdg-open"},
+			},
+		}
+
+		contentBefore, _ := os.ReadFile(tmpFile)
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		contentAfter, _ := os.ReadFile(tmpFile)
+
+		if string(contentBefore) != string(contentAfter) {
+			t.Errorf("Merge modified the file when no changes should be needed\nBefore:\n%s\nAfter:\n%s",
+				string(contentBefore), string(contentAfter))
+		}
+	})
+}
+
+func TestGenerateMergedFile_MIMEFallback(t *testing.T) {
+	t.Run("MIMEFallbackMissing inserts fallback into existing section", func(t *testing.T) {
+		original := `[enter_behavior_mime]
+"text/*" = ["less"]
+
+[keybindings]
+move_down = ["J"]
+`
+		result := mergeResult{
+			Keybindings:         map[string][]string{},
+			Colors:              map[string]int{},
+			MIMEFallbackMissing: true,
+		}
+
+		got := generateMergedFile(original, result)
+
+		if !strings.Contains(got, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback in output\nGot:\n%s", got)
+		}
+		if !strings.Contains(got, `"text/*" = ["less"]`) {
+			t.Errorf("Original MIME rule missing\nGot:\n%s", got)
+		}
+	})
+
+	t.Run("EnterBehaviorMIME adds active section with fallback", func(t *testing.T) {
+		original := `enter_behavior = "mime:"
+
+[keybindings]
+move_down = ["J"]
+`
+		result := mergeResult{
+			Keybindings:       map[string][]string{},
+			Colors:            map[string]int{},
+			EnterBehaviorMIME: true,
+		}
+
+		got := generateMergedFile(original, result)
+
+		if !strings.Contains(got, "[enter_behavior_mime]") {
+			t.Errorf("Missing [enter_behavior_mime] section\nGot:\n%s", got)
+		}
+		if !strings.Contains(got, `fallback = ["xdg-open"]`) {
+			t.Errorf("Missing fallback in new section\nGot:\n%s", got)
+		}
+	})
 }

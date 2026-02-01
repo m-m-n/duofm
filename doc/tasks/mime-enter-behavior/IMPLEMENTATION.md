@@ -372,13 +372,16 @@ openWithMIME:
 **Command Failure Definition**:
 A command is considered "failed" only when:
 - `exec.LookPath` returns error (command not found in PATH)
-- `exec.Command().Start()` returns error (process startup failure)
 
 A command is NOT considered "failed" when:
 - The command exits with non-zero status (application's internal error)
 - The user closes the application normally
+- `exec.Command().Start()` returns error (process startup failure)
 
-This matches standard Unix behavior where exit codes are application-specific.
+Note: `Start()` failure cannot trigger fallback because Bubble Tea's `tea.ExecProcess`
+releases terminal control before executing the command. Once terminal control is released,
+returning to the TUI to try the next command is not feasible. Therefore, fallback is
+limited to `LookPath` validation only.
 
 handleEnter (addition):
 1. Check enterBehavior.Type
@@ -392,8 +395,8 @@ Use existing `statusMessageClearCmd(5 * time.Second)` pattern from `internal/ui/
 
 | Scenario | Message Format | Duration |
 |----------|----------------|----------|
-| Command not found | `"Command not found: {cmd}, trying next..."` | 5 seconds |
-| All commands failed | `"All configured commands failed, using pager"` | 5 seconds |
+| Command not found (LookPath) | `"Command not found: {cmd}, trying next..."` | 5 seconds |
+| All commands failed (LookPath) | `"All configured commands failed, using pager"` | 5 seconds |
 | MIME type no match | (No message - silent fallback to pager) | - |
 
 **Implementation**: Return `tea.Batch(statusMessageCmd(...), statusMessageClearCmd(5*time.Second), nextCmd)` to display status and continue.

@@ -24,12 +24,14 @@ enter_behavior = "less"
 # Format: "MIME/type" = ["command1", "command2", ...]
 # Wildcard patterns supported: "image/*", "text/*", etc.
 # Commands are tried in order until one is found in PATH.
-# If no match or all commands fail, falls back to pager.
-# [enter_behavior_mime]
+# If no MIME rule matches, fallback commands are tried.
+# If all commands fail, falls back to pager.
+[enter_behavior_mime]
 # "text/plain" = ["bat", "less"]
 # "text/*" = ["less"]
 # "image/*" = ["feh", "eog", "xdg-open"]
 # "application/pdf" = ["zathura", "evince"]
+fallback = ["xdg-open"]
 
 [keybindings]
 

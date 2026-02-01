@@ -152,35 +152,68 @@ func openWithCustom(application string, files []string, workDir string) tea.Cmd 
 	}
 }
 
-// openWithMIME opens a file based on MIME type configuration.
-// It detects the MIME type from the filename, finds matching rules,
-// and tries each configured command in order until one succeeds.
-// If no match or all commands fail, falls back to pager.
-func openWithMIME(filePath, workDir string, mimeCfg config.MIMEBehaviorConfig) tea.Cmd {
-	// Detect MIME type from filename
-	filename := filepath.Base(filePath)
-	mimeType := config.GetMIMEType(filename)
+// tryCommands tries each command string in order via LookPath.
+// Returns the tea.Cmd to execute if a command is found, or nil if all fail.
+// Failed command names are appended to notFoundCmds.
+func tryCommands(commands []string, filePath, workDir string, notFoundCmds *[]string) tea.Cmd {
+	for _, cmdStr := range commands {
+		// Parse command string (may include options like "vim -R")
+		parts := strings.Fields(cmdStr)
+		if len(parts) == 0 {
+			continue
+		}
 
-	// Find matching rule
-	commands, found := mimeCfg.FindMatchingRule(mimeType)
-	if !found || len(commands) == 0 {
-		// No match - fall back to pager
-		return openWithViewer(filePath, workDir)
-	}
-
-	// Try to find the first available command
-	for _, cmd := range commands {
-		_, err := exec.LookPath(cmd)
+		command := parts[0]
+		_, err := exec.LookPath(command)
 		if err == nil {
 			// Command found - use it
-			c := exec.Command(cmd, filePath)
+			args := append(parts[1:], filePath)
+			c := exec.Command(command, args...)
 			c.Dir = workDir
 			return tea.ExecProcess(c, func(err error) tea.Msg {
 				return execFinishedMsg{err: err}
 			})
 		}
+		*notFoundCmds = append(*notFoundCmds, command)
+	}
+	return nil
+}
+
+// openWithMIME opens a file based on MIME type configuration.
+// It detects the MIME type from the filename, finds matching rules,
+// and tries each configured command in order until one is found via LookPath.
+// If no match or all MIME commands fail, tries fallback commands.
+// If all fallback commands also fail, falls back to pager.
+// Returns the command to execute and a status message (empty if a command was found).
+// Commands may include options (e.g., "vim -R") which are split by whitespace.
+func openWithMIME(filePath, workDir string, mimeCfg config.MIMEBehaviorConfig) (tea.Cmd, string) {
+	// Detect MIME type from filename
+	filename := filepath.Base(filePath)
+	mimeType := config.GetMIMEType(filename)
+
+	var notFoundCmds []string
+
+	// Find matching rule and try MIME rule commands
+	commands, found := mimeCfg.FindMatchingRule(mimeType)
+	if found && len(commands) > 0 {
+		if cmd := tryCommands(commands, filePath, workDir, &notFoundCmds); cmd != nil {
+			return cmd, ""
+		}
 	}
 
-	// All commands not found - fall back to pager
-	return openWithViewer(filePath, workDir)
+	// Try fallback commands
+	if len(mimeCfg.Fallback) > 0 {
+		if cmd := tryCommands(mimeCfg.Fallback, filePath, workDir, &notFoundCmds); cmd != nil {
+			return cmd, ""
+		}
+	}
+
+	// All commands failed - fall back to pager
+	if len(notFoundCmds) > 0 {
+		statusMsg := fmt.Sprintf("All configured commands failed (%s), using pager", strings.Join(notFoundCmds, ", "))
+		return openWithViewer(filePath, workDir), statusMsg
+	}
+
+	// No commands were configured at all - silent fallback to pager
+	return openWithViewer(filePath, workDir), ""
 }

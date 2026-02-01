@@ -461,3 +461,189 @@ func TestFindMatchingRule_NilRules(t *testing.T) {
 		t.Errorf("expected no match for nil rules, got %v", cmds)
 	}
 }
+
+func TestParseMIMEBehavior_Fallback(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            map[string][]string
+		expectedRules    int
+		expectedFallback []string
+		expectWarnings   bool
+		warningContains  string
+	}{
+		{
+			name: "fallback extracted from rules",
+			input: map[string][]string{
+				"text/*":   {"less"},
+				"fallback": {"xdg-open"},
+			},
+			expectedRules:    1,
+			expectedFallback: []string{"xdg-open"},
+			expectWarnings:   false,
+		},
+		{
+			name: "fallback not in rules map",
+			input: map[string][]string{
+				"fallback": {"xdg-open"},
+			},
+			expectedRules:    0,
+			expectedFallback: []string{"xdg-open"},
+			expectWarnings:   false,
+		},
+		{
+			name: "empty fallback array generates warning",
+			input: map[string][]string{
+				"fallback": {},
+			},
+			expectedRules:    0,
+			expectedFallback: nil,
+			expectWarnings:   true,
+			warningContains:  "empty command list for fallback",
+		},
+		{
+			name: "missing fallback results in nil",
+			input: map[string][]string{
+				"text/*": {"less"},
+			},
+			expectedRules:    1,
+			expectedFallback: nil,
+			expectWarnings:   false,
+		},
+		{
+			name: "fallback only no MIME rules",
+			input: map[string][]string{
+				"fallback": {"xdg-open"},
+			},
+			expectedRules:    0,
+			expectedFallback: []string{"xdg-open"},
+			expectWarnings:   false,
+		},
+		{
+			name: "multiple fallback commands",
+			input: map[string][]string{
+				"fallback": {"xdg-open", "open"},
+			},
+			expectedRules:    0,
+			expectedFallback: []string{"xdg-open", "open"},
+			expectWarnings:   false,
+		},
+		{
+			name: "unknown key generates warning",
+			input: map[string][]string{
+				"text":     {"less"},
+				"fallback": {"xdg-open"},
+			},
+			expectedRules:    0,
+			expectedFallback: []string{"xdg-open"},
+			expectWarnings:   true,
+			warningContains:  "unknown key",
+		},
+		{
+			name: "fallback with MIME rules and unknown key",
+			input: map[string][]string{
+				"text/*":   {"less"},
+				"fallback": {"xdg-open"},
+				"badkey":   {"vim"},
+			},
+			expectedRules:    1,
+			expectedFallback: []string{"xdg-open"},
+			expectWarnings:   true,
+			warningContains:  "unknown key",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, warnings := ParseMIMEBehavior(tt.input)
+
+			// Check rules count
+			if len(result.Rules) != tt.expectedRules {
+				t.Errorf("Rules count = %d, want %d", len(result.Rules), tt.expectedRules)
+			}
+
+			// Verify fallback is NOT in Rules map
+			if _, ok := result.Rules["fallback"]; ok {
+				t.Error("fallback key should not be in Rules map")
+			}
+
+			// Check Fallback field
+			if tt.expectedFallback == nil {
+				if result.Fallback != nil {
+					t.Errorf("Fallback = %v, want nil", result.Fallback)
+				}
+			} else {
+				if len(result.Fallback) != len(tt.expectedFallback) {
+					t.Errorf("Fallback length = %d, want %d", len(result.Fallback), len(tt.expectedFallback))
+				} else {
+					for i, cmd := range result.Fallback {
+						if cmd != tt.expectedFallback[i] {
+							t.Errorf("Fallback[%d] = %q, want %q", i, cmd, tt.expectedFallback[i])
+						}
+					}
+				}
+			}
+
+			// Check warnings
+			if tt.expectWarnings {
+				if len(warnings) == 0 {
+					t.Error("expected warnings but got none")
+				} else if tt.warningContains != "" {
+					found := false
+					for _, w := range warnings {
+						if strings.Contains(w, tt.warningContains) {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("warnings %v should contain %q", warnings, tt.warningContains)
+					}
+				}
+			} else {
+				if len(warnings) > 0 {
+					t.Errorf("unexpected warnings: %v", warnings)
+				}
+			}
+		})
+	}
+}
+
+func TestParseMIMEBehavior_FallbackContent(t *testing.T) {
+	input := map[string][]string{
+		"text/plain": {"less", "cat"},
+		"image/*":    {"feh"},
+		"fallback":   {"xdg-open", "open"},
+	}
+
+	result, warnings := ParseMIMEBehavior(input)
+
+	if len(warnings) > 0 {
+		t.Errorf("unexpected warnings: %v", warnings)
+	}
+
+	// Check that MIME rules are preserved
+	if cmds, ok := result.Rules["text/plain"]; !ok {
+		t.Error("expected text/plain rule")
+	} else if len(cmds) != 2 || cmds[0] != "less" || cmds[1] != "cat" {
+		t.Errorf("text/plain commands = %v, want [less cat]", cmds)
+	}
+
+	if cmds, ok := result.Rules["image/*"]; !ok {
+		t.Error("expected image/* rule")
+	} else if len(cmds) != 1 || cmds[0] != "feh" {
+		t.Errorf("image/* commands = %v, want [feh]", cmds)
+	}
+
+	// Check that fallback is NOT in Rules
+	if _, ok := result.Rules["fallback"]; ok {
+		t.Error("fallback should not be in Rules")
+	}
+
+	// Check Fallback field
+	if len(result.Fallback) != 2 {
+		t.Fatalf("Fallback length = %d, want 2", len(result.Fallback))
+	}
+	if result.Fallback[0] != "xdg-open" || result.Fallback[1] != "open" {
+		t.Errorf("Fallback = %v, want [xdg-open open]", result.Fallback)
+	}
+}
