@@ -8,6 +8,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Dual-pane interface: Navigate two directories side-by-side
   - Vim-style keybindings: Familiar hjkl navigation with arrow key support
   - File operations: Copy, move, delete, rename files and directories
+  - Trash support: Move files to trash (`Delete` key) with freedesktop.org compliance, restore and empty trash
   - Smart rename: Extension-preserving rename (R) and full filename rename (Shift+R)
   - Permission editing: Change permissions (chmod) with Shift+P, including recursive and batch modes
   - File creation: Create new files (N) and directories (Shift+N)
@@ -25,7 +26,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
   - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting)
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
-  - Sort options: By name, size, or date with live preview
+  - Sort options: By name, size, or date with dropdown menus, OK button, and live preview
   - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
   - Smart cursor: Remember position when navigating to parent directory
   - Refresh: Reload directory contents with F5 or Ctrl+R
@@ -52,7 +53,8 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Version display: Dynamic version from build-time ldflags
 
 - **External Integration**
-  - External viewer: Configurable Enter key behavior (pager, xdg-open, or custom app)
+  - External viewer: Configurable Enter key behavior (pager, xdg-open, custom app, or MIME-based)
+  - MIME-type based opening: Map file types to applications with wildcard support and command fallback
   - External editor: Edit files with $EDITOR (`E` key)
   - Shell commands: Execute commands with `!` key in current directory
   - Shell history: Ctrl+R incremental search and up/down arrow navigation
@@ -64,7 +66,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Configuration file: `~/.config/duofm/config.toml` (auto-generated with auto-merge)
   - Custom keybindings: Remap any key with modifier support (Ctrl, Shift, Alt)
   - Color theme: Full 256-color customization for all UI elements
-  - Enter key behavior: Choose between pager, xdg-open, or custom application
+  - Enter key behavior: Choose between pager, xdg-open, custom application, or MIME-based opening
   - Bookmarks: Persisted in configuration file with edit/delete support
   - Auto-merge: Missing configuration items automatically added on updates
 
