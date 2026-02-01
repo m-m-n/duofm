@@ -179,6 +179,40 @@ func tryCommands(commands []string, filePath, workDir string, notFoundCmds *[]st
 	return nil
 }
 
+// tryCommandsBackground tries each command string in order via LookPath,
+// launching in background mode (without blocking the terminal).
+// Suitable for GUI launchers like xdg-open.
+// Returns the tea.Cmd to execute if a command is found, or nil if all fail.
+// Failed command names are appended to notFoundCmds.
+func tryCommandsBackground(commands []string, filePath, workDir string, notFoundCmds *[]string) tea.Cmd {
+	for _, cmdStr := range commands {
+		parts := strings.Fields(cmdStr)
+		if len(parts) == 0 {
+			continue
+		}
+
+		command := parts[0]
+		_, err := exec.LookPath(command)
+		if err == nil {
+			args := append(parts[1:], filePath)
+			return func() tea.Msg {
+				cmd := exec.Command(command, args...)
+				cmd.Dir = workDir
+				err := cmd.Start()
+				if err != nil {
+					return execFinishedMsg{err: err}
+				}
+				go func() {
+					_ = cmd.Wait()
+				}()
+				return execFinishedMsg{err: nil}
+			}
+		}
+		*notFoundCmds = append(*notFoundCmds, command)
+	}
+	return nil
+}
+
 // openWithMIME opens a file based on MIME type configuration.
 // It detects the MIME type from the filename, finds matching rules,
 // and tries each configured command in order until one is found via LookPath.
@@ -201,9 +235,9 @@ func openWithMIME(filePath, workDir string, mimeCfg config.MIMEBehaviorConfig) (
 		}
 	}
 
-	// Try fallback commands
+	// Try fallback commands (background execution for GUI launchers like xdg-open)
 	if len(mimeCfg.Fallback) > 0 {
-		if cmd := tryCommands(mimeCfg.Fallback, filePath, workDir, &notFoundCmds); cmd != nil {
+		if cmd := tryCommandsBackground(mimeCfg.Fallback, filePath, workDir, &notFoundCmds); cmd != nil {
 			return cmd, ""
 		}
 	}
