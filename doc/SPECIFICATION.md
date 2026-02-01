@@ -133,6 +133,18 @@ graph TB
 - Comprehensive error reporting
 - Symlinks skipped to prevent following malicious links
 
+#### Trash (Recycle Bin)
+- Move files to trash with `Delete` key (confirmation dialog displayed)
+- Compliant with freedesktop.org Trash Specification (`~/.local/share/Trash/`)
+- Trash dialog (`T` key) displays contents with Name, Size, Deleted, Original Path columns
+- Restore files to original location with `R` key in trash dialog
+- Conflict resolution for restore: Overwrite, Rename, or Skip (single item); auto-skip conflicts (batch)
+- Empty trash with `E` key in trash dialog (with confirmation)
+- Name collision handling when trashing (appends counter: file.2.txt, file.3.txt)
+- Mark/unmark files in trash dialog with Space key for batch operations
+- Same-filesystem moves use `os.Rename`; cross-filesystem moves use copy+delete
+- `.trashinfo` files with original path and ISO 8601 deletion timestamp
+
 #### Archive Operations
 - **Create archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
 - **Extract archives**: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
@@ -204,6 +216,9 @@ Three display modes toggled with `I` key:
 - Toggle with `S` key
 - Sort by: Name, Size, Date
 - Order: Ascending/Descending
+- Dropdown menus for field and order selection
+- j/k and Tab/Shift+Tab navigation between major items (Sort by, Order, OK button)
+- OK button for explicit confirmation
 - Live preview while selecting sort options
 - Cursor position preserved after sort change
 - Independent sort settings per pane
@@ -226,10 +241,17 @@ Three display modes toggled with `I` key:
 
 #### Configurable Enter Key Behavior
 - Configurable action when pressing Enter on files
-- Three modes available:
+- Four modes available:
   - `less` (default): Open with pager in foreground
   - `xdg-open`: Open with system default application in background
   - `path:/path/to/app`: Open with custom application in foreground
+  - `mime:`: Open based on file MIME type using `[enter_behavior_mime]` section
+- MIME type mode features:
+  - Extension-based MIME type detection via `mime.TypeByExtension()`
+  - Exact MIME type matching (e.g., `application/pdf`) and wildcard matching (e.g., `text/*`)
+  - Exact matches prioritized over wildcard matches
+  - Command fallback: commands specified as arrays, tried in order
+  - Falls back to default pager when no MIME type matches or all commands fail
 - Setting: `enter_behavior` in config.toml
 - Invalid values fall back to default with warning
 - V key always uses pager (unchanged)
@@ -273,10 +295,11 @@ Press `@` to show context menu with:
 
 #### Enter Key Behavior Configuration
 - Configurable action when pressing Enter on files
-- Three modes available:
+- Four modes available:
   - `less` (default): Open with pager in foreground
   - `xdg-open`: Open with system default application in background
   - `path:/path/to/app`: Open with custom application in foreground
+  - `mime:`: Open based on MIME type using `[enter_behavior_mime]` section
 - Setting: `enter_behavior` in config.toml
 - Invalid values fall back to default with warning
 
@@ -407,8 +430,11 @@ All dialogs follow consistent UI patterns:
 - Fixed layout to prevent visual issues
 
 #### Sort Dialog
-- Two-row selection interface
-- Field (Name/Size/Date) and Order (Asc/Desc)
+- Dropdown menus for Sort by (Name/Size/Date) and Order (Asc/Desc)
+- OK button for explicit confirmation
+- j/k and Tab/Shift+Tab navigation between major items
+- Enter/Space expands dropdowns; Enter on OK confirms
+- q cancels dialog at any time
 - Live preview of sort changes
 
 #### Context Menu Dialog
@@ -437,6 +463,19 @@ All dialogs follow consistent UI patterns:
 - File count and elapsed time
 - Cancelable with Esc
 
+#### Trash Dialog
+- Full-screen dialog showing trash contents
+- Columns: Name, Size, Deleted (date/time), Original Path
+- Item count in title bar
+- j/k navigation, Space to mark, R to restore, E to empty
+- Esc to close
+
+#### Trash Confirmation Dialog
+- Displayed before moving files to trash (Delete key)
+- Shows file name (single) or item count (multiple)
+- Disk space warning note
+- Y to confirm, N/Esc to cancel
+
 #### Dialog Overlay Styling
 - File list visible behind dialogs with dimmed appearance
 - Full-screen dialogs dim both panes
@@ -457,6 +496,10 @@ All dialogs follow consistent UI patterns:
 - Indicator appears in right side of status bar
 
 ### Special Features
+
+#### Unified Cancel Keys
+- All dialogs support both Esc and Ctrl+C for cancellation
+- Consistent cancel behavior across all dialog types
 
 #### Ctrl+C Handling
 - Ctrl+C cancels all modal states (dialogs, minibuffer)
@@ -494,12 +537,14 @@ All dialogs follow consistent UI patterns:
 | C | Copy to opposite pane |
 | M | Move to opposite pane |
 | D | Delete |
+| Delete | Move to trash |
 | R | Rename (extension-preserving) |
 | Shift+R | Rename (full filename) |
 | N | New file |
 | Shift+N | New directory |
 | Space | Mark/unmark file |
 | Shift+P | Change permissions (chmod) |
+| Shift+T | Open trash dialog |
 
 ### Bookmarks
 | Key | Action |
@@ -620,7 +665,23 @@ east_asian_ambiguous_width = 1
 #   "less"     - Open with pager (foreground, default)
 #   "xdg-open" - Open with system default app (background)
 #   "path:/path/to/app" - Open with custom app (foreground)
+#   "mime:"    - Open based on MIME type (uses [enter_behavior_mime])
 enter_behavior = "less"
+```
+
+### MIME Type Behavior Section
+
+```toml
+# MIME type handlers (only used when enter_behavior = "mime:")
+# Commands are tried in order; if one fails, the next is attempted.
+# Wildcard patterns like "text/*" for broad matching.
+# Fallback: When no MIME type matches, opens with $PAGER or less.
+[enter_behavior_mime]
+"text/*" = ["less"]
+"image/*" = ["feh", "xdg-open"]
+"video/*" = ["mpv", "vlc"]
+"audio/*" = ["mpv"]
+"application/pdf" = ["zathura", "evince", "xdg-open"]
 ```
 
 ### Shell Command History Section
@@ -700,6 +761,9 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
 - Single file permission change < 50ms
 - Recursive permission processing > 500 files/second
 - Archive operations with progress display
+- Same-filesystem trash operation < 100ms
+- Trash dialog opening with 1000 files < 100ms
+- MIME type detection < 1ms (extension-based lookup)
 
 ## Security Considerations
 
@@ -717,6 +781,11 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
   - All input validated (000-777 range)
   - No privilege escalation
   - Symlinks skipped to prevent following malicious links
+- Trash operations:
+  - Path validation to prevent directory traversal
+  - URL encoding/decoding for special characters in .trashinfo files
+  - Symlink itself moved (not the target)
+  - No silent fallback to direct deletion on trash failure
 
 ## Testing Strategy
 
