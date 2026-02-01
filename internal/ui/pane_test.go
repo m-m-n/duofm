@@ -1835,14 +1835,15 @@ func TestRefreshDirectoryPreserveCursor(t *testing.T) {
 		}
 	})
 
-	t.Run("resets cursor to 0 when file deleted", func(t *testing.T) {
-		// ccc.txtにカーソルを移動
+	t.Run("clamps cursor to old index when file deleted", func(t *testing.T) {
+		// ccc.txtにカーソルを移動 (index=3 in [.., aaa.txt, bbb.txt, ccc.txt])
 		for i, entry := range pane.entries {
 			if entry.Name == "ccc.txt" {
 				pane.cursor = i
 				break
 			}
 		}
+		oldCursor := pane.cursor
 
 		// ccc.txtを削除
 		os.Remove(filepath.Join(tmpDir, "ccc.txt"))
@@ -1852,9 +1853,14 @@ func TestRefreshDirectoryPreserveCursor(t *testing.T) {
 			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
 		}
 
-		// カーソルが0になっているか確認
-		if pane.cursor != 0 {
-			t.Errorf("Expected cursor at 0, got %d", pane.cursor)
+		// After deletion: [.., aaa.txt, bbb.txt] (3 entries)
+		// Old cursor was 3, clamped to max(0, len-1) = 2
+		expectedCursor := len(pane.entries) - 1
+		if oldCursor < len(pane.entries) {
+			expectedCursor = oldCursor
+		}
+		if pane.cursor != expectedCursor {
+			t.Errorf("Expected cursor at %d (clamped old index), got %d", expectedCursor, pane.cursor)
 		}
 	})
 }

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"maps"
 	"path/filepath"
 	"time"
 
@@ -176,8 +177,8 @@ func (m Model) handleContextMenuResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 			m.dialog = NewErrorDialog(fmt.Sprintf("Operation failed: %v", err))
 			return m, nil, true
 		}
-		activePane.LoadDirectory()
-		m.getInactivePane().LoadDirectory()
+		activePane.RefreshDirectoryPreserveCursor()
+		m.getInactivePane().RefreshDirectoryPreserveCursor()
 	}
 
 	return m, nil, true
@@ -236,20 +237,14 @@ func (m Model) handleSystemMessages(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFileOperationComplete(msg)
 
 	case batchCompleteMsg:
-		// Clear marks and reload panes after batch operation completes
-		m.getActivePane().ClearMarks()
-		m.getActivePane().LoadDirectory()
-		m.getInactivePane().LoadDirectory()
+		m.refreshPanesAfterBatchOperation(msg.operation)
 
 		m.statusMessage = fmt.Sprintf("%s %d files completed", cases.Title(language.English).String(msg.operation), msg.completed)
 		m.isStatusError = false
 		return m, statusMessageClearCmd(3 * time.Second)
 
 	case batchCancelledMsg:
-		// Clear marks and reload panes after cancellation
-		m.getActivePane().ClearMarks()
-		m.getActivePane().LoadDirectory()
-		m.getInactivePane().LoadDirectory()
+		m.refreshPanesAfterBatchOperation(msg.operation)
 
 		m.statusMessage = fmt.Sprintf("%s cancelled (%d completed, %d remaining)",
 			cases.Title(language.English).String(msg.operation), msg.completed, msg.remaining)
@@ -402,4 +397,29 @@ func (m Model) handleShellCommandFinished(msg shellCommandFinishedMsg) (tea.Mode
 		return m, statusMessageClearCmd(5 * time.Second)
 	}
 	return m, nil
+}
+
+// refreshPanesAfterBatchOperation refreshes both panes after a batch operation.
+// For move operations, it calculates the cursor target using mark information
+// before clearing marks and refreshing. For copy operations, the source files
+// remain so filename match handles cursor preservation naturally.
+func (m Model) refreshPanesAfterBatchOperation(operation string) {
+	activePane := m.getActivePane()
+	if operation == "move" {
+		// For move: calculate cursor target before clearing marks
+		markedCopy := make(map[string]bool, len(activePane.markedFiles))
+		maps.Copy(markedCopy, activePane.markedFiles)
+		cursorTarget := activePane.calculateCursorTargetAfterBatchMove(markedCopy)
+		activePane.ClearMarks()
+		activePane.RefreshDirectoryPreserveCursor()
+		if idx := activePane.findEntryIndex(cursorTarget); idx >= 0 {
+			activePane.SetCursor(idx)
+			activePane.EnsureCursorVisible()
+		}
+	} else {
+		// For copy: files remain in source, filename match handles cursor
+		activePane.ClearMarks()
+		activePane.RefreshDirectoryPreserveCursor()
+	}
+	m.getInactivePane().RefreshDirectoryPreserveCursor()
 }

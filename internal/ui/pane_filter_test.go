@@ -483,3 +483,98 @@ func TestLoadDirectory_UsesSharedHelper(t *testing.T) {
 		t.Error("LoadDirectory() should filter hidden files when showHidden is false")
 	}
 }
+
+// TestRefreshDirectoryPreserveCursor_Fallback tests the index-based fallback
+// when the previously selected filename is no longer found after refresh.
+func TestRefreshDirectoryPreserveCursor_Fallback(t *testing.T) {
+	tests := []struct {
+		name           string
+		files          []string // files to create initially
+		cursorFile     string   // file to position cursor on
+		deleteFiles    []string // files to delete before refresh
+		expectedCursor int      // expected cursor position after refresh
+		expectedFile   string   // expected file at cursor (for verification)
+	}{
+		{
+			name:           "F-1: filename match succeeds",
+			files:          []string{"aaa.txt", "bbb.txt", "ccc.txt"},
+			cursorFile:     "bbb.txt",
+			deleteFiles:    nil, // no deletion
+			expectedCursor: 2,   // [.., aaa.txt, bbb.txt, ccc.txt] -> cursor=2(bbb.txt)
+			expectedFile:   "bbb.txt",
+		},
+		{
+			name:           "F-2: filename match fails, old index valid",
+			files:          []string{"aaa.txt", "bbb.txt", "ccc.txt"},
+			cursorFile:     "bbb.txt",
+			deleteFiles:    []string{"bbb.txt"},
+			expectedCursor: 2, // [.., aaa.txt, ccc.txt] -> cursor=2(ccc.txt)
+			expectedFile:   "ccc.txt",
+		},
+		{
+			name:           "F-3: filename match fails, old index exceeds",
+			files:          []string{"aaa.txt", "bbb.txt"},
+			cursorFile:     "bbb.txt",
+			deleteFiles:    []string{"bbb.txt"},
+			expectedCursor: 1, // [.., aaa.txt] -> cursor=1(aaa.txt)
+			expectedFile:   "aaa.txt",
+		},
+		{
+			name:           "F-4: all files deleted",
+			files:          []string{"aaa.txt"},
+			cursorFile:     "aaa.txt",
+			deleteFiles:    []string{"aaa.txt"},
+			expectedCursor: 0, // [..] -> cursor=0(..)
+			expectedFile:   "..",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+
+			// Create initial files
+			for _, f := range tt.files {
+				os.WriteFile(filepath.Join(tmpDir, f), []byte(""), 0644)
+			}
+
+			pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+			if err != nil {
+				t.Fatalf("NewPane() failed: %v", err)
+			}
+
+			// Position cursor on target file
+			for i, entry := range pane.entries {
+				if entry.Name == tt.cursorFile {
+					pane.cursor = i
+					break
+				}
+			}
+
+			// Delete files
+			for _, f := range tt.deleteFiles {
+				os.Remove(filepath.Join(tmpDir, f))
+			}
+
+			// Refresh
+			err = pane.RefreshDirectoryPreserveCursor()
+			if err != nil {
+				t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+			}
+
+			// Verify cursor position
+			if pane.cursor != tt.expectedCursor {
+				t.Errorf("cursor = %d, want %d", pane.cursor, tt.expectedCursor)
+			}
+
+			// Verify file at cursor
+			entry := pane.SelectedEntry()
+			if entry == nil {
+				t.Fatal("SelectedEntry() returned nil")
+			}
+			if entry.Name != tt.expectedFile {
+				t.Errorf("file at cursor = %q, want %q", entry.Name, tt.expectedFile)
+			}
+		})
+	}
+}
