@@ -31,8 +31,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", err)
 	}
 
-	var cfg *config.Config
 	var warnings []string
+	var loadResult *config.ConfigLoadResult
 
 	if configPath != "" {
 		// 設定ファイルが存在しない場合は自動生成
@@ -42,15 +42,21 @@ func main() {
 				warnings = append(warnings, fmt.Sprintf("Warning: could not generate config: %v", err))
 			}
 		}
-		cfg, warnings = config.LoadConfig(configPath)
+		// 詳細エラー付き設定読み込み（ホットリロード対応）
+		loadResult = config.LoadConfigDetailed(configPath)
+		warnings = append(warnings, loadResult.Warnings...)
 	} else {
-		cfg = &config.Config{
-			Keybindings:   config.DefaultKeybindings(),
-			Colors:        config.DefaultColors(),
-			HistoryLimit:  config.DefaultHistoryLimit,
-			EnterBehavior: config.DefaultEnterBehavior(),
+		loadResult = &config.ConfigLoadResult{
+			Config: &config.Config{
+				Keybindings:   config.DefaultKeybindings(),
+				Colors:        config.DefaultColors(),
+				HistoryLimit:  config.DefaultHistoryLimit,
+				EnterBehavior: config.DefaultEnterBehavior(),
+			},
 		}
 	}
+
+	cfg := loadResult.Config
 
 	// 重複キーのバリデーション
 	validationWarnings := config.ValidateKeybindings(cfg)
@@ -62,11 +68,33 @@ func main() {
 	// Themeを生成
 	theme := ui.NewTheme(cfg.Colors)
 
+	// Modelを作成
+	model := ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.EnterBehavior, cfg.MIMEBehavior, configPath)
+
+	// 起動時エラーがあればpendingReloadResultに設定
+	if loadResult.HasErrors() {
+		model.SetPendingReloadResult(loadResult)
+	}
+
 	p := tea.NewProgram(
-		ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.EnterBehavior, cfg.MIMEBehavior),
+		model,
 		tea.WithAltScreen(),       // 代替画面バッファを使用
 		tea.WithMouseCellMotion(), // マウスサポート（将来用）
 	)
+
+	// ウォッチャー初期化
+	if configPath != "" {
+		watcher, err := config.NewConfigWatcher(configPath, func(msg interface{}) {
+			p.Send(msg)
+		})
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: config watch failed: %v\n", err)
+		} else {
+			watcher.Start()
+			defer watcher.Stop()
+			model.SetConfigWatcher(watcher)
+		}
+	}
 
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)

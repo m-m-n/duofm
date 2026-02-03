@@ -496,3 +496,11 @@ func (p *Pane) calculateCursorTargetAfterBatchMove(markedFiles map[string]bool) 
 	// All files are marked
 	return ""
 }
+
+// SetTheme updates the pane's color theme.
+// If theme is nil, the existing theme is kept.
+func (p *Pane) SetTheme(theme *Theme) {
+	if theme != nil {
+		p.theme = theme
+	}
+}

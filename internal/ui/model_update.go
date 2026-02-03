@@ -61,6 +61,11 @@ func (m Model) handleCustomMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return newModel, cmd, true
 	}
 
+	// 設定リロード関連メッセージ
+	if newModel, cmd, handled := m.handleConfigMessages(msg); handled {
+		return newModel, cmd, true
+	}
+
 	return m, nil, false
 }
 

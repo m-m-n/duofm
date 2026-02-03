@@ -248,3 +248,24 @@ func (sh *ShellHistory) atomicWrite() {
 		os.Remove(tmpFile)
 	}
 }
+
+// SetLimit dynamically changes the history limit.
+// If the new limit is smaller than the current number of entries,
+// older entries are truncated.
+func (sh *ShellHistory) SetLimit(newLimit int) {
+	sh.mu.Lock()
+	defer sh.mu.Unlock()
+
+	sh.limit = newLimit
+
+	// Truncate if current entries exceed new limit
+	if newLimit > 0 && len(sh.commands) > newLimit {
+		sh.commands = sh.commands[:newLimit]
+		sh.dirty = true
+		// Trigger async save
+		select {
+		case sh.saveQueue <- struct{}{}:
+		default:
+		}
+	}
+}
