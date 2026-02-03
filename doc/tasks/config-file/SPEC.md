@@ -97,7 +97,7 @@ Help dialog must use the same key format as configuration file.
 
 ## Non-Functional Requirements
 
-- NFR-1.1: Configuration file is read only once at startup
+- NFR-1.1: ~~Configuration file is read only once at startup~~ (Superseded by config-hot-reload feature: configuration is now re-read on file changes via fsnotify)
 - NFR-1.2: Loading completes within 100ms
 - NFR-2.1: Generated default config file is under 100 lines
 - NFR-2.2: Config file includes section headers and comments for readability

@@ -80,12 +80,12 @@ func TestGenerateTrashinfo(t *testing.T) {
 
 func TestParseTrashinfo(t *testing.T) {
 	tests := []struct {
-		name         string
-		content      string
-		wantPath     string
-		wantDate     time.Time
-		wantErr      bool
-		errContains  string
+		name        string
+		content     string
+		wantPath    string
+		wantDate    time.Time
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name: "valid trashinfo",

@@ -73,6 +73,12 @@ type Model struct {
 
 	// Archive operations (delegated)
 	archiveOpManager *ArchiveOperationManager
+
+	// Configuration hot-reload
+	configPath          string                   // Path to the config file
+	configWatcher       *config.ConfigWatcher    // File watcher reference (for SuppressFor)
+	pendingReloadResult *config.ConfigLoadResult // Reload result pending dialog decision
+	pendingConfigError  *config.ConfigLoadResult // Queued error when another dialog is open
 }
 
 // PanePosition はペインの位置を表す
@@ -87,14 +93,15 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{})
+	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
 // historyLimit: 0=無効、>0=履歴エントリ数上限
 // enterBehavior: Enterキー押下時のファイルオープン動作
 // mimeBehavior: MIME type based file opening configuration
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig) Model {
+// configPath: path to config file (empty string disables hot-reload features)
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig, configPath string) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -156,6 +163,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		batchOpManager:   NewBatchOperationManager(),
 		archiveOpManager: NewArchiveOperationManager(),
 		shellHistory:     shellHistory,
+		configPath:       configPath,
 	}
 }
 
@@ -173,12 +181,56 @@ func getHistoryPath() (string, error) {
 	return filepath.Join(configDir, "duofm", "history"), nil
 }
 
+// SetPendingReloadResult sets the pending reload result for startup error handling.
+func (m *Model) SetPendingReloadResult(result *config.ConfigLoadResult) {
+	m.pendingReloadResult = result
+}
+
+// SetConfigWatcher sets the config file watcher reference.
+func (m *Model) SetConfigWatcher(watcher *config.ConfigWatcher) {
+	m.configWatcher = watcher
+}
+
+// applyConfig applies a new configuration to the model.
+func (m *Model) applyConfig(cfg *config.Config) {
+	m.keybindingMap = NewKeybindingMap(cfg)
+	m.theme = NewTheme(cfg.Colors)
+	m.enterBehavior = cfg.EnterBehavior
+	m.mimeBehavior = cfg.MIMEBehavior
+
+	// Update pane themes
+	if m.leftPane != nil {
+		m.leftPane.SetTheme(m.theme)
+	}
+	if m.rightPane != nil {
+		m.rightPane.SetTheme(m.theme)
+	}
+
+	// Update history limit
+	if m.shellHistory != nil {
+		m.shellHistory.SetLimit(cfg.HistoryLimit)
+	}
+}
+
 // Init はBubble Teaの初期化
 func (m Model) Init() tea.Cmd {
+	var cmds []tea.Cmd
+
+	// 起動時設定エラーがあればダイアログ表示
+	if m.pendingReloadResult != nil && m.pendingReloadResult.HasErrors() {
+		cmds = append(cmds, func() tea.Msg {
+			return configStartupErrorMsg{result: m.pendingReloadResult}
+		})
+	}
+
 	// 設定ファイルの警告があれば最初の警告をステータスバーに表示
 	if len(m.configWarnings) > 0 {
 		m.statusMessage = m.configWarnings[0]
 		m.isStatusError = false
+	}
+
+	if len(cmds) > 0 {
+		return tea.Batch(cmds...)
 	}
 	return nil
 }
