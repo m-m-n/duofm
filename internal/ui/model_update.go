@@ -3,10 +3,12 @@ package ui
 import (
 	"fmt"
 	"maps"
+	"os"
 	"path/filepath"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/clipboard"
 	"github.com/sakura/duofm/internal/fs"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -26,6 +28,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleCustomMessages はカスタムメッセージを処理する
 // 処理された場合は handled=true を返す
 func (m Model) handleCustomMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
+	// クリップボード結果
+	if result, ok := msg.(clipboardResultMsg); ok {
+		if result.err != nil {
+			m.statusMessage = fmt.Sprintf("Copy failed: %s", result.err)
+			m.isStatusError = true
+			return m, statusMessageClearCmd(3 * time.Second), true
+		}
+		// Success: do nothing (optimistic UI already shows success message)
+		return m, nil, true
+	}
+
 	// コンテキストメニュー結果
 	if newModel, cmd, handled := m.handleContextMenuResult(msg); handled {
 		return newModel, cmd, true
@@ -158,6 +171,32 @@ func (m Model) handleContextMenuResult(msg tea.Msg) (Model, tea.Cmd, bool) {
 			archivePath := filepath.Join(activePane.Path(), entry.Name)
 			destDir := m.getInactivePane().Path()
 			return m, m.checkExtractSecurity(archivePath, destDir), true
+		}
+		return m, nil, true
+	}
+
+	// ファイル名をクリップボードにコピー
+	if result.actionID == "copy_name" {
+		entry := activePane.SelectedEntry()
+		if entry != nil && !entry.IsParentDir() {
+			text := entry.Name
+			m.statusMessage = fmt.Sprintf("Copied: %s", text)
+			m.isStatusError = false
+			cmd := tea.Batch(clipboardWriteCmd(text), statusMessageClearCmd(3*time.Second))
+			return m, cmd, true
+		}
+		return m, nil, true
+	}
+
+	// フルパスをクリップボードにコピー
+	if result.actionID == "copy_path" {
+		entry := activePane.SelectedEntry()
+		if entry != nil && !entry.IsParentDir() {
+			text := filepath.Join(activePane.Path(), entry.Name)
+			m.statusMessage = fmt.Sprintf("Copied: %s", text)
+			m.isStatusError = false
+			cmd := tea.Batch(clipboardWriteCmd(text), statusMessageClearCmd(3*time.Second))
+			return m, cmd, true
 		}
 		return m, nil, true
 	}
@@ -427,4 +466,21 @@ func (m Model) refreshPanesAfterBatchOperation(operation string) {
 		activePane.RefreshDirectoryPreserveCursor()
 	}
 	m.getInactivePane().RefreshDirectoryPreserveCursor()
+}
+
+// clipboardWriteCmd returns a tea.Cmd that writes text to the system clipboard
+// using OSC 52 and external command fallback. The result is sent as clipboardResultMsg.
+func clipboardWriteCmd(text string) tea.Cmd {
+	return func() tea.Msg {
+		// Open /dev/tty for OSC 52 output (avoids Bubble Tea stdout conflict)
+		var ttyWriter *os.File
+		f, err := os.OpenFile("/dev/tty", os.O_WRONLY, 0)
+		if err == nil {
+			ttyWriter = f
+			defer f.Close()
+		}
+
+		err = clipboard.WriteToClipboard(text, ttyWriter)
+		return clipboardResultMsg{err: err}
+	}
 }

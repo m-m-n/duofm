@@ -146,6 +146,12 @@ type openWithDialogResultMsg struct {
 	cancelled   bool     // true if cancelled
 }
 
+// clipboardResultMsg notifies the result of a clipboard write operation.
+// err is nil on success; non-nil on failure (overrides optimistic status message).
+type clipboardResultMsg struct {
+	err error
+}
+
 // regexSearchResultMsg notifies the result of regex search dialog
 type regexSearchResultMsg struct {
 	pattern   string // search pattern (empty string means clear filter)

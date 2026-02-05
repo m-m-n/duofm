@@ -137,6 +137,9 @@ func (d *ContextMenuDialog) buildMenuItems(entry *fs.FileEntry, sourcePath, dest
 	// File operations (copy, move, delete)
 	items = append(items, d.buildFileOperationMenuItems(entry, sourcePath, destPath, markCount)...)
 
+	// Clipboard (copy_name, copy_path) - after delete, before compress
+	items = append(items, d.buildClipboardMenuItems(entry, markCount)...)
+
 	// Compress
 	items = append(items, d.buildCompressMenuItem(markCount))
 
@@ -215,6 +218,27 @@ func (d *ContextMenuDialog) buildFileOperationMenuItems(entry *fs.FileEntry, sou
 				return fs.Delete(fullPath)
 			},
 			Enabled: true,
+		},
+	}
+}
+
+// buildClipboardMenuItems creates copy_name and copy_path menu items.
+// Both items are disabled when markCount > 0 or entry is parent directory.
+// Action is nil because clipboard operations are handled by Model.
+func (d *ContextMenuDialog) buildClipboardMenuItems(entry *fs.FileEntry, markCount int) []MenuItem {
+	enabled := markCount == 0 && !entry.IsParentDir()
+	return []MenuItem{
+		{
+			ID:      "copy_name",
+			Label:   "Copy file name",
+			Action:  nil,
+			Enabled: enabled,
+		},
+		{
+			ID:      "copy_path",
+			Label:   "Copy full path",
+			Action:  nil,
+			Enabled: enabled,
 		},
 	}
 }

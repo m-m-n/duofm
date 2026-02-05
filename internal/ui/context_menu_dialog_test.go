@@ -33,7 +33,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  6, // open, open_with, copy, move, delete, compress
+			wantItems:  8, // open, open_with, copy, move, delete, copy_name, copy_path, compress
 		},
 		{
 			name: "directory",
@@ -43,7 +43,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  6, // open, open_with, copy, move, delete, compress
+			wantItems:  8, // open, open_with, copy, move, delete, copy_name, copy_path, compress
 		},
 		{
 			name: "symlink directory",
@@ -56,7 +56,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  8, // open, open_with, copy, move, delete, compress, enter_logical, enter_physical
+			wantItems:  10, // open, open_with, copy, move, delete, copy_name, copy_path, compress, enter_logical, enter_physical
 		},
 		{
 			name: "broken symlink",
@@ -69,7 +69,7 @@ func TestNewContextMenuDialog(t *testing.T) {
 			},
 			sourcePath: "/source",
 			destPath:   "/dest",
-			wantItems:  6, // open, open_with, copy, move, delete, compress (no enter_physical for broken symlink)
+			wantItems:  8, // open, open_with, copy, move, delete, copy_name, copy_path, compress (no enter_physical for broken symlink)
 		},
 	}
 
@@ -118,12 +118,12 @@ func TestBuildMenuItems_RegularFile(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 6 {
-		t.Fatalf("expected 6 items, got %d", len(dialog.items))
+	if len(dialog.items) != 8 {
+		t.Fatalf("expected 8 items, got %d", len(dialog.items))
 	}
 
 	// Check item IDs
-	expectedIDs := []string{"open", "open_with", "copy", "move", "delete", "compress"}
+	expectedIDs := []string{"open", "open_with", "copy", "move", "delete", "copy_name", "copy_path", "compress"}
 	for i, expectedID := range expectedIDs {
 		if dialog.items[i].ID != expectedID {
 			t.Errorf("item[%d].ID = %s, want %s", i, dialog.items[i].ID, expectedID)
@@ -146,8 +146,8 @@ func TestBuildMenuItems_Symlink(t *testing.T) {
 
 	dialog := NewContextMenuDialog(entry, "/source", "/dest")
 
-	if len(dialog.items) != 8 {
-		t.Fatalf("expected 8 items, got %d", len(dialog.items))
+	if len(dialog.items) != 10 {
+		t.Fatalf("expected 10 items, got %d", len(dialog.items))
 	}
 
 	// Check that symlink-specific items exist
@@ -285,8 +285,8 @@ func TestGetCurrentPageItems(t *testing.T) {
 
 	items := dialog.getCurrentPageItems()
 
-	if len(items) != 6 {
-		t.Errorf("getCurrentPageItems returned %d items, want 6", len(items))
+	if len(items) != 8 {
+		t.Errorf("getCurrentPageItems returned %d items, want 8", len(items))
 	}
 
 	// All items should be on first page
@@ -415,6 +415,22 @@ func TestUpdate_NavigationJK(t *testing.T) {
 		t.Errorf("after fifth 'j', cursor = %d, want 5", dialog.cursor)
 	}
 
+	// Press 'j' to continue - should reach item 6
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.cursor != 6 {
+		t.Errorf("after sixth 'j', cursor = %d, want 6", dialog.cursor)
+	}
+
+	// Press 'j' to continue - should reach item 7
+	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
+	dialog = updatedDialog.(*ContextMenuDialog)
+
+	if dialog.cursor != 7 {
+		t.Errorf("after seventh 'j', cursor = %d, want 7", dialog.cursor)
+	}
+
 	// Press 'j' at last item - should wrap to 0
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
@@ -427,24 +443,24 @@ func TestUpdate_NavigationJK(t *testing.T) {
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 5 {
-		t.Errorf("after 'k' at first item, cursor = %d, want 5 (wrap)", dialog.cursor)
+	if dialog.cursor != 7 {
+		t.Errorf("after 'k' at first item, cursor = %d, want 7 (wrap)", dialog.cursor)
 	}
 
 	// Press 'k' to move up
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 4 {
-		t.Errorf("after 'k', cursor = %d, want 4", dialog.cursor)
+	if dialog.cursor != 6 {
+		t.Errorf("after 'k', cursor = %d, want 6", dialog.cursor)
 	}
 
 	// Press 'k' again
 	updatedDialog, _ = dialog.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}})
 	dialog = updatedDialog.(*ContextMenuDialog)
 
-	if dialog.cursor != 3 {
-		t.Errorf("after second 'k', cursor = %d, want 3", dialog.cursor)
+	if dialog.cursor != 5 {
+		t.Errorf("after second 'k', cursor = %d, want 5", dialog.cursor)
 	}
 }
 
@@ -464,9 +480,10 @@ func TestUpdate_NavigationNumeric(t *testing.T) {
 		{"3", true},  // Valid item (copy)
 		{"4", true},  // Valid item (move)
 		{"5", true},  // Valid item (delete)
-		{"6", true},  // Valid item (compress)
-		{"7", false}, // Invalid (only 6 items)
-		{"9", false}, // Invalid (only 6 items)
+		{"6", true},  // Valid item (copy_name)
+		{"7", true},  // Valid item (copy_path)
+		{"8", true},  // Valid item (compress)
+		{"9", false}, // Invalid (only 8 items)
 	}
 
 	for _, tt := range tests {
@@ -583,6 +600,9 @@ func TestUpdate_NumericKey_ActionID(t *testing.T) {
 		{"3", "copy"},
 		{"4", "move"},
 		{"5", "delete"},
+		{"6", "copy_name"},
+		{"7", "copy_path"},
+		{"8", "compress"},
 	}
 
 	for _, tt := range tests {
@@ -1390,5 +1410,179 @@ func TestViewDoesNotHighlightDisabledItem(t *testing.T) {
 	}
 	if !strings.Contains(view, "Enabled Item 1") {
 		t.Error("View should contain 'Enabled Item 1'")
+	}
+}
+
+// TestClipboardMenuItems_Presence tests that copy_name and copy_path items exist in the menu.
+func TestClipboardMenuItems_Presence(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	foundCopyName := false
+	foundCopyPath := false
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" {
+			foundCopyName = true
+			if item.Label != "Copy file name" {
+				t.Errorf("copy_name label = %q, want %q", item.Label, "Copy file name")
+			}
+		}
+		if item.ID == "copy_path" {
+			foundCopyPath = true
+			if item.Label != "Copy full path" {
+				t.Errorf("copy_path label = %q, want %q", item.Label, "Copy full path")
+			}
+		}
+	}
+
+	if !foundCopyName {
+		t.Error("copy_name item not found in context menu")
+	}
+	if !foundCopyPath {
+		t.Error("copy_path item not found in context menu")
+	}
+}
+
+// TestClipboardMenuItems_Position tests that clipboard items are after delete and before compress.
+func TestClipboardMenuItems_Position(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	var deleteIdx, copyNameIdx, copyPathIdx, compressIdx int
+	for i, item := range dialog.items {
+		switch item.ID {
+		case "delete":
+			deleteIdx = i
+		case "copy_name":
+			copyNameIdx = i
+		case "copy_path":
+			copyPathIdx = i
+		case "compress":
+			compressIdx = i
+		}
+	}
+
+	// copy_name should be after delete
+	if copyNameIdx <= deleteIdx {
+		t.Errorf("copy_name (idx=%d) should be after delete (idx=%d)", copyNameIdx, deleteIdx)
+	}
+
+	// copy_path should be after copy_name
+	if copyPathIdx <= copyNameIdx {
+		t.Errorf("copy_path (idx=%d) should be after copy_name (idx=%d)", copyPathIdx, copyNameIdx)
+	}
+
+	// compress should be after copy_path
+	if compressIdx <= copyPathIdx {
+		t.Errorf("compress (idx=%d) should be after copy_path (idx=%d)", compressIdx, copyPathIdx)
+	}
+}
+
+// TestClipboardMenuItems_EnabledForRegularFile tests that clipboard items are enabled for regular files.
+func TestClipboardMenuItems_EnabledForRegularFile(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" && !item.Enabled {
+			t.Error("copy_name should be enabled for regular file")
+		}
+		if item.ID == "copy_path" && !item.Enabled {
+			t.Error("copy_path should be enabled for regular file")
+		}
+	}
+}
+
+// TestClipboardMenuItems_EnabledForDirectory tests that clipboard items are enabled for directories.
+func TestClipboardMenuItems_EnabledForDirectory(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "testdir",
+		IsDir: true,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" && !item.Enabled {
+			t.Error("copy_name should be enabled for directory")
+		}
+		if item.ID == "copy_path" && !item.Enabled {
+			t.Error("copy_path should be enabled for directory")
+		}
+	}
+}
+
+// TestClipboardMenuItems_DisabledForParentDir tests that clipboard items are disabled for parent directory.
+func TestClipboardMenuItems_DisabledForParentDir(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "..",
+		IsDir: true,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" && item.Enabled {
+			t.Error("copy_name should be disabled for parent directory")
+		}
+		if item.ID == "copy_path" && item.Enabled {
+			t.Error("copy_path should be disabled for parent directory")
+		}
+	}
+}
+
+// TestClipboardMenuItems_DisabledWhenMarked tests that clipboard items are disabled when files are marked.
+func TestClipboardMenuItems_DisabledWhenMarked(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	pane := &Pane{}
+	pane.markedFiles = map[string]bool{
+		"file1.txt": true,
+		"file2.txt": true,
+	}
+
+	dialog := NewContextMenuDialogWithPane(entry, "/source", "/dest", pane)
+
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" && item.Enabled {
+			t.Error("copy_name should be disabled when files are marked")
+		}
+		if item.ID == "copy_path" && item.Enabled {
+			t.Error("copy_path should be disabled when files are marked")
+		}
+	}
+}
+
+// TestClipboardMenuItems_ActionIsNil tests that clipboard menu items have nil Action.
+func TestClipboardMenuItems_ActionIsNil(t *testing.T) {
+	entry := &fs.FileEntry{
+		Name:  "test.txt",
+		IsDir: false,
+	}
+
+	dialog := NewContextMenuDialog(entry, "/source", "/dest")
+
+	for _, item := range dialog.items {
+		if item.ID == "copy_name" && item.Action != nil {
+			t.Error("copy_name Action should be nil (handled by Model)")
+		}
+		if item.ID == "copy_path" && item.Action != nil {
+			t.Error("copy_path Action should be nil (handled by Model)")
+		}
 	}
 }
