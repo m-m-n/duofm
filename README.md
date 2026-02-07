@@ -5,69 +5,69 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 ## Features
 
 - **Core File Management**
-  - Dual-pane interface: Navigate two directories side-by-side
+  - Dual-pane interface: Navigate two directories side-by-side with independent settings
   - Vim-style keybindings: Familiar hjkl navigation with arrow key support
   - File operations: Copy, move, delete, rename files and directories
-  - Trash support: Move files to trash (`Delete` key) with freedesktop.org compliance, restore and empty trash
+  - Trash support: Freedesktop.org compliant trash with restore, empty, and batch operations
   - Smart rename: Extension-preserving rename (R) and full filename rename (Shift+R)
   - Permission editing: Change permissions (chmod) with Shift+P, including recursive and batch modes
-  - File creation: Create new files (N) and directories (Shift+N)
+  - File creation: Create new files (N) and directories (Shift+N) with cursor positioning
   - Multi-file marking: Select multiple files with Space for batch operations
   - Symbolic link support: Display targets, detect broken links, navigate to physical/logical paths
   - Overwrite handling: Smart conflict resolution with overwrite, skip, or rename options
   - Cursor management: Smart cursor positioning preserved across operations and navigation
+  - Clipboard operations: Copy file names and full paths to clipboard (OSC 52 + external tools)
 
 - **Navigation & Search**
-  - Search & Filter: Incremental (`/`) with live filtering, regex (`Ctrl+F`) and SQL-like query (`Ctrl+G`) via dialogs
+  - Search & Filter: Incremental (`/`) with live filtering, regex (`Ctrl+F`) and SQL-like query (`Ctrl+G`)
   - Search dialogs: Syntax hints, history navigation (Up/Down), and inline validation
-  - SQL-like filtering: Advanced WHERE clause syntax with size, date, type queries
+  - SQL-like filtering: WHERE clause syntax with size, date, type queries and complex expressions
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
-  - Path jump: Direct navigation to any directory with `Ctrl+J` and Tab completion
+  - Path jump: Direct navigation to any directory with `Ctrl+J` and bash-style Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
-  - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting)
+  - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting with `[H]` indicator)
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
-  - Sort options: By name, size, or date with dropdown menus, OK button, and live preview
+  - Sort options: By name, size, or date with dropdown menus and live preview
   - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
   - Smart cursor: Remember position when navigating to parent directory
   - Refresh: Reload directory contents with F5 or Ctrl+R
   - Async loading: Responsive UI with proper pane identification
 
 - **Archive Operations** (Linux only)
-  - Create archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
-  - Extract archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z
-  - Smart extraction: Adapts to archive structure
-  - Compression levels: Choose from 0-9 for supported formats
-  - Security checks: Zip bomb detection, disk space validation
-  - Progress display: Real-time progress for long operations
-  - Cancelable operations: Esc to cancel with cleanup
+  - Create archives: tar, tar.gz, tar.bz2, tar.xz, zip, 7z with compression level selection
+  - Extract archives: Smart extraction adapts to archive structure
+  - Security checks: Zip bomb detection, disk space validation, path traversal prevention
+  - Progress display: Real-time progress with file count, elapsed time, and percentage
+  - Context menu integration: Compress and extract available in context menu
+  - Cancelable operations: Esc to cancel with proper cleanup
 
 - **Display & UI**
   - Three display modes: Minimal, Basic (size+date), Detail (permissions+owner)
-  - Unicode support: Proper display for Japanese, Chinese, Korean and emoji
-  - East Asian Width: Configurable width for ambiguous characters (☆, ü, ①, →)
-  - Context menu: Press `@` for visual action selection with number key shortcuts
-  - Desktop detection: Open/Open with menu items disabled when no desktop environment
-  - Help system: Press `?` for scrollable keybinding reference with color palette
+  - Unicode support: Proper display for Japanese, Chinese, Korean and emoji with East Asian Width config
+  - Context menu: Press `@` for visual action selection with number key shortcuts (1-9)
+  - Desktop detection: Open/Open with menu items disabled when no desktop environment detected
+  - Help system: Scrollable keybinding reference with 256-color palette and hex values
   - Dialog overlays: Dimmed background keeps file list visible during dialogs
   - Git branch display: Shows active branch in status bar when in Git repository
-  - Version display: Dynamic version from build-time ldflags
+  - Version display: Dynamic version from build-time ldflags (git tag-based)
 
 - **External Integration**
   - External viewer: Configurable Enter key behavior (pager, xdg-open, custom app, or MIME-based)
   - MIME-type based opening: Map file types to applications with wildcard support and command fallback
-  - External editor: Edit files with $EDITOR (`E` key)
+  - External editor: Edit files with $EDITOR (`E` key) in file's directory
   - Shell commands: Execute commands with `!` key in current directory
-  - Shell history: Ctrl+R incremental search and up/down arrow navigation
+  - Shell history: Ctrl+R incremental search with bash-style up/down arrow navigation
+  - Command history persistence: 20,000 commands preserved across sessions (configurable)
   - Context menu actions: Open and "Open with" for custom applications
-  - Working directory: External apps open in file's directory
-  - Persistent history: Shell commands preserved across sessions (20,000 default)
+  - Working directory: External apps open in file's directory with cursor preservation
 
 - **Customization**
   - Configuration file: `~/.config/duofm/config.toml` (auto-generated with auto-merge)
+  - Hot-reload: Configuration changes detected and applied automatically via fsnotify
   - Custom keybindings: Remap any key with modifier support (Ctrl, Shift, Alt)
-  - Color theme: Full 256-color customization for all UI elements
+  - Color theme: Full 256-color customization for all UI elements with palette reference
   - Enter key behavior: Choose between pager, xdg-open, custom application, or MIME-based opening
-  - Bookmarks: Persisted in configuration file with edit/delete support
+  - Bookmarks: Persisted in configuration file with add, edit, and delete support
   - Auto-merge: Missing configuration items automatically added on updates
 
 ## Screenshots

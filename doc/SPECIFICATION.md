@@ -155,6 +155,13 @@ graph TB
 - Security checks (zip bomb detection, disk space validation)
 - Linux-only feature (uses external CLI tools: tar, gzip, bzip2, xz, zip, unzip, 7z)
 
+#### Clipboard Operations
+- Copy file name to clipboard (context menu)
+- Copy full path to clipboard (context menu)
+- OSC 52 escape sequence support
+- External command fallback (wl-copy, xclip, xsel)
+- Status bar feedback on success/failure
+
 ### Display Modes
 
 Three display modes toggled with `I` key:
@@ -275,6 +282,8 @@ Press `@` to show context menu with:
 - Rename
 - New file
 - New directory
+- Copy file name (to clipboard)
+- Copy full path (to clipboard)
 - Compress (with format selection)
 - Extract archive (for archive files)
 - Open file (with external application via xdg-open)
@@ -291,7 +300,7 @@ Press `@` to show context menu with:
 - Respects `XDG_CONFIG_HOME` environment variable
 - Auto-generated with defaults on first run
 - Auto-merge: Missing configuration items automatically added to existing config files
-- Changes require application restart
+- Hot-reload: Configuration changes detected and applied automatically via fsnotify
 
 #### Enter Key Behavior Configuration
 - Configurable action when pressing Enter on files
@@ -764,6 +773,7 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
 - Same-filesystem trash operation < 100ms
 - Trash dialog opening with 1000 files < 100ms
 - MIME type detection < 1ms (extension-based lookup)
+- Configuration hot-reload < 100ms
 
 ## Security Considerations
 
