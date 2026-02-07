@@ -504,6 +504,18 @@ All dialogs follow consistent UI patterns:
 - Updates when navigating between directories
 - Indicator appears in right side of status bar
 
+### MIME Type Display
+
+- Shows MIME type and entry kind in status bar next to cursor position (N/M)
+- Format: `[{type}]` in square brackets
+- Display rules:
+  - Directories: `[Directory]` in directory color (DirectoryFg)
+  - Symbolic links: `[SymbolicLink]` in symlink color (SymlinkFg)
+  - Regular files: `[text/html]`, `[image/png]`, etc. in status bar color (StatusFg)
+- MIME type detection via file extension (mime.TypeByExtension)
+- Displayed value matches `[enter_behavior_mime]` config keys
+- Hidden when status message is displayed
+
 ### Special Features
 
 #### Unified Cancel Keys

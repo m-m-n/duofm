@@ -49,6 +49,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Help system: Scrollable keybinding reference with 256-color palette and hex values
   - Dialog overlays: Dimmed background keeps file list visible during dialogs
   - Git branch display: Shows active branch in status bar when in Git repository
+  - MIME type display: Shows file type/MIME type in status bar with color-coded indicators
   - Version display: Dynamic version from build-time ldflags (git tag-based)
 
 - **External Integration**
