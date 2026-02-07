@@ -6,6 +6,8 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
+	"github.com/sakura/duofm/internal/config"
+	"github.com/sakura/duofm/internal/fs"
 	"github.com/sakura/duofm/internal/version"
 )
 
@@ -304,6 +306,22 @@ func truncateOrPadLineToWidth(s string, targetWidth int) string {
 	return result.String()
 }
 
+// entryTypeLabel はエントリの種別ラベルと表示色を返す。
+// 判定優先順位: シンボリックリンク > ディレクトリ > 通常ファイル（MIMEタイプ）
+func (m Model) entryTypeLabel(entry *fs.FileEntry) (label string, fg lipgloss.Color) {
+	if entry == nil {
+		return "", m.theme.StatusFg
+	}
+	switch {
+	case entry.IsSymlink:
+		return "SymbolicLink", m.theme.SymlinkFg
+	case entry.IsDir:
+		return "Directory", m.theme.DirectoryFg
+	default:
+		return config.GetMIMEType(entry.Name), m.theme.StatusFg
+	}
+}
+
 // renderStatusBar はステータスバーをレンダリング
 func (m Model) renderStatusBar() string {
 	// ステータスメッセージがある場合はそれを優先表示
@@ -338,28 +356,56 @@ func (m Model) renderStatusBar() string {
 	// 選択位置情報
 	posInfo := fmt.Sprintf("%d/%d", activePane.cursor+1, len(activePane.entries))
 
+	// MIMEタイプ / 種別情報
+	typeInfo := ""
+	typeInfoWidth := 0
+	if entry := activePane.SelectedEntry(); entry != nil {
+		label, fg := m.entryTypeLabel(entry)
+		labelText := fmt.Sprintf(" [%s]", label)
+		typeInfo = lipgloss.NewStyle().
+			Foreground(fg).
+			Background(m.theme.StatusBg).
+			Render(labelText)
+		typeInfoWidth = runewidth.StringWidth(labelText)
+	}
+
 	// キーヒント（動的に変更）
 	hints := "?:help q:quit"
 	if activePane != nil && activePane.CanToggleMode() {
 		hints = "i:info " + hints
 	}
 
-	// スペースで埋める
-	padding := m.width - runewidth.StringWidth(posInfo) - runewidth.StringWidth(hints) - 4
+	// スペースで埋める（typeInfoWidth を加算）
+	padding := m.width - runewidth.StringWidth(posInfo) - typeInfoWidth - runewidth.StringWidth(hints) - 4
 	if padding < 0 {
-		padding = 0
+		// 幅が足りない場合はMIMEタイプ表示を省略
+		typeInfo = ""
+		padding = m.width - runewidth.StringWidth(posInfo) - runewidth.StringWidth(hints) - 4
+		if padding < 0 {
+			padding = 0
+		}
 	}
 
-	statusBar := fmt.Sprintf(" %s%s%s ",
-		posInfo,
-		strings.Repeat(" ", padding),
-		hints,
-	)
+	// ステータスバーの組み立て
+	// typeInfo は既に lipgloss でレンダリング済み（ANSI色付き）なので、
+	// 全体を style.Render() に渡すと色が上書きされる。
+	// そのため、左部分・typeInfo・右部分を個別にレンダリングして結合する。
+	statusBg := m.theme.StatusBg
+	statusFg := m.theme.StatusFg
 
-	style := lipgloss.NewStyle().
+	leftPart := lipgloss.NewStyle().
+		Background(statusBg).
+		Foreground(statusFg).
+		Render(fmt.Sprintf(" %s", posInfo))
+
+	rightPart := lipgloss.NewStyle().
+		Background(statusBg).
+		Foreground(statusFg).
+		Render(fmt.Sprintf("%s%s ", strings.Repeat(" ", padding), hints))
+
+	statusBar := leftPart + typeInfo + rightPart
+
+	return lipgloss.NewStyle().
 		Width(m.width).
-		Background(lipgloss.Color("240")).
-		Foreground(lipgloss.Color("15"))
-
-	return style.Render(statusBar)
+		Render(statusBar)
 }
