@@ -56,30 +56,22 @@ func TestNewModel(t *testing.T) {
 }
 
 func TestModelInit(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantCmd bool
-	}{
-		{
-			name:    "Init は nil コマンドを返す",
-			wantCmd: false,
-		},
-	}
+	t.Run("Init returns nil (ticker starts from handleWindowSize)", func(t *testing.T) {
+		model := NewModel() // default refreshRate=3
+		cmd := model.Init()
+		// Auto-refresh ticker is started from handleWindowSize, not Init
+		if cmd != nil {
+			t.Error("Init() should return nil (ticker starts from handleWindowSize)")
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			model := NewModel()
-			cmd := model.Init()
-
-			if tt.wantCmd && cmd == nil {
-				t.Error("Init() should return a command")
-			}
-
-			if !tt.wantCmd && cmd != nil {
-				t.Error("Init() should return nil")
-			}
-		})
-	}
+	t.Run("Init returns nil when refreshRate is 0", func(t *testing.T) {
+		model := NewModelWithConfig(nil, nil, nil, 0, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		cmd := model.Init()
+		if cmd != nil {
+			t.Error("Init() should return nil when refreshRate=0")
+		}
+	})
 }
 
 func TestModelUpdateWindowSize(t *testing.T) {
@@ -391,16 +383,16 @@ func TestModelRenderMethods(t *testing.T) {
 
 func TestModelInitWithWarnings(t *testing.T) {
 	t.Run("calls Init without panic", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
 		cmd := model.Init()
-		// Init returns nil
+		// Init returns nil (ticker starts from handleWindowSize, not Init)
 		if cmd != nil {
-			t.Error("Init should return nil")
+			t.Error("Init should return nil (ticker starts from handleWindowSize)")
 		}
 	})
 
 	t.Run("configWarnings are stored", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
 		if len(model.configWarnings) != 1 {
 			t.Errorf("Expected 1 warning, got %d", len(model.configWarnings))
 		}

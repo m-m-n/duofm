@@ -622,9 +622,9 @@ func TestModelUpdateMessageTypes(t *testing.T) {
 		m.Update(loadMsg)
 	})
 
-	t.Run("handles diskSpaceUpdateMsg", func(t *testing.T) {
-		diskMsg := diskSpaceUpdateMsg{}
-		m.Update(diskMsg)
+	t.Run("handles autoRefreshMsg", func(t *testing.T) {
+		refreshMsg := autoRefreshMsg{}
+		m.Update(refreshMsg)
 	})
 
 	t.Run("handles clearStatusMsg", func(t *testing.T) {

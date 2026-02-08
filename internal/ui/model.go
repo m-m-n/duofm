@@ -65,6 +65,7 @@ type Model struct {
 	// Configuration
 	keybindingMap *KeybindingMap            // キーバインドマップ
 	theme         *Theme                    // カラーテーマ
+	refreshRate   int                       // Auto-refresh interval in seconds (0 = disabled)
 	enterBehavior config.EnterBehavior      // Enterキーの動作設定
 	mimeBehavior  config.MIMEBehaviorConfig // MIME type to command mapping
 
@@ -93,15 +94,16 @@ const (
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
 // historyLimit: 0=無効、>0=履歴エントリ数上限
+// refreshRate: auto-refresh interval in seconds (0=disabled, 1-60=seconds)
 // enterBehavior: Enterキー押下時のファイルオープン動作
 // mimeBehavior: MIME type based file opening configuration
 // configPath: path to config file (empty string disables hot-reload features)
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig, configPath string) Model {
+func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, refreshRate int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig, configPath string) Model {
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -157,6 +159,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		keybindingMap:    keybindingMap,
 		configWarnings:   warnings,
 		theme:            theme,
+		refreshRate:      refreshRate,
 		enterBehavior:    enterBehavior,
 		mimeBehavior:     mimeBehavior,
 		bookmarkManager:  bookmarkManager,
@@ -210,6 +213,9 @@ func (m *Model) applyConfig(cfg *config.Config) {
 	if m.shellHistory != nil {
 		m.shellHistory.SetLimit(cfg.HistoryLimit)
 	}
+
+	// Update refresh rate
+	m.refreshRate = cfg.RefreshRate
 }
 
 // Init はBubble Teaの初期化
@@ -228,6 +234,9 @@ func (m Model) Init() tea.Cmd {
 		m.statusMessage = m.configWarnings[0]
 		m.isStatusError = false
 	}
+
+	// Note: Auto-refresh ticker is started in handleWindowSize (first WindowSizeMsg),
+	// not here, because panes must be initialized first.
 
 	if len(cmds) > 0 {
 		return tea.Batch(cmds...)

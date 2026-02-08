@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-func TestDiskSpaceTickCmd(t *testing.T) {
-	cmd := diskSpaceTickCmd()
+func TestAutoRefreshTickCmd(t *testing.T) {
+	cmd := autoRefreshTickCmd(3 * time.Second)
 	if cmd == nil {
-		t.Error("diskSpaceTickCmd() should return a command")
+		t.Error("autoRefreshTickCmd() should return a command")
 	}
 }
 

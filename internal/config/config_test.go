@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -406,6 +407,127 @@ func TestLoadConfig_HistoryLimitFileNotExists(t *testing.T) {
 	// Default history_limit should be 20000
 	if cfg.HistoryLimit != 20000 {
 		t.Errorf("HistoryLimit = %d, want 20000", cfg.HistoryLimit)
+	}
+}
+
+// Tests for RefreshRate configuration
+func TestLoadConfig_RefreshRateDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.RefreshRate != DefaultRefreshRate {
+		t.Errorf("RefreshRate = %d, want %d", cfg.RefreshRate, DefaultRefreshRate)
+	}
+}
+
+func TestLoadConfig_RefreshRateExplicit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `refresh_rate = 5
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.RefreshRate != 5 {
+		t.Errorf("RefreshRate = %d, want 5", cfg.RefreshRate)
+	}
+}
+
+func TestLoadConfig_RefreshRateZero(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `refresh_rate = 0
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.RefreshRate != 0 {
+		t.Errorf("RefreshRate = %d, want 0", cfg.RefreshRate)
+	}
+}
+
+func TestLoadConfig_RefreshRateBoundary(t *testing.T) {
+	tests := []struct {
+		name     string
+		value    int
+		expected int
+		hasWarn  bool
+	}{
+		{"min boundary 1", 1, 1, false},
+		{"max boundary 60", 60, 60, false},
+		{"below min -1", -1, DefaultRefreshRate, true},
+		{"above max 61", 61, DefaultRefreshRate, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "config.toml")
+
+			content := fmt.Sprintf("refresh_rate = %d\n\n[keybindings]\nquit = [\"Q\"]\n", tt.value)
+			if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+				t.Fatalf("Failed to write test config: %v", err)
+			}
+
+			cfg, warnings := LoadConfig(configPath)
+
+			if cfg == nil {
+				t.Fatal("LoadConfig() returned nil config")
+			}
+
+			if cfg.RefreshRate != tt.expected {
+				t.Errorf("RefreshRate = %d, want %d", cfg.RefreshRate, tt.expected)
+			}
+
+			hasWarning := false
+			for _, w := range warnings {
+				if strings.Contains(w, "refresh_rate") {
+					hasWarning = true
+					break
+				}
+			}
+			if tt.hasWarn && !hasWarning {
+				t.Error("Expected warning for out-of-range refresh_rate")
+			}
+			if !tt.hasWarn && hasWarning {
+				t.Error("Unexpected warning for valid refresh_rate")
+			}
+		})
 	}
 }
 

@@ -13,6 +13,7 @@ type Config struct {
 	Keybindings   map[string][]string `toml:"keybindings"`
 	Colors        *ColorConfig
 	HistoryLimit  int `toml:"history_limit"`
+	RefreshRate   int `toml:"refresh_rate"`
 	EnterBehavior EnterBehavior
 	MIMEBehavior  MIMEBehaviorConfig
 }
@@ -20,11 +21,15 @@ type Config struct {
 // DefaultHistoryLimit is the default number of shell command history entries.
 const DefaultHistoryLimit = 20000
 
+// DefaultRefreshRate is the default auto-refresh interval in seconds.
+const DefaultRefreshRate = 3
+
 // rawConfig is used for TOML parsing to handle the [keybindings] and [colors] sections.
 type rawConfig struct {
 	Keybindings       map[string][]string    `toml:"keybindings"`
 	Colors            map[string]interface{} `toml:"colors"`
 	HistoryLimit      *int                   `toml:"history_limit"`
+	RefreshRate       *int                   `toml:"refresh_rate"`
 	EnterBehavior     *string                `toml:"enter_behavior"`
 	EnterBehaviorMIME map[string][]string    `toml:"enter_behavior_mime"`
 }
@@ -71,6 +76,16 @@ func LoadConfig(path string) (*Config, []string) {
 		cfg.HistoryLimit = *raw.HistoryLimit
 	}
 
+	// Load refresh_rate (validate range 0-60)
+	if raw.RefreshRate != nil {
+		rate := *raw.RefreshRate
+		if rate < 0 || rate > 60 {
+			warnings = append(warnings, fmt.Sprintf("Warning: refresh_rate %d out of range (0-60), using default %d", rate, DefaultRefreshRate))
+		} else {
+			cfg.RefreshRate = rate
+		}
+	}
+
 	// Load enter_behavior (parse if provided, otherwise keep default)
 	if raw.EnterBehavior != nil {
 		enterBehavior, warning := ParseEnterBehavior(*raw.EnterBehavior)
@@ -98,6 +113,7 @@ func defaultConfig() *Config {
 		Keybindings:   DefaultKeybindings(),
 		Colors:        DefaultColors(),
 		HistoryLimit:  DefaultHistoryLimit,
+		RefreshRate:   DefaultRefreshRate,
 		EnterBehavior: DefaultEnterBehavior(),
 	}
 }

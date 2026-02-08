@@ -122,6 +122,19 @@ func buildConfigFromRaw(raw *rawConfig, result *ConfigLoadResult) *Config {
 		cfg.HistoryLimit = *raw.HistoryLimit
 	}
 
+	// Load refresh_rate with validation
+	if raw.RefreshRate != nil {
+		rate := *raw.RefreshRate
+		if rate < 0 || rate > 60 {
+			result.Errors = append(result.Errors, ConfigError{
+				Field:   "refresh_rate",
+				Message: fmt.Sprintf("refresh_rate %d out of range (0-60), using default %d", rate, DefaultRefreshRate),
+			})
+		} else {
+			cfg.RefreshRate = rate
+		}
+	}
+
 	// Load enter_behavior with validation
 	if raw.EnterBehavior != nil {
 		enterBehavior, warning := ParseEnterBehavior(*raw.EnterBehavior)

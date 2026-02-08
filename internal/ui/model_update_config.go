@@ -45,10 +45,18 @@ func (m Model) handleConfigFileChanged() (Model, tea.Cmd, bool) {
 
 	if !result.HasErrors() {
 		// Success - apply the new config
+		oldRefreshRate := m.refreshRate
 		m.applyConfig(result.Config)
 		m.statusMessage = "Config reloaded"
 		m.isStatusError = false
-		return m, statusMessageClearCmd(3 * time.Second), true
+
+		// If refresh rate changed from 0 to positive, start new ticker
+		var cmds []tea.Cmd
+		cmds = append(cmds, statusMessageClearCmd(3*time.Second))
+		if oldRefreshRate <= 0 && m.refreshRate > 0 {
+			cmds = append(cmds, autoRefreshTickCmd(time.Duration(m.refreshRate)*time.Second))
+		}
+		return m, tea.Batch(cmds...), true
 	}
 
 	// Error - show dialog or queue
