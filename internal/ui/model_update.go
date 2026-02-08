@@ -234,9 +234,24 @@ func (m Model) handleSystemMessages(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		return m.handleWindowSize(msg)
 
-	case diskSpaceUpdateMsg:
+	case autoRefreshMsg:
+		if m.refreshRate <= 0 {
+			return m, nil
+		}
+		// Suppress directory refresh during dialog
+		if m.dialog != nil {
+			return m, autoRefreshTickCmd(time.Duration(m.refreshRate) * time.Second)
+		}
+		// Refresh both panes (preserves cursor)
+		if m.leftPane != nil {
+			m.leftPane.RefreshDirectoryPreserveCursor()
+		}
+		if m.rightPane != nil {
+			m.rightPane.RefreshDirectoryPreserveCursor()
+		}
+		// Update disk space
 		m.updateDiskSpace()
-		return m, diskSpaceTickCmd()
+		return m, autoRefreshTickCmd(time.Duration(m.refreshRate) * time.Second)
 
 	case clearStatusMsg:
 		m.statusMessage = ""
@@ -334,7 +349,10 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 
 		m.updateDiskSpace()
 		m.ready = true
-		return m, diskSpaceTickCmd()
+		if m.refreshRate > 0 {
+			return m, autoRefreshTickCmd(time.Duration(m.refreshRate) * time.Second)
+		}
+		return m, nil
 	}
 
 	paneWidth := msg.Width / 2

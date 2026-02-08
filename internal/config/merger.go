@@ -12,6 +12,7 @@ type mergeResult struct {
 	Keybindings         map[string][]string
 	Colors              map[string]int
 	HistoryLimit        *int    // nil means not missing
+	RefreshRate         *int    // nil means not missing
 	EnterBehavior       *string // nil means not missing
 	EnterBehaviorMIME   bool    // true means section is missing
 	MIMEFallbackMissing bool    // true means section exists but fallback key is absent
@@ -19,7 +20,7 @@ type mergeResult struct {
 
 // hasContent returns true if there are any missing items to merge.
 func (m mergeResult) hasContent() bool {
-	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME || m.MIMEFallbackMissing
+	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.RefreshRate != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME || m.MIMEFallbackMissing
 }
 
 // FindMissingKeybindings returns keybindings that exist in defaults but not in config.
@@ -67,6 +68,12 @@ func IsMissingHistoryLimit(historyLimit *int) bool {
 	return historyLimit == nil
 }
 
+// IsMissingRefreshRate returns true if refresh_rate is not set in config.
+// A nil pointer indicates the value was not set in the config file.
+func IsMissingRefreshRate(refreshRate *int) bool {
+	return refreshRate == nil
+}
+
 // IsMissingEnterBehavior returns true if enter_behavior is not set in config.
 // A nil pointer indicates the value was not set in the config file.
 func IsMissingEnterBehavior(enterBehavior *string) bool {
@@ -105,6 +112,12 @@ func MergeConfig(path string, existing *rawConfig) error {
 	if IsMissingHistoryLimit(existing.HistoryLimit) {
 		defaultLimit := DefaultHistoryLimit
 		result.HistoryLimit = &defaultLimit
+	}
+
+	// Check if refresh_rate is missing
+	if IsMissingRefreshRate(existing.RefreshRate) {
+		defaultRate := DefaultRefreshRate
+		result.RefreshRate = &defaultRate
 	}
 
 	// Check if enter_behavior is missing
@@ -215,6 +228,7 @@ func generateMergedFile(original string, result mergeResult) string {
 	// Build output
 	var sb strings.Builder
 	insertedHistoryLimit := false
+	insertedRefreshRate := false
 	insertedEnterBehavior := false
 
 	for i, line := range lines {
@@ -224,12 +238,16 @@ func generateMergedFile(original string, result mergeResult) string {
 				sb.WriteString(fmt.Sprintf("history_limit = %d\n", *result.HistoryLimit))
 				insertedHistoryLimit = true
 			}
+			if result.RefreshRate != nil && !insertedRefreshRate {
+				sb.WriteString(fmt.Sprintf("refresh_rate = %d\n", *result.RefreshRate))
+				insertedRefreshRate = true
+			}
 			if result.EnterBehavior != nil && !insertedEnterBehavior {
 				sb.WriteString(fmt.Sprintf("enter_behavior = %q\n", *result.EnterBehavior))
 				insertedEnterBehavior = true
 			}
 			// Add blank line after root-level keys if we inserted any
-			if insertedHistoryLimit || insertedEnterBehavior {
+			if insertedHistoryLimit || insertedRefreshRate || insertedEnterBehavior {
 				sb.WriteString("\n")
 			}
 		}
@@ -278,6 +296,9 @@ func generateMergedFile(original string, result mergeResult) string {
 	if result.HistoryLimit != nil && !insertedHistoryLimit {
 		needsSeparator = true
 	}
+	if result.RefreshRate != nil && !insertedRefreshRate {
+		needsSeparator = true
+	}
 	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		needsSeparator = true
 	}
@@ -292,6 +313,9 @@ func generateMergedFile(original string, result mergeResult) string {
 	// Add root-level keys if missing and weren't inserted yet (no sections exist)
 	if result.HistoryLimit != nil && !insertedHistoryLimit {
 		appendContent.WriteString(fmt.Sprintf("\nhistory_limit = %d\n", *result.HistoryLimit))
+	}
+	if result.RefreshRate != nil && !insertedRefreshRate {
+		appendContent.WriteString(fmt.Sprintf("\nrefresh_rate = %d\n", *result.RefreshRate))
 	}
 	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		appendContent.WriteString(fmt.Sprintf("\nenter_behavior = %q\n", *result.EnterBehavior))

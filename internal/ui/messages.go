@@ -7,13 +7,13 @@ import (
 	"github.com/sakura/duofm/internal/fs"
 )
 
-// diskSpaceUpdateMsg notifies periodic disk space updates
-type diskSpaceUpdateMsg struct{}
+// autoRefreshMsg triggers periodic auto-refresh (directory listings + disk space).
+type autoRefreshMsg struct{}
 
-// diskSpaceTickCmd returns a command that sends diskSpaceUpdateMsg after 5 seconds
-func diskSpaceTickCmd() tea.Cmd {
-	return tea.Tick(5*time.Second, func(t time.Time) tea.Msg {
-		return diskSpaceUpdateMsg{}
+// autoRefreshTickCmd returns a command that sends autoRefreshMsg after the specified interval.
+func autoRefreshTickCmd(interval time.Duration) tea.Cmd {
+	return tea.Tick(interval, func(t time.Time) tea.Msg {
+		return autoRefreshMsg{}
 	})
 }
 

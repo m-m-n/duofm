@@ -51,6 +51,7 @@ func main() {
 				Keybindings:   config.DefaultKeybindings(),
 				Colors:        config.DefaultColors(),
 				HistoryLimit:  config.DefaultHistoryLimit,
+				RefreshRate:   config.DefaultRefreshRate,
 				EnterBehavior: config.DefaultEnterBehavior(),
 			},
 		}
@@ -69,7 +70,7 @@ func main() {
 	theme := ui.NewTheme(cfg.Colors)
 
 	// Modelを作成
-	model := ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.EnterBehavior, cfg.MIMEBehavior, configPath)
+	model := ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.RefreshRate, cfg.EnterBehavior, cfg.MIMEBehavior, configPath)
 
 	// 起動時エラーがあればpendingReloadResultに設定
 	if loadResult.HasErrors() {

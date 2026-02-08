@@ -429,7 +429,7 @@ move_down = ["J"]
 		for _, k := range AllColorKeys() {
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %d\n", k, GetDefaultColorValue(k)))
 		}
-		keybindingsToml.WriteString("\nhistory_limit = 1000\n")
+		keybindingsToml.WriteString("\nhistory_limit = 1000\nrefresh_rate = 3\n")
 
 		tmpFile := createTempFile(t, keybindingsToml.String())
 		defer os.Remove(tmpFile)
@@ -443,11 +443,13 @@ move_down = ["J"]
 			colors[k] = GetDefaultColorValue(k)
 		}
 		historyLimit := 1000
+		refreshRate := 3
 		enterBehavior := "less"
 		raw := &rawConfig{
 			Keybindings:   allKeybindings,
 			Colors:        colors,
 			HistoryLimit:  &historyLimit,
+			RefreshRate:   &refreshRate,
 			EnterBehavior: &enterBehavior,
 			EnterBehaviorMIME: map[string][]string{
 				"fallback": {"xdg-open"},
@@ -1189,11 +1191,13 @@ move_down = ["J"]
 		}
 
 		historyLimit := 20000
+		refreshRate := DefaultRefreshRate
 		raw := &rawConfig{
 			EnterBehavior: func() *string { s := "mime:"; return &s }(),
 			Keybindings:   allKeybindings,
 			Colors:        allColors,
 			HistoryLimit:  &historyLimit,
+			RefreshRate:   &refreshRate,
 			EnterBehaviorMIME: map[string][]string{
 				"text/*":   {"less"},
 				"fallback": {"xdg-open"},
