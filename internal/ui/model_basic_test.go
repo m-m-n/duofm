@@ -66,7 +66,7 @@ func TestModelInit(t *testing.T) {
 	})
 
 	t.Run("Init returns nil when refreshRate is 0", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, nil, 0, 0, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		model := NewModelWithConfig(ModelOptions{})
 		cmd := model.Init()
 		if cmd != nil {
 			t.Error("Init() should return nil when refreshRate=0")
@@ -383,7 +383,7 @@ func TestModelRenderMethods(t *testing.T) {
 
 func TestModelInitWithWarnings(t *testing.T) {
 	t.Run("calls Init without panic", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		model := NewModelWithConfig(ModelOptions{Warnings: []string{"Warning: test"}, RefreshRate: config.DefaultRefreshRate})
 		cmd := model.Init()
 		// Init returns nil (ticker starts from handleWindowSize, not Init)
 		if cmd != nil {
@@ -392,7 +392,7 @@ func TestModelInitWithWarnings(t *testing.T) {
 	})
 
 	t.Run("configWarnings are stored", func(t *testing.T) {
-		model := NewModelWithConfig(nil, nil, []string{"Warning: test"}, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+		model := NewModelWithConfig(ModelOptions{Warnings: []string{"Warning: test"}, RefreshRate: config.DefaultRefreshRate})
 		if len(model.configWarnings) != 1 {
 			t.Errorf("Expected 1 warning, got %d", len(model.configWarnings))
 		}

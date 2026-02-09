@@ -413,7 +413,7 @@ func TestHistoryNavigation_Integration_UpDownSequence(t *testing.T) {
 func createModelWithHistory(t *testing.T, historyFile string, limit int) Model {
 	t.Helper()
 
-	model := NewModelWithConfig(nil, nil, nil, limit, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+	model := NewModelWithConfig(ModelOptions{HistoryLimit: limit, RefreshRate: config.DefaultRefreshRate})
 	if limit > 0 {
 		model.shellHistory = NewShellHistory(historyFile, limit)
 	}

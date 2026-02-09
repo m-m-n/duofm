@@ -54,8 +54,16 @@ func (m Model) handleDialogMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 	if result, ok := msg.(sortDialogResultMsg); ok {
 		m.sortDialog = nil
 		if result.cancelled {
+			// キャンセル時: ライブプレビューで変更された設定を元に戻す
 			m.getActivePane().SetSortConfig(result.config)
 			m.getActivePane().ApplySortAndPreserveCursor()
+		} else {
+			// 確定時: 現在の設定をストアに保存
+			if m.dirSortStore != nil {
+				pane := m.getActivePane()
+				sc := pane.GetSortConfig()
+				m.dirSortStore.Set(pane.Path(), sortFieldToString(sc.Field), sortOrderToString(sc.Order))
+			}
 		}
 		return m, nil, true
 	}

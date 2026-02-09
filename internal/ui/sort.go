@@ -32,14 +32,78 @@ type SortConfig struct {
 
 // String はソート設定の表示用文字列を返す
 func (c SortConfig) String() string {
-	fields := []string{"Name", "Size", "Date"}
-	orders := []string{"↑", "↓"}
-	return fmt.Sprintf("%s %s", fields[c.Field], orders[c.Order])
+	var fieldStr string
+	switch c.Field {
+	case SortByName:
+		fieldStr = "Name"
+	case SortBySize:
+		fieldStr = "Size"
+	case SortByDate:
+		fieldStr = "Date"
+	default:
+		fieldStr = "Name"
+	}
+	var orderStr string
+	switch c.Order {
+	case SortAsc:
+		orderStr = "↑"
+	case SortDesc:
+		orderStr = "↓"
+	default:
+		orderStr = "↑"
+	}
+	return fmt.Sprintf("%s %s", fieldStr, orderStr)
 }
 
 // DefaultSortConfig はデフォルトのソート設定を返す
 func DefaultSortConfig() SortConfig {
 	return SortConfig{Field: SortByName, Order: SortAsc}
+}
+
+// sortFieldToString はSortFieldを文字列に変換する
+func sortFieldToString(f SortField) string {
+	switch f {
+	case SortByName:
+		return "name"
+	case SortBySize:
+		return "size"
+	case SortByDate:
+		return "date"
+	default:
+		return "name"
+	}
+}
+
+// sortOrderToString はSortOrderを文字列に変換する
+func sortOrderToString(o SortOrder) string {
+	switch o {
+	case SortAsc:
+		return "asc"
+	case SortDesc:
+		return "desc"
+	default:
+		return "asc"
+	}
+}
+
+// SortConfigFromStrings は文字列からSortConfigを生成する
+func SortConfigFromStrings(field, order string) SortConfig {
+	sc := DefaultSortConfig()
+	switch field {
+	case "name":
+		sc.Field = SortByName
+	case "size":
+		sc.Field = SortBySize
+	case "date":
+		sc.Field = SortByDate
+	}
+	switch order {
+	case "asc":
+		sc.Order = SortAsc
+	case "desc":
+		sc.Order = SortDesc
+	}
+	return sc
 }
 
 // SortEntries はエントリを指定された設定でソートする

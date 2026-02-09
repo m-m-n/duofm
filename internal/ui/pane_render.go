@@ -248,16 +248,27 @@ func (p *Pane) renderHeaderLine2(diskSpace uint64) string {
 		freeInfo = fmt.Sprintf("%s Free", FormatSize(int64(diskSpace)))
 	}
 
-	// レイアウト: 左にマーク情報、右に空き容量
+	// ソート情報
+	sortInfo := p.sortConfig.String()
+
+	// レイアウト: 左にマーク情報、中央にソート情報、右に空き容量
 	availableWidth := p.width - 4 // パディングを考慮
 	markedLen := runewidth.StringWidth(markedInfo)
+	sortLen := runewidth.StringWidth(sortInfo)
 	freeLen := runewidth.StringWidth(freeInfo)
-	padding := availableWidth - markedLen - freeLen
-	if padding < 1 {
-		padding = 1
+
+	totalContentWidth := markedLen + sortLen + freeLen
+	remainingSpace := availableWidth - totalContentWidth
+	if remainingSpace < 2 {
+		// スペースが足りない場合は最小限のパディング
+		return markedInfo + " " + sortInfo + " " + freeInfo
 	}
 
-	return markedInfo + strings.Repeat(" ", padding) + freeInfo
+	// ソート情報を中央に配置するため、左右のパディングを均等に分配
+	leftPad := remainingSpace / 2
+	rightPad := remainingSpace - leftPad
+
+	return markedInfo + strings.Repeat(" ", leftPad) + sortInfo + strings.Repeat(" ", rightPad) + freeInfo
 }
 
 // formatEntry はエントリを1行にフォーマット

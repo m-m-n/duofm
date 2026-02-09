@@ -341,11 +341,13 @@ func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 		if err != nil {
 			return m, tea.Quit
 		}
+		m.leftPane.SetDirSortStore(m.dirSortStore)
 
 		m.rightPane, err = NewPane(RightPane, m.rightPath, paneWidth, paneHeight, false, m.theme)
 		if err != nil {
 			return m, tea.Quit
 		}
+		m.rightPane.SetDirSortStore(m.dirSortStore)
 
 		m.updateDiskSpace()
 		m.ready = true

@@ -228,6 +228,113 @@ func TestRenderHeaderLine1_BranchAlignment(t *testing.T) {
 	}
 }
 
+func TestRenderHeaderLine2_SortInfo(t *testing.T) {
+	tests := []struct {
+		name         string
+		sortConfig   SortConfig
+		expectedSort string
+	}{
+		{
+			name:         "default sort - Name ascending",
+			sortConfig:   SortConfig{Field: SortByName, Order: SortAsc},
+			expectedSort: "Name ↑",
+		},
+		{
+			name:         "Name descending",
+			sortConfig:   SortConfig{Field: SortByName, Order: SortDesc},
+			expectedSort: "Name ↓",
+		},
+		{
+			name:         "Size ascending",
+			sortConfig:   SortConfig{Field: SortBySize, Order: SortAsc},
+			expectedSort: "Size ↑",
+		},
+		{
+			name:         "Size descending",
+			sortConfig:   SortConfig{Field: SortBySize, Order: SortDesc},
+			expectedSort: "Size ↓",
+		},
+		{
+			name:         "Date ascending",
+			sortConfig:   SortConfig{Field: SortByDate, Order: SortAsc},
+			expectedSort: "Date ↑",
+		},
+		{
+			name:         "Date descending",
+			sortConfig:   SortConfig{Field: SortByDate, Order: SortDesc},
+			expectedSort: "Date ↓",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pane := &Pane{
+				path:       "/home/user/test",
+				width:      80,
+				theme:      DefaultTheme(),
+				sortConfig: tt.sortConfig,
+			}
+
+			result := pane.renderHeaderLine2(50 * 1024 * 1024 * 1024) // 50 GB
+
+			if !strings.Contains(result, tt.expectedSort) {
+				t.Errorf("expected header to contain sort info %q, got %q", tt.expectedSort, result)
+			}
+
+			// Also verify mark info and free space are present
+			if !strings.Contains(result, "Marked") {
+				t.Errorf("expected header to contain 'Marked', got %q", result)
+			}
+			if !strings.Contains(result, "Free") {
+				t.Errorf("expected header to contain 'Free', got %q", result)
+			}
+		})
+	}
+}
+
+func TestRenderHeaderLine2_SortInfoLayout(t *testing.T) {
+	pane := &Pane{
+		path:       "/home/user/test",
+		width:      80,
+		theme:      DefaultTheme(),
+		sortConfig: DefaultSortConfig(),
+	}
+
+	result := pane.renderHeaderLine2(50 * 1024 * 1024 * 1024)
+
+	// Verify order: Marked ... Name ↑ ... Free
+	markedIdx := strings.Index(result, "Marked")
+	sortIdx := strings.Index(result, "Name ↑")
+	freeIdx := strings.Index(result, "Free")
+
+	if markedIdx == -1 || sortIdx == -1 || freeIdx == -1 {
+		t.Fatalf("missing components in header: %q", result)
+	}
+
+	if markedIdx >= sortIdx {
+		t.Errorf("expected Marked before sort info, got marked=%d sort=%d", markedIdx, sortIdx)
+	}
+	if sortIdx >= freeIdx {
+		t.Errorf("expected sort info before Free, got sort=%d free=%d", sortIdx, freeIdx)
+	}
+}
+
+func TestRenderHeaderLine2_NarrowWidth(t *testing.T) {
+	pane := &Pane{
+		path:       "/home/user/test",
+		width:      30,
+		theme:      DefaultTheme(),
+		sortConfig: DefaultSortConfig(),
+	}
+
+	result := pane.renderHeaderLine2(50 * 1024 * 1024 * 1024)
+
+	// Sort info should still be visible even with narrow width
+	if !strings.Contains(result, "Name ↑") {
+		t.Errorf("expected sort info to be visible even at narrow width, got %q", result)
+	}
+}
+
 func TestRenderHeaderLine1_NoBranchWhenEmpty(t *testing.T) {
 	pane := &Pane{
 		path:      "/tmp/test",

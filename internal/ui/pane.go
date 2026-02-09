@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/sakura/duofm/internal/config"
 	"github.com/sakura/duofm/internal/fs"
 )
 
@@ -42,20 +43,21 @@ type Pane struct {
 	width               int
 	height              int
 	isActive            bool
-	displayMode         DisplayMode      // ユーザーが選択した表示モード
-	loading             bool             // ローディング中フラグ
-	loadingProgress     string           // ローディングメッセージ
-	showHidden          bool             // 隠しファイル表示フラグ（デフォルト: false）
-	previousPath        string           // 直前のディレクトリパス（履歴なしの場合は空文字列）
-	pendingPath         string           // 読み込み中の暫定パス（エラー時に元に戻す）
-	filterPattern       string           // 現在のフィルタパターン（空の場合はフィルタなし）
-	filterMode          SearchMode       // 現在のフィルタモード
-	markedFiles         map[string]bool  // key: filename, value: marked state
-	sortConfig          SortConfig       // ソート設定
-	theme               *Theme           // カラーテーマ
-	pendingCursorTarget string           // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
-	history             DirectoryHistory // ディレクトリ履歴（ブラウザ風のback/forward）
-	gitBranch           string           // 現在のGitブランチ名（Git管理外では空文字列）
+	displayMode         DisplayMode          // ユーザーが選択した表示モード
+	loading             bool                 // ローディング中フラグ
+	loadingProgress     string               // ローディングメッセージ
+	showHidden          bool                 // 隠しファイル表示フラグ（デフォルト: false）
+	previousPath        string               // 直前のディレクトリパス（履歴なしの場合は空文字列）
+	pendingPath         string               // 読み込み中の暫定パス（エラー時に元に戻す）
+	filterPattern       string               // 現在のフィルタパターン（空の場合はフィルタなし）
+	filterMode          SearchMode           // 現在のフィルタモード
+	markedFiles         map[string]bool      // key: filename, value: marked state
+	sortConfig          SortConfig           // ソート設定
+	theme               *Theme               // カラーテーマ
+	pendingCursorTarget string               // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
+	history             DirectoryHistory     // ディレクトリ履歴（ブラウザ風のback/forward）
+	gitBranch           string               // 現在のGitブランチ名（Git管理外では空文字列）
+	dirSortStore        *config.DirSortStore // Per-directory sort settings store (nil = disabled)
 }
 
 // NewPane は新しいペインを作成
@@ -288,6 +290,25 @@ func (p *Pane) GetSortConfig() SortConfig {
 // SetSortConfig はソート設定を設定する
 func (p *Pane) SetSortConfig(config SortConfig) {
 	p.sortConfig = config
+}
+
+// SetDirSortStore sets the per-directory sort store reference.
+func (p *Pane) SetDirSortStore(store *config.DirSortStore) {
+	p.dirSortStore = store
+}
+
+// applySavedSortConfig looks up and applies saved sort config for the target path.
+// If no saved config exists, applies the default sort config.
+func (p *Pane) applySavedSortConfig(targetPath string) {
+	if p.dirSortStore == nil {
+		return
+	}
+	field, order, found := p.dirSortStore.Get(targetPath)
+	if found {
+		p.sortConfig = SortConfigFromStrings(field, order)
+	} else {
+		p.sortConfig = DefaultSortConfig()
+	}
 }
 
 // extractSubdirName extracts the subdirectory name from the current path.
