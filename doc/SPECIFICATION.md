@@ -231,6 +231,12 @@ Three display modes toggled with `I` key:
 - Independent sort settings per pane
 - Directories always listed before files
 - Parent directory (..) always at top
+- Per-directory sort settings persistence
+  - Sort preferences saved per directory in `~/.config/duofm/dir_sort.toml`
+  - Automatic application of saved settings when entering a directory
+  - Current sort state displayed in header (e.g., "Name ↑", "Size ↓")
+  - LRU eviction for storage management (max 1000 directories)
+  - Settings persist across application sessions
 
 ### External Integration
 
@@ -371,6 +377,12 @@ Press `@` to show context menu with:
 #### Refresh (F5 / Ctrl+R)
 - Reload current directory
 - Preserves cursor position and marks
+- Auto-refresh configurable via `refresh_rate` setting
+  - Default: 3 seconds
+  - Range: 0-60 seconds (0 disables auto-refresh)
+  - Reloads directory listings and disk space automatically
+  - Suppressed during dialog display
+  - Manual refresh always available
 
 #### Filter State Preservation
 - Active filter is preserved during file delete operations
@@ -711,6 +723,15 @@ enter_behavior = "less"
 # Maximum number of shell command history entries to retain
 # Default: 20000
 history_limit = 20000
+```
+
+### Auto-Refresh Configuration
+
+```toml
+# Automatic refresh interval for directory listings and disk space (in seconds)
+# Default: 3
+# Range: 0-60 (0 disables auto-refresh)
+refresh_rate = 3
 ```
 
 ### SQL-like Filter Examples
