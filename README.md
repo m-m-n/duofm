@@ -28,9 +28,10 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting with `[H]` indicator)
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
   - Sort options: By name, size, or date with dropdown menus and live preview
+  - Per-directory sort: Sort preferences saved per directory and auto-applied on navigation
   - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
   - Smart cursor: Remember position when navigating to parent directory
-  - Refresh: Reload directory contents with F5 or Ctrl+R
+  - Refresh: Reload directory contents with F5 or Ctrl+R (auto-refresh configurable 0-60s)
   - Async loading: Responsive UI with proper pane identification
 
 - **Archive Operations** (Linux only)
@@ -68,6 +69,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Custom keybindings: Remap any key with modifier support (Ctrl, Shift, Alt)
   - Color theme: Full 256-color customization for all UI elements with palette reference
   - Enter key behavior: Choose between pager, xdg-open, custom application, or MIME-based opening
+  - Auto-refresh rate: Configure directory refresh interval (0-60s, default 3s)
   - Bookmarks: Persisted in configuration file with add, edit, and delete support
   - Auto-merge: Missing configuration items automatically added on updates
 
