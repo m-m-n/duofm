@@ -69,8 +69,27 @@ func main() {
 	// Themeを生成
 	theme := ui.NewTheme(cfg.Colors)
 
+	// DirSortStoreを初期化
+	var dirSortStore *config.DirSortStore
+	if configDir, err := config.GetConfigDir(); err == nil {
+		dirSortStore = config.NewDirSortStore(configDir)
+		if err := dirSortStore.Load(); err != nil {
+			warnings = append(warnings, fmt.Sprintf("Warning: failed to load dir sort settings: %v", err))
+		}
+	}
+
 	// Modelを作成
-	model := ui.NewModelWithConfig(keybindingMap, theme, warnings, cfg.HistoryLimit, cfg.RefreshRate, cfg.EnterBehavior, cfg.MIMEBehavior, configPath)
+	model := ui.NewModelWithConfig(ui.ModelOptions{
+		KeybindingMap: keybindingMap,
+		Theme:         theme,
+		Warnings:      warnings,
+		HistoryLimit:  cfg.HistoryLimit,
+		RefreshRate:   cfg.RefreshRate,
+		EnterBehavior: cfg.EnterBehavior,
+		MIMEBehavior:  cfg.MIMEBehavior,
+		ConfigPath:    configPath,
+		DirSortStore:  dirSortStore,
+	})
 
 	// 起動時エラーがあればpendingReloadResultに設定
 	if loadResult.HasErrors() {

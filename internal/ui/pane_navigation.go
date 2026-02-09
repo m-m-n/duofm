@@ -121,6 +121,9 @@ func (p *Pane) EnterDirectoryAsync() tea.Cmd {
 	// ローディング状態を開始
 	p.StartLoadingDirectory()
 
+	// 保存済みソート設定を適用
+	p.applySavedSortConfig(newPath)
+
 	return LoadDirectoryAsync(p.paneID, newPath, p.sortConfig)
 }
 
@@ -150,6 +153,7 @@ func (p *Pane) EnterDirectory() error {
 		// これにより、..で論理的な親ディレクトリに戻れる
 		p.recordPreviousPath()
 		p.path = filepath.Join(p.path, entry.Name)
+		p.applySavedSortConfig(p.path)
 		if err := p.LoadDirectory(); err != nil {
 			return err
 		}
@@ -178,6 +182,7 @@ func (p *Pane) EnterDirectory() error {
 	// 直前のパスを記録（復元用）
 	p.recordPreviousPath()
 	p.path = newPath
+	p.applySavedSortConfig(newPath)
 
 	if err := p.LoadDirectory(); err != nil {
 		return err
@@ -209,6 +214,7 @@ func (p *Pane) MoveToParent() error {
 
 	p.recordPreviousPath()
 	p.path = filepath.Dir(p.path)
+	p.applySavedSortConfig(p.path)
 
 	if err := p.LoadDirectory(); err != nil {
 		return err
@@ -244,6 +250,7 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 	p.pendingPath = newPath
 	p.path = newPath
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(newPath)
 	return LoadDirectoryAsync(p.paneID, newPath, p.sortConfig)
 }
 
@@ -251,6 +258,7 @@ func (p *Pane) MoveToParentAsync() tea.Cmd {
 func (p *Pane) ChangeDirectory(path string) error {
 	p.recordPreviousPath()
 	p.path = path
+	p.applySavedSortConfig(path)
 	if err := p.LoadDirectory(); err != nil {
 		return err
 	}
@@ -267,6 +275,7 @@ func (p *Pane) ChangeDirectoryAsync(path string) tea.Cmd {
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(path)
 	return LoadDirectoryAsync(p.paneID, path, p.sortConfig)
 }
 
@@ -284,6 +293,7 @@ func (p *Pane) NavigateToHome() error {
 
 	p.recordPreviousPath()
 	p.path = home
+	p.applySavedSortConfig(home)
 	if err := p.LoadDirectory(); err != nil {
 		return err
 	}
@@ -307,6 +317,7 @@ func (p *Pane) NavigateToHomeAsync() tea.Cmd {
 	p.pendingPath = home
 	p.path = home
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(home)
 	return LoadDirectoryAsync(p.paneID, home, p.sortConfig)
 }
 
@@ -320,6 +331,7 @@ func (p *Pane) NavigateToPrevious() error {
 	current := p.path
 	p.path = p.previousPath
 	p.previousPath = current
+	p.applySavedSortConfig(p.path)
 
 	if err := p.LoadDirectory(); err != nil {
 		return err
@@ -343,6 +355,7 @@ func (p *Pane) NavigateToPreviousAsync() tea.Cmd {
 	p.path = p.previousPath
 	p.previousPath = current
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(p.path)
 	return LoadDirectoryAsync(p.paneID, p.path, p.sortConfig)
 }
 
@@ -446,6 +459,7 @@ func (p *Pane) SyncTo(path string) error {
 
 	// Change directory
 	p.path = path
+	p.applySavedSortConfig(path)
 	err := p.LoadDirectory()
 	if err != nil {
 		return err
@@ -475,6 +489,7 @@ func (p *Pane) NavigateHistoryBack() error {
 	oldPath := p.path // エラー時の復元用
 	p.previousPath = p.path
 	p.path = path
+	p.applySavedSortConfig(path)
 
 	// ディレクトリが存在するか確認
 	if err := p.LoadDirectory(); err != nil {
@@ -502,6 +517,7 @@ func (p *Pane) NavigateHistoryForward() error {
 	oldPath := p.path // エラー時の復元用
 	p.previousPath = p.path
 	p.path = path
+	p.applySavedSortConfig(path)
 
 	// ディレクトリが存在するか確認
 	if err := p.LoadDirectory(); err != nil {
@@ -531,6 +547,7 @@ func (p *Pane) NavigateHistoryBackAsync() tea.Cmd {
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(path)
 	// isForward=false（後退操作）
 	return LoadDirectoryAsyncWithHistory(p.paneID, path, p.sortConfig, false)
 }
@@ -551,6 +568,7 @@ func (p *Pane) NavigateHistoryForwardAsync() tea.Cmd {
 	p.pendingPath = path
 	p.path = path
 	p.StartLoadingDirectory()
+	p.applySavedSortConfig(path)
 	// isForward=true（前進操作）
 	return LoadDirectoryAsyncWithHistory(p.paneID, path, p.sortConfig, true)
 }

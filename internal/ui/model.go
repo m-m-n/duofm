@@ -80,6 +80,9 @@ type Model struct {
 	configWatcher       *config.ConfigWatcher    // File watcher reference (for SuppressFor)
 	pendingReloadResult *config.ConfigLoadResult // Reload result pending dialog decision
 	pendingConfigError  *config.ConfigLoadResult // Queued error when another dialog is open
+
+	// Per-directory sort settings
+	dirSortStore *config.DirSortStore
 }
 
 // PanePosition はペインの位置を表す
@@ -92,18 +95,36 @@ const (
 	RightPane
 )
 
+// ModelOptions holds all configuration for Model initialization.
+type ModelOptions struct {
+	KeybindingMap *KeybindingMap
+	Theme         *Theme
+	Warnings      []string
+	HistoryLimit  int
+	RefreshRate   int
+	EnterBehavior config.EnterBehavior
+	MIMEBehavior  config.MIMEBehaviorConfig
+	ConfigPath    string
+	DirSortStore  *config.DirSortStore
+}
+
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
 func NewModel() Model {
-	return NewModelWithConfig(nil, nil, nil, 0, config.DefaultRefreshRate, config.DefaultEnterBehavior(), config.MIMEBehaviorConfig{}, "")
+	return NewModelWithConfig(ModelOptions{
+		RefreshRate: config.DefaultRefreshRate,
+	})
 }
 
 // NewModelWithConfig は設定付きの初期モデルを作成
-// historyLimit: 0=無効、>0=履歴エントリ数上限
-// refreshRate: auto-refresh interval in seconds (0=disabled, 1-60=seconds)
-// enterBehavior: Enterキー押下時のファイルオープン動作
-// mimeBehavior: MIME type based file opening configuration
-// configPath: path to config file (empty string disables hot-reload features)
-func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []string, historyLimit int, refreshRate int, enterBehavior config.EnterBehavior, mimeBehavior config.MIMEBehaviorConfig, configPath string) Model {
+func NewModelWithConfig(opts ModelOptions) Model {
+	keybindingMap := opts.KeybindingMap
+	theme := opts.Theme
+	warnings := opts.Warnings
+	historyLimit := opts.HistoryLimit
+	refreshRate := opts.RefreshRate
+	enterBehavior := opts.EnterBehavior
+	mimeBehavior := opts.MIMEBehavior
+	configPath := opts.ConfigPath
 	// 初期ディレクトリの取得
 	cwd, err := fs.CurrentDirectory()
 	if err != nil {
@@ -167,6 +188,7 @@ func NewModelWithConfig(keybindingMap *KeybindingMap, theme *Theme, warnings []s
 		archiveOpManager: NewArchiveOperationManager(),
 		shellHistory:     shellHistory,
 		configPath:       configPath,
+		dirSortStore:     opts.DirSortStore,
 	}
 }
 
