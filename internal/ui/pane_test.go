@@ -1931,18 +1931,18 @@ func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
 	})
 }
 
-func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
+func TestRefreshDirectoryPreserveCursorPreservesMarks(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "file2.txt"), []byte(""), 0644)
 
-	pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
-	if err != nil {
-		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
-	}
+	t.Run("preserves marks for existing files", func(t *testing.T) {
+		pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
+		}
 
-	t.Run("clears marks on refresh", func(t *testing.T) {
 		// ファイルをマーク
 		for i, entry := range pane.entries {
 			if entry.Name == "file1.txt" {
@@ -1956,14 +1956,53 @@ func TestRefreshDirectoryPreserveCursorClearsMarks(t *testing.T) {
 			t.Fatal("File should be marked")
 		}
 
-		err := pane.RefreshDirectoryPreserveCursor()
+		err = pane.RefreshDirectoryPreserveCursor()
 		if err != nil {
 			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
 		}
 
-		// マークがクリアされているか確認
-		if pane.HasMarkedFiles() {
-			t.Error("RefreshDirectoryPreserveCursor() should clear marks")
+		// マークが保持されているか確認
+		if !pane.HasMarkedFiles() {
+			t.Error("RefreshDirectoryPreserveCursor() should preserve marks")
+		}
+		if !pane.IsMarked("file1.txt") {
+			t.Error("file1.txt should still be marked after refresh")
+		}
+	})
+
+	t.Run("removes marks for deleted files", func(t *testing.T) {
+		// file3.txtを追加してマーク
+		file3 := filepath.Join(tmpDir, "file3.txt")
+		os.WriteFile(file3, []byte(""), 0644)
+
+		pane, err := NewPane(LeftPane, tmpDir, 40, 20, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
+		}
+
+		for i, entry := range pane.entries {
+			if entry.Name == "file3.txt" {
+				pane.cursor = i
+				pane.ToggleMark()
+				break
+			}
+		}
+
+		if !pane.IsMarked("file3.txt") {
+			t.Fatal("file3.txt should be marked")
+		}
+
+		// file3.txtを削除してリフレッシュ
+		os.Remove(file3)
+
+		err = pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		// 削除されたファイルのマークは除去されるべき
+		if pane.IsMarked("file3.txt") {
+			t.Error("Mark for deleted file3.txt should be removed after refresh")
 		}
 	})
 }
