@@ -282,8 +282,16 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 	p.cursor = newCursor
 	p.adjustScroll()
 
-	// Clear marks on refresh (same as LoadDirectory)
-	p.markedFiles = make(map[string]bool)
+	// Restore marks for files that still exist after refresh
+	existingFiles := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		existingFiles[entry.Name] = true
+	}
+	for filename := range p.markedFiles {
+		if !existingFiles[filename] {
+			delete(p.markedFiles, filename)
+		}
+	}
 
 	return nil
 }
