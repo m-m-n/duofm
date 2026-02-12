@@ -42,7 +42,12 @@ func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) Comple
 
 	var candidates []string
 	if isCommandPosition(input, cursorPos) {
-		candidates = tc.completeCommand(word)
+		if strings.ContainsRune(word, '/') {
+			// Path-like command (e.g., ./script.sh, ../bin/tool, /usr/local/bin/cmd)
+			candidates = tc.completeExecutablePath(word, cwd)
+		} else {
+			candidates = tc.completeCommand(word)
+		}
 	} else {
 		candidates = tc.completePath(word, cwd)
 	}
@@ -158,6 +163,24 @@ func (tc *TabCompleter) completePath(prefix string, cwd string) []string {
 		return nil
 	}
 
+	// Precompute base prefix for completion string construction.
+	// Avoids repeated filepath.Dir() calls and handles root path correctly
+	// (filepath.Dir("/ho") returns "/" which would produce "//home" with naive concatenation).
+	var basePrefix string
+	hasSlash := strings.Contains(prefix, "/")
+	if hasSlash {
+		if strings.HasSuffix(prefix, "/") {
+			basePrefix = prefix
+		} else {
+			dirPart := filepath.Dir(prefix)
+			if dirPart == "/" {
+				basePrefix = "/"
+			} else {
+				basePrefix = dirPart + "/"
+			}
+		}
+	}
+
 	var matches []string
 	for _, entry := range entries {
 		name := entry.Name()
@@ -167,12 +190,8 @@ func (tc *TabCompleter) completePath(prefix string, cwd string) []string {
 
 		// Build the completion result preserving the original prefix path
 		var completion string
-		if strings.Contains(prefix, "/") {
-			if strings.HasSuffix(prefix, "/") {
-				completion = prefix + name
-			} else {
-				completion = filepath.Dir(prefix) + "/" + name
-			}
+		if hasSlash {
+			completion = basePrefix + name
 		} else {
 			completion = name
 		}
@@ -182,6 +201,71 @@ func (tc *TabCompleter) completePath(prefix string, cwd string) []string {
 		}
 
 		matches = append(matches, completion)
+	}
+
+	sort.Strings(matches)
+	return matches
+}
+
+// completeExecutablePath finds matching executable files and directories for command position.
+// Used when the input contains a path separator (e.g., ./script.sh, ../bin/tool).
+func (tc *TabCompleter) completeExecutablePath(prefix string, cwd string) []string {
+	var dir, filePrefix string
+
+	if strings.HasSuffix(prefix, "/") {
+		dir = prefix
+		filePrefix = ""
+	} else {
+		dir = filepath.Dir(prefix)
+		filePrefix = filepath.Base(prefix)
+	}
+
+	// Resolve relative to cwd
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(cwd, dir)
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	// Precompute base prefix (same root-path fix as completePath)
+	var basePrefix string
+	if strings.HasSuffix(prefix, "/") {
+		basePrefix = prefix
+	} else {
+		dirPart := filepath.Dir(prefix)
+		if dirPart == "/" {
+			basePrefix = "/"
+		} else {
+			basePrefix = dirPart + "/"
+		}
+	}
+
+	var matches []string
+	for _, entry := range entries {
+		name := entry.Name()
+		if !strings.HasPrefix(name, filePrefix) {
+			continue
+		}
+
+		completion := basePrefix + name
+
+		if entry.IsDir() {
+			completion += "/"
+			matches = append(matches, completion)
+			continue
+		}
+
+		// Only include executable files
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		if info.Mode()&0111 != 0 {
+			matches = append(matches, completion)
+		}
 	}
 
 	sort.Strings(matches)
