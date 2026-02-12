@@ -379,11 +379,12 @@ Press `@` to show context menu with:
 
 #### Refresh (F5 / Ctrl+R)
 - Reload current directory
-- Preserves cursor position and marks
+- Preserves cursor position and file marks
 - Auto-refresh configurable via `refresh_rate` setting
   - Default: 3 seconds
   - Range: 0-60 seconds (0 disables auto-refresh)
   - Reloads directory listings and disk space automatically
+  - File marks preserved during auto-refresh
   - Suppressed during dialog display
   - Manual refresh always available
 
@@ -804,7 +805,7 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
 
 - Async directory loading for responsive UI
 - Independent pane operations
-- Marks preserved during filter/refresh
+- File marks preserved during filter/refresh/auto-refresh
 - Efficient sorting with directory-first ordering
 - History limited to 100 entries per pane (configurable: 20,000 for shell commands)
 - No performance degradation with 1000+ files

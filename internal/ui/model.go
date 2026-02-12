@@ -47,6 +47,7 @@ type Model struct {
 
 	// Input state
 	ctrlCPending         bool // Ctrl+Cが1回押された状態かどうか
+	tabCompletionPending bool // TAB1回目が押された状態（次のTABで候補一覧表示）
 	shellCommandMode     bool // シェルコマンドモードかどうか
 	historySearching     bool // 履歴検索モードかどうか
 	historySearchPattern string

@@ -1,8 +1,10 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -10,12 +12,15 @@ func TestTabComplete_EmptyInput(t *testing.T) {
 	tc := NewTabCompleter()
 	cwd := t.TempDir()
 
-	input, cursor := tc.Complete("", 0, cwd)
-	if input != "" {
-		t.Errorf("input = %q, want %q", input, "")
+	result := tc.Complete("", 0, cwd)
+	if result.NewInput != "" {
+		t.Errorf("input = %q, want %q", result.NewInput, "")
 	}
-	if cursor != 0 {
-		t.Errorf("cursor = %d, want %d", cursor, 0)
+	if result.NewCursorPos != 0 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 0)
+	}
+	if result.HasProgress {
+		t.Error("HasProgress should be false for empty input")
 	}
 }
 
@@ -31,13 +36,19 @@ func TestTabComplete_SingleCommand(t *testing.T) {
 	tc := NewTabCompleter()
 	cwd := t.TempDir()
 
-	input, cursor := tc.Complete("myuniquetestcmd1", 16, cwd)
+	result := tc.Complete("myuniquetestcmd1", 16, cwd)
 	// Single match should auto-complete with trailing space
-	if input != "myuniquetestcmd123 " {
-		t.Errorf("input = %q, want %q", input, "myuniquetestcmd123 ")
+	if result.NewInput != "myuniquetestcmd123 " {
+		t.Errorf("input = %q, want %q", result.NewInput, "myuniquetestcmd123 ")
 	}
-	if cursor != 19 {
-		t.Errorf("cursor = %d, want %d", cursor, 19)
+	if result.NewCursorPos != 19 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 19)
+	}
+	if !result.HasProgress {
+		t.Error("HasProgress should be true for single match")
+	}
+	if len(result.Candidates) != 1 {
+		t.Errorf("Candidates = %d, want 1", len(result.Candidates))
 	}
 }
 
@@ -53,14 +64,20 @@ func TestTabComplete_MultipleCommands(t *testing.T) {
 	tc := NewTabCompleter()
 	cwd := t.TempDir()
 
-	input, cursor := tc.Complete("testcmd_", 8, cwd)
+	result := tc.Complete("testcmd_", 8, cwd)
 	// Multiple matches should return common prefix only
-	if input != "testcmd_" {
-		t.Errorf("input = %q, want %q (common prefix, no progress)", input, "testcmd_")
+	if result.NewInput != "testcmd_" {
+		t.Errorf("input = %q, want %q (common prefix, no progress)", result.NewInput, "testcmd_")
 	}
 	// No progress made, should return original cursor
-	if cursor != 8 {
-		t.Errorf("cursor = %d, want %d", cursor, 8)
+	if result.NewCursorPos != 8 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 8)
+	}
+	if result.HasProgress {
+		t.Error("HasProgress should be false when no progress made")
+	}
+	if len(result.Candidates) != 2 {
+		t.Errorf("Candidates = %d, want 2", len(result.Candidates))
 	}
 }
 
@@ -76,13 +93,16 @@ func TestTabComplete_MultipleCommandsWithProgress(t *testing.T) {
 	tc := NewTabCompleter()
 	cwd := t.TempDir()
 
-	input, cursor := tc.Complete("testx", 5, cwd)
+	result := tc.Complete("testx", 5, cwd)
 	// Common prefix is "testxyz_"
-	if input != "testxyz_" {
-		t.Errorf("input = %q, want %q", input, "testxyz_")
+	if result.NewInput != "testxyz_" {
+		t.Errorf("input = %q, want %q", result.NewInput, "testxyz_")
 	}
-	if cursor != 8 {
-		t.Errorf("cursor = %d, want %d", cursor, 8)
+	if result.NewCursorPos != 8 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 8)
+	}
+	if !result.HasProgress {
+		t.Error("HasProgress should be true when common prefix extends input")
 	}
 }
 
@@ -92,12 +112,12 @@ func TestTabComplete_SingleFile(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("ls uniquef", 10, cwd)
-	if input != "ls uniquefile.txt" {
-		t.Errorf("input = %q, want %q", input, "ls uniquefile.txt")
+	result := tc.Complete("ls uniquef", 10, cwd)
+	if result.NewInput != "ls uniquefile.txt" {
+		t.Errorf("input = %q, want %q", result.NewInput, "ls uniquefile.txt")
 	}
-	if cursor != 17 {
-		t.Errorf("cursor = %d, want %d", cursor, 17)
+	if result.NewCursorPos != 17 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 17)
 	}
 }
 
@@ -108,13 +128,13 @@ func TestTabComplete_MultipleFiles(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cat rep", 7, cwd)
+	result := tc.Complete("cat rep", 7, cwd)
 	// Common prefix of "report_2024.txt" and "report_2025.txt" is "report_202"
-	if input != "cat report_202" {
-		t.Errorf("input = %q, want %q", input, "cat report_202")
+	if result.NewInput != "cat report_202" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat report_202")
 	}
-	if cursor != 14 {
-		t.Errorf("cursor = %d, want %d", cursor, 14)
+	if result.NewCursorPos != 14 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 14)
 	}
 }
 
@@ -124,12 +144,12 @@ func TestTabComplete_DirectoryAppendSlash(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cd mysub", 8, cwd)
-	if input != "cd mysubdir/" {
-		t.Errorf("input = %q, want %q", input, "cd mysubdir/")
+	result := tc.Complete("cd mysub", 8, cwd)
+	if result.NewInput != "cd mysubdir/" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cd mysubdir/")
 	}
-	if cursor != 12 {
-		t.Errorf("cursor = %d, want %d", cursor, 12)
+	if result.NewCursorPos != 12 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 12)
 	}
 }
 
@@ -140,13 +160,13 @@ func TestTabComplete_AbsolutePath(t *testing.T) {
 	tc := NewTabCompleter()
 	cwd := t.TempDir() // different cwd
 
-	input, cursor := tc.Complete("cat "+tmpDir+"/absolut", len("cat "+tmpDir+"/absolut"), cwd)
+	result := tc.Complete("cat "+tmpDir+"/absolut", len("cat "+tmpDir+"/absolut"), cwd)
 	expected := "cat " + tmpDir + "/absolutetarget.txt"
-	if input != expected {
-		t.Errorf("input = %q, want %q", input, expected)
+	if result.NewInput != expected {
+		t.Errorf("input = %q, want %q", result.NewInput, expected)
 	}
-	if cursor != len(expected) {
-		t.Errorf("cursor = %d, want %d", cursor, len(expected))
+	if result.NewCursorPos != len(expected) {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, len(expected))
 	}
 }
 
@@ -157,12 +177,12 @@ func TestTabComplete_RelativePath(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cat subdir/relf", 15, cwd)
-	if input != "cat subdir/relfile.txt" {
-		t.Errorf("input = %q, want %q", input, "cat subdir/relfile.txt")
+	result := tc.Complete("cat subdir/relf", 15, cwd)
+	if result.NewInput != "cat subdir/relfile.txt" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat subdir/relfile.txt")
 	}
-	if cursor != 22 {
-		t.Errorf("cursor = %d, want %d", cursor, 22)
+	if result.NewCursorPos != 22 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 22)
 	}
 }
 
@@ -171,12 +191,18 @@ func TestTabComplete_NoMatches(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cat nonexistent", 15, cwd)
-	if input != "cat nonexistent" {
-		t.Errorf("input = %q, want %q", input, "cat nonexistent")
+	result := tc.Complete("cat nonexistent", 15, cwd)
+	if result.NewInput != "cat nonexistent" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat nonexistent")
 	}
-	if cursor != 15 {
-		t.Errorf("cursor = %d, want %d", cursor, 15)
+	if result.NewCursorPos != 15 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 15)
+	}
+	if result.HasProgress {
+		t.Error("HasProgress should be false for no matches")
+	}
+	if len(result.Candidates) != 0 {
+		t.Errorf("Candidates = %d, want 0", len(result.Candidates))
 	}
 }
 
@@ -193,12 +219,12 @@ func TestTabComplete_MiddleOfWord(t *testing.T) {
 	cwd := t.TempDir()
 
 	// Cursor is at position 7 ("midtest") but there's more text after
-	input, cursor := tc.Complete("midtest --flag", 7, cwd)
-	if input != "midtestcmd  --flag" {
-		t.Errorf("input = %q, want %q", input, "midtestcmd  --flag")
+	result := tc.Complete("midtest --flag", 7, cwd)
+	if result.NewInput != "midtestcmd  --flag" {
+		t.Errorf("input = %q, want %q", result.NewInput, "midtestcmd  --flag")
 	}
-	if cursor != 11 {
-		t.Errorf("cursor = %d, want %d", cursor, 11)
+	if result.NewCursorPos != 11 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 11)
 	}
 }
 
@@ -208,12 +234,12 @@ func TestTabComplete_HiddenFiles(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cat .hidden", 11, cwd)
-	if input != "cat .hiddenconfig" {
-		t.Errorf("input = %q, want %q", input, "cat .hiddenconfig")
+	result := tc.Complete("cat .hidden", 11, cwd)
+	if result.NewInput != "cat .hiddenconfig" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat .hiddenconfig")
 	}
-	if cursor != 17 {
-		t.Errorf("cursor = %d, want %d", cursor, 17)
+	if result.NewCursorPos != 17 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 17)
 	}
 }
 
@@ -231,21 +257,21 @@ func TestTabComplete_PathCacheInvalidation(t *testing.T) {
 
 	// First with binDir1
 	os.Setenv("PATH", binDir1)
-	input1, _ := tc.Complete("cachetest", 9, cwd)
+	result1 := tc.Complete("cachetest", 9, cwd)
 
 	// Change PATH to binDir2
 	os.Setenv("PATH", binDir2)
-	input2, _ := tc.Complete("cachetest", 9, cwd)
+	result2 := tc.Complete("cachetest", 9, cwd)
 
 	// Should find cachetest2cmd now
-	if input1 == input2 {
+	if result1.NewInput == result2.NewInput {
 		t.Error("cache should have been invalidated when PATH changed")
 	}
-	if input1 != "cachetest1cmd " {
-		t.Errorf("first completion = %q, want %q", input1, "cachetest1cmd ")
+	if result1.NewInput != "cachetest1cmd " {
+		t.Errorf("first completion = %q, want %q", result1.NewInput, "cachetest1cmd ")
 	}
-	if input2 != "cachetest2cmd " {
-		t.Errorf("second completion = %q, want %q", input2, "cachetest2cmd ")
+	if result2.NewInput != "cachetest2cmd " {
+		t.Errorf("second completion = %q, want %q", result2.NewInput, "cachetest2cmd ")
 	}
 }
 
@@ -347,12 +373,12 @@ func TestTabComplete_SymlinksIncluded(t *testing.T) {
 	tc := NewTabCompleter()
 
 	// Complete "linkf" should find the symlink
-	input, cursor := tc.Complete("cat linkf", 9, cwd)
-	if input != "cat linkfile.txt" {
-		t.Errorf("input = %q, want %q", input, "cat linkfile.txt")
+	result := tc.Complete("cat linkf", 9, cwd)
+	if result.NewInput != "cat linkfile.txt" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat linkfile.txt")
 	}
-	if cursor != 16 {
-		t.Errorf("cursor = %d, want %d", cursor, 16)
+	if result.NewCursorPos != 16 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 16)
 	}
 }
 
@@ -362,12 +388,12 @@ func TestTabComplete_DotSlashPrefix(t *testing.T) {
 
 	tc := NewTabCompleter()
 
-	input, cursor := tc.Complete("cat ./dotslash", 14, cwd)
-	if input != "cat ./dotslashfile.txt" {
-		t.Errorf("input = %q, want %q", input, "cat ./dotslashfile.txt")
+	result := tc.Complete("cat ./dotslash", 14, cwd)
+	if result.NewInput != "cat ./dotslashfile.txt" {
+		t.Errorf("input = %q, want %q", result.NewInput, "cat ./dotslashfile.txt")
 	}
-	if cursor != 22 {
-		t.Errorf("cursor = %d, want %d", cursor, 22)
+	if result.NewCursorPos != 22 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 22)
 	}
 }
 
@@ -380,12 +406,12 @@ func TestTabComplete_TrailingSlashDir(t *testing.T) {
 	tc := NewTabCompleter()
 
 	// Complete inside "mydir/" directory
-	input, cursor := tc.Complete("ls mydir/inner", 14, cwd)
-	if input != "ls mydir/innerfile.txt" {
-		t.Errorf("input = %q, want %q", input, "ls mydir/innerfile.txt")
+	result := tc.Complete("ls mydir/inner", 14, cwd)
+	if result.NewInput != "ls mydir/innerfile.txt" {
+		t.Errorf("input = %q, want %q", result.NewInput, "ls mydir/innerfile.txt")
 	}
-	if cursor != 22 {
-		t.Errorf("cursor = %d, want %d", cursor, 22)
+	if result.NewCursorPos != 22 {
+		t.Errorf("cursor = %d, want %d", result.NewCursorPos, 22)
 	}
 }
 
@@ -428,6 +454,151 @@ func TestMinibufferCursorPosGetSet(t *testing.T) {
 			t.Errorf("cursorPos = %d, want %d", mb.cursorPos, 11)
 		}
 	})
+}
+
+// TestCompletionResult_CandidatesReturned verifies candidates are included in result
+func TestCompletionResult_CandidatesReturned(t *testing.T) {
+	binDir := t.TempDir()
+	createExecutable(t, binDir, "testcand_aaa")
+	createExecutable(t, binDir, "testcand_bbb")
+	createExecutable(t, binDir, "testcand_ccc")
+
+	origPath := os.Getenv("PATH")
+	t.Setenv("PATH", binDir)
+	defer os.Setenv("PATH", origPath)
+
+	tc := NewTabCompleter()
+	cwd := t.TempDir()
+
+	result := tc.Complete("testcand_", 9, cwd)
+	if len(result.Candidates) != 3 {
+		t.Fatalf("Candidates = %d, want 3", len(result.Candidates))
+	}
+	expected := []string{"testcand_aaa", "testcand_bbb", "testcand_ccc"}
+	for i, c := range result.Candidates {
+		if c != expected[i] {
+			t.Errorf("Candidates[%d] = %q, want %q", i, c, expected[i])
+		}
+	}
+}
+
+// TestFormatCandidateList tests the candidate list formatting
+func TestFormatCandidateList(t *testing.T) {
+	tests := []struct {
+		name       string
+		candidates []string
+		maxWidth   int
+		check      func(t *testing.T, result string)
+	}{
+		{
+			name:       "empty candidates",
+			candidates: nil,
+			maxWidth:   80,
+			check: func(t *testing.T, result string) {
+				if result != "" {
+					t.Errorf("result = %q, want empty", result)
+				}
+			},
+		},
+		{
+			name:       "all fit",
+			candidates: []string{"ls", "cat", "rm"},
+			maxWidth:   80,
+			check: func(t *testing.T, result string) {
+				if result != "ls cat rm" {
+					t.Errorf("result = %q, want %q", result, "ls cat rm")
+				}
+			},
+		},
+		{
+			name:       "truncated with more",
+			candidates: []string{"alpha", "bravo", "charlie", "delta", "echo", "foxtrot"},
+			maxWidth:   25,
+			check: func(t *testing.T, result string) {
+				if !strings.Contains(result, "more)") {
+					t.Errorf("result should contain (+N more), got %q", result)
+				}
+				if !strings.HasPrefix(result, "alpha") {
+					t.Errorf("result should start with first candidate, got %q", result)
+				}
+			},
+		},
+		{
+			name:       "zero width defaults to 80",
+			candidates: []string{"aaa", "bbb"},
+			maxWidth:   0,
+			check: func(t *testing.T, result string) {
+				if result != "aaa bbb" {
+					t.Errorf("result = %q, want %q", result, "aaa bbb")
+				}
+			},
+		},
+		{
+			name:       "last candidate fits without more suffix",
+			candidates: []string{"a", "b"},
+			maxWidth:   5,
+			check: func(t *testing.T, result string) {
+				if result != "a b" {
+					t.Errorf("result = %q, want %q", result, "a b")
+				}
+			},
+		},
+		{
+			name:       "single candidate always shown",
+			candidates: []string{"verylongname"},
+			maxWidth:   5,
+			check: func(t *testing.T, result string) {
+				if result != "verylongname" {
+					t.Errorf("result = %q, want %q", result, "verylongname")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatCandidateList(tt.candidates, tt.maxWidth)
+			tt.check(t, result)
+		})
+	}
+}
+
+// TestFormatCandidateList_MoreCount verifies the (+N more) count is accurate
+func TestFormatCandidateList_MoreCount(t *testing.T) {
+	// Create 10 candidates of 5 chars each
+	candidates := make([]string, 10)
+	for i := range candidates {
+		candidates[i] = fmt.Sprintf("cmd%02d", i)
+	}
+
+	// Width 20: should show some and truncate rest
+	result := formatCandidateList(candidates, 20)
+	if !strings.Contains(result, "more)") {
+		t.Errorf("expected truncation, got %q", result)
+	}
+
+	// Count shown candidates (everything before (+N more))
+	parts := strings.Fields(result)
+	moreIdx := -1
+	for i, p := range parts {
+		if strings.HasPrefix(p, "(+") {
+			moreIdx = i
+			break
+		}
+	}
+	if moreIdx == -1 {
+		t.Fatal("could not find (+N more) in result")
+	}
+
+	shownCount := moreIdx
+	// Extract N from "(+N"
+	moreStr := strings.TrimPrefix(parts[moreIdx], "(+")
+	var moreCount int
+	fmt.Sscanf(moreStr, "%d", &moreCount)
+
+	if shownCount+moreCount != 10 {
+		t.Errorf("shown(%d) + more(%d) = %d, want 10", shownCount, moreCount, shownCount+moreCount)
+	}
 }
 
 // createExecutable creates a fake executable file in the given directory

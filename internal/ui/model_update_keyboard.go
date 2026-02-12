@@ -3,9 +3,11 @@ package ui
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/config"
 )
 
@@ -76,6 +78,7 @@ func (m Model) handleSearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle Ctrl+R for history search
 	if msg.Type == tea.KeyCtrlR {
+		m.tabCompletionPending = false
 		return m.handleHistorySearch()
 	}
 
@@ -87,6 +90,12 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle TAB for completion
 	if msg.Type == tea.KeyTab {
 		return m.handleShellCommandTab()
+	}
+
+	// Non-TAB key: reset tab completion pending state
+	if m.tabCompletionPending {
+		m.tabCompletionPending = false
+		m.statusMessage = ""
 	}
 
 	// Handle Up/Down arrow keys for history navigation
@@ -193,12 +202,86 @@ func (m Model) handleShellCommandTab() (tea.Model, tea.Cmd) {
 	cursorPos := m.minibuffer.CursorPos()
 	cwd := m.getActivePane().Path()
 
-	newInput, newCursorPos := m.tabCompleter.Complete(input, cursorPos, cwd)
-	if newInput != input {
-		m.minibuffer.SetInput(newInput)
-		m.minibuffer.SetCursorPos(newCursorPos)
+	result := m.tabCompleter.Complete(input, cursorPos, cwd)
+
+	if result.HasProgress {
+		// Completion made progress - update input
+		m.minibuffer.SetInput(result.NewInput)
+		m.minibuffer.SetCursorPos(result.NewCursorPos)
+		m.tabCompletionPending = false
+		return m, nil
 	}
-	return m, nil
+
+	// No progress
+	if len(result.Candidates) == 0 {
+		return m, nil
+	}
+
+	// Extract the word being completed for the message
+	word, _ := extractWordAtCursor(input, cursorPos)
+
+	if !m.tabCompletionPending {
+		// TAB 1st press: show candidate count
+		m.tabCompletionPending = true
+		m.statusMessage = fmt.Sprintf("%d matches for '%s'", len(result.Candidates), word)
+		m.isStatusError = false
+		return m, nil
+	}
+
+	// TAB 2nd press: show candidate list
+	m.tabCompletionPending = false
+	m.statusMessage = formatCandidateList(result.Candidates, m.width)
+	m.isStatusError = false
+	return m, statusMessageClearCmd(5 * time.Second)
+}
+
+// formatCandidateList formats candidates to fit within the given width.
+func formatCandidateList(candidates []string, maxWidth int) string {
+	if len(candidates) == 0 {
+		return ""
+	}
+
+	if maxWidth <= 0 {
+		maxWidth = 80
+	}
+
+	var parts []string
+	remaining := maxWidth
+	shown := 0
+
+	for i, c := range candidates {
+		cw := runewidth.StringWidth(c)
+		needed := cw
+		if shown > 0 {
+			needed++ // space separator
+		}
+
+		isLast := i == len(candidates)-1
+
+		// If this is not the last candidate, reserve space for "(+N more)" suffix
+		if shown > 0 && !isLast {
+			moreText := fmt.Sprintf(" (+%d more)", len(candidates)-shown)
+			if remaining-needed < len(moreText) {
+				// Can't fit this candidate plus the "(+N more)" text
+				parts = append(parts, fmt.Sprintf("(+%d more)", len(candidates)-shown))
+				break
+			}
+		}
+
+		if shown > 0 {
+			remaining-- // space
+		}
+		if remaining < cw && shown > 0 {
+			parts = append(parts, fmt.Sprintf("(+%d more)", len(candidates)-shown))
+			break
+		}
+
+		parts = append(parts, c)
+		remaining -= cw
+		shown++
+	}
+
+	return strings.Join(parts, " ")
 }
 
 // handleHistorySearch handles Ctrl+R press in shell command mode

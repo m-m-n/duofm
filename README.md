@@ -31,7 +31,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Per-directory sort: Sort preferences saved per directory and auto-applied on navigation
   - Bookmarks: Save and jump to frequently used directories (`B`/`Shift+B`)
   - Smart cursor: Remember position when navigating to parent directory
-  - Refresh: Reload directory contents with F5 or Ctrl+R (auto-refresh configurable 0-60s)
+  - Refresh: Reload directory contents with F5 or Ctrl+R (auto-refresh configurable 0-60s, preserves file marks)
   - Async loading: Responsive UI with proper pane identification
 
 - **Archive Operations** (Linux only)
