@@ -272,12 +272,15 @@ Three display modes toggled with `I` key:
 #### Shell Command (!)
 - Execute arbitrary shell commands
 - Working directory: active pane's directory
-- "Press Enter to continue" after execution
+- Auto-return after 2 seconds (no "Press Enter to continue")
 - Both panes reload after exit
 - Command history with Ctrl+R incremental search
 - Bash-style up/down arrow key navigation through history
 - Search pattern displayed during Ctrl+R: `(reverse-i-search)'pattern': command`
 - History persisted across sessions (default: 20,000 commands)
+- TAB completion for command names (from PATH) and file paths
+- Command output captured in session log at `/tmp/duofm-shell-<PID>.log`
+- View command history log with Ctrl+L (opens in pager)
 
 ### Context Menu
 
@@ -605,6 +608,7 @@ All dialogs follow consistent UI patterns:
 | V | View with pager |
 | E | Edit with editor |
 | ! | Execute shell command |
+| Ctrl+L | View shell command log |
 | @ | Context menu |
 
 ### Application
@@ -723,6 +727,11 @@ enter_behavior = "less"
 # Maximum number of shell command history entries to retain
 # Default: 20000
 history_limit = 20000
+
+# Directory for shell command output log file
+# Default: "/tmp"
+# Log file path: <shell_log_dir>/duofm-shell-<PID>.log
+shell_log_dir = "/tmp"
 ```
 
 ### Auto-Refresh Configuration

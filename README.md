@@ -57,7 +57,9 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - External viewer: Configurable Enter key behavior (pager, xdg-open, custom app, or MIME-based)
   - MIME-type based opening: Map file types to applications with wildcard support and command fallback
   - External editor: Edit files with $EDITOR (`E` key) in file's directory
-  - Shell commands: Execute commands with `!` key in current directory
+  - Shell commands: Execute commands with `!` key in current directory (auto-return after 2 seconds)
+  - Shell command TAB completion: Auto-complete command names (from PATH) and file paths
+  - Shell command log viewer: View command output history with Ctrl+L (opens in pager)
   - Shell history: Ctrl+R incremental search with bash-style up/down arrow navigation
   - Command history persistence: 20,000 commands preserved across sessions (configurable)
   - Context menu actions: Open and "Open with" for custom applications
