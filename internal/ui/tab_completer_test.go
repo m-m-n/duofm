@@ -601,6 +601,111 @@ func TestFormatCandidateList_MoreCount(t *testing.T) {
 	}
 }
 
+func TestTabComplete_DotSlashCommand(t *testing.T) {
+	cwd := t.TempDir()
+	createExecutable(t, cwd, "script.sh")
+
+	tc := NewTabCompleter()
+
+	result := tc.Complete("./s", 3, cwd)
+	if result.NewInput != "./script.sh " {
+		t.Errorf("input = %q, want %q", result.NewInput, "./script.sh ")
+	}
+	if !result.HasProgress {
+		t.Error("HasProgress should be true")
+	}
+}
+
+func TestTabComplete_DotSlashCommandNonExecutableExcluded(t *testing.T) {
+	cwd := t.TempDir()
+	os.WriteFile(filepath.Join(cwd, "readme.md"), []byte(""), 0644)
+	createExecutable(t, cwd, "run.sh")
+
+	tc := NewTabCompleter()
+
+	result := tc.Complete("./r", 3, cwd)
+	// Only run.sh (executable) should match, not readme.md
+	if result.NewInput != "./run.sh " {
+		t.Errorf("input = %q, want %q", result.NewInput, "./run.sh ")
+	}
+}
+
+func TestTabComplete_DotSlashCommandDirectory(t *testing.T) {
+	cwd := t.TempDir()
+	os.Mkdir(filepath.Join(cwd, "scripts"), 0755)
+
+	tc := NewTabCompleter()
+
+	result := tc.Complete("./scr", 5, cwd)
+	if result.NewInput != "./scripts/" {
+		t.Errorf("input = %q, want %q", result.NewInput, "./scripts/")
+	}
+}
+
+func TestTabComplete_AbsolutePathCommand(t *testing.T) {
+	tmpDir := t.TempDir()
+	createExecutable(t, tmpDir, "mytool")
+
+	tc := NewTabCompleter()
+	cwd := t.TempDir()
+
+	input := tmpDir + "/myt"
+	result := tc.Complete(input, len(input), cwd)
+	expected := tmpDir + "/mytool "
+	if result.NewInput != expected {
+		t.Errorf("input = %q, want %q", result.NewInput, expected)
+	}
+}
+
+func TestTabComplete_DotSlashCommandMultiple(t *testing.T) {
+	cwd := t.TempDir()
+	createExecutable(t, cwd, "build_debug")
+	createExecutable(t, cwd, "build_release")
+
+	tc := NewTabCompleter()
+
+	result := tc.Complete("./build_", 8, cwd)
+	// Multiple matches: common prefix only, no progress (already matches)
+	if len(result.Candidates) != 2 {
+		t.Fatalf("Candidates = %d, want 2", len(result.Candidates))
+	}
+	if result.Candidates[0] != "./build_debug" {
+		t.Errorf("Candidates[0] = %q, want %q", result.Candidates[0], "./build_debug")
+	}
+	if result.Candidates[1] != "./build_release" {
+		t.Errorf("Candidates[1] = %q, want %q", result.Candidates[1], "./build_release")
+	}
+}
+
+func TestTabComplete_RootLevelPath(t *testing.T) {
+	// Verify no double-slash for root-level completions
+	tc := NewTabCompleter()
+	cwd := t.TempDir()
+
+	// Complete /e in argument position (e.g., "ls /e")
+	result := tc.Complete("ls /e", 5, cwd)
+	// Should NOT produce "//etc" - must be "/etc" or "/etc/"
+	for _, c := range result.Candidates {
+		if strings.HasPrefix(c, "//") {
+			t.Errorf("candidate has double slash: %q", c)
+		}
+	}
+}
+
+func TestTabComplete_DotDotSlashCommand(t *testing.T) {
+	parentDir := t.TempDir()
+	childDir := filepath.Join(parentDir, "child")
+	os.Mkdir(childDir, 0755)
+	createExecutable(t, parentDir, "parent_script.sh")
+
+	tc := NewTabCompleter()
+
+	result := tc.Complete("../parent_s", 11, childDir)
+	if result.NewInput != "../parent_script.sh " {
+		t.Errorf("input = %q, want %q", result.NewInput, "../parent_script.sh ")
+	}
+}
+
 // createExecutable creates a fake executable file in the given directory
 func createExecutable(t *testing.T, dir, name string) {
 	t.Helper()
