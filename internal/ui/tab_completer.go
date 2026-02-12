@@ -221,7 +221,8 @@ func (tc *TabCompleter) buildPathCache() {
 	sort.Strings(tc.pathCache)
 }
 
-// commonPrefix returns the longest common prefix of candidates
+// commonPrefix returns the longest common prefix of candidates.
+// It operates on runes to correctly handle multi-byte UTF-8 characters.
 func commonPrefix(candidates []string) string {
 	if len(candidates) == 0 {
 		return ""
@@ -230,14 +231,17 @@ func commonPrefix(candidates []string) string {
 		return candidates[0]
 	}
 
-	prefix := candidates[0]
+	prefix := []rune(candidates[0])
 	for _, s := range candidates[1:] {
-		for !strings.HasPrefix(s, prefix) {
-			prefix = prefix[:len(prefix)-1]
-			if prefix == "" {
-				return ""
-			}
+		runes := []rune(s)
+		i := 0
+		for i < len(prefix) && i < len(runes) && prefix[i] == runes[i] {
+			i++
+		}
+		prefix = prefix[:i]
+		if len(prefix) == 0 {
+			return ""
 		}
 	}
-	return prefix
+	return string(prefix)
 }

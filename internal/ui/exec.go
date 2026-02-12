@@ -42,7 +42,9 @@ func getPager() (string, []string) {
 // openWithViewer opens the file with pager ($PAGER or less)
 func openWithViewer(path, workDir string) tea.Cmd {
 	pagerCmd, pagerArgs := getPager()
-	args := append(pagerArgs, path)
+	args := make([]string, len(pagerArgs)+1)
+	copy(args, pagerArgs)
+	args[len(pagerArgs)] = path
 	c := exec.Command(pagerCmd, args...)
 	c.Dir = workDir
 	return tea.ExecProcess(c, func(err error) tea.Msg {

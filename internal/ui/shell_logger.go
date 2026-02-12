@@ -11,6 +11,9 @@ import (
 // It records shell command execution headers and footers for session review.
 // The log file is lazily created on the first AppendHeader call and
 // deleted on Close (normal program exit).
+//
+// ShellLogger is not safe for concurrent use. All methods must be called
+// from the Bubble Tea Update loop (single goroutine).
 type ShellLogger struct {
 	logPath string
 	logFile *os.File
@@ -80,11 +83,14 @@ func (sl *ShellLogger) HasLog() bool {
 // Close closes the file handle and deletes the log file.
 // Called on normal program exit.
 func (sl *ShellLogger) Close() error {
+	var firstErr error
 	if sl.logFile != nil {
-		sl.logFile.Close()
+		firstErr = sl.logFile.Close()
 		sl.logFile = nil
 	}
 	// Delete log file, ignore error if file doesn't exist
-	os.Remove(sl.logPath)
-	return nil
+	if err := os.Remove(sl.logPath); err != nil && !os.IsNotExist(err) && firstErr == nil {
+		firstErr = err
+	}
+	return firstErr
 }

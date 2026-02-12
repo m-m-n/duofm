@@ -114,12 +114,14 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		// Log command header before execution
-		if m.shellLogger != nil {
-			m.shellLogger.AppendHeader(command, workDir)
+		// Log command header before execution and get log path for tee
+		logFile := m.shellLogger.LogPath()
+		if err := m.shellLogger.AppendHeader(command, workDir); err != nil {
+			m.statusMessage = fmt.Sprintf("Shell log error: %v", err)
+			m.isStatusError = true
 		}
 
-		return m, executeShellCommand(command, workDir, m.shellLogger.LogPath())
+		return m, executeShellCommand(command, workDir, logFile)
 
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.shellCommandMode = false
@@ -249,12 +251,14 @@ func (m Model) handleHistorySearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		// Log command header before execution
-		if m.shellLogger != nil {
-			m.shellLogger.AppendHeader(command, workDir)
+		// Log command header before execution and get log path for tee
+		logFile := m.shellLogger.LogPath()
+		if err := m.shellLogger.AppendHeader(command, workDir); err != nil {
+			m.statusMessage = fmt.Sprintf("Shell log error: %v", err)
+			m.isStatusError = true
 		}
 
-		return m, executeShellCommand(command, workDir, m.shellLogger.LogPath())
+		return m, executeShellCommand(command, workDir, logFile)
 
 	case tea.KeyEsc, tea.KeyCtrlC:
 		// Cancel history search, return to shell command mode
