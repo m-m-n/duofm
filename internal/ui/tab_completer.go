@@ -7,6 +7,14 @@ import (
 	"strings"
 )
 
+// CompletionResult holds the result of a tab completion attempt.
+type CompletionResult struct {
+	NewInput     string   // updated input string
+	NewCursorPos int      // updated cursor position
+	Candidates   []string // matched candidates
+	HasProgress  bool     // whether input changed (completion made progress)
+}
+
 // TabCompleter provides TAB completion for shell command mode.
 // It completes PATH executables for command position and
 // file paths for argument positions.
@@ -20,16 +28,16 @@ func NewTabCompleter() *TabCompleter {
 	return &TabCompleter{}
 }
 
-// Complete returns updated input and cursor position after completion.
+// Complete returns a CompletionResult with updated input, cursor position, and candidate info.
 // It determines whether to complete a command or file path based on cursor position.
-func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) (string, int) {
+func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) CompletionResult {
 	if input == "" {
-		return input, cursorPos
+		return CompletionResult{NewInput: input, NewCursorPos: cursorPos}
 	}
 
 	word, wordStart := extractWordAtCursor(input, cursorPos)
 	if word == "" {
-		return input, cursorPos
+		return CompletionResult{NewInput: input, NewCursorPos: cursorPos}
 	}
 
 	var candidates []string
@@ -40,7 +48,7 @@ func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) (strin
 	}
 
 	if len(candidates) == 0 {
-		return input, cursorPos
+		return CompletionResult{NewInput: input, NewCursorPos: cursorPos, Candidates: candidates}
 	}
 
 	var replacement string
@@ -54,7 +62,11 @@ func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) (strin
 		replacement = commonPrefix(candidates)
 		if replacement == word {
 			// No progress made
-			return input, cursorPos
+			return CompletionResult{
+				NewInput:     input,
+				NewCursorPos: cursorPos,
+				Candidates:   candidates,
+			}
 		}
 	}
 
@@ -69,7 +81,12 @@ func (tc *TabCompleter) Complete(input string, cursorPos int, cwd string) (strin
 	newInput := string(newRunes)
 	newCursorPos := wordStart + len([]rune(replacement))
 
-	return newInput, newCursorPos
+	return CompletionResult{
+		NewInput:     newInput,
+		NewCursorPos: newCursorPos,
+		Candidates:   candidates,
+		HasProgress:  true,
+	}
 }
 
 // isCommandPosition returns true if the cursor is in the first word (command position)
