@@ -83,6 +83,12 @@ type Model struct {
 
 	// Per-directory sort settings
 	dirSortStore *config.DirSortStore
+
+	// Shell log
+	shellLogger *ShellLogger
+
+	// Tab completion
+	tabCompleter *TabCompleter
 }
 
 // PanePosition はペインの位置を表す
@@ -106,6 +112,7 @@ type ModelOptions struct {
 	MIMEBehavior  config.MIMEBehaviorConfig
 	ConfigPath    string
 	DirSortStore  *config.DirSortStore
+	ShellLogDir   string
 }
 
 // NewModel は初期モデルを作成（デフォルトキーバインドを使用）
@@ -189,6 +196,8 @@ func NewModelWithConfig(opts ModelOptions) Model {
 		shellHistory:     shellHistory,
 		configPath:       configPath,
 		dirSortStore:     opts.DirSortStore,
+		shellLogger:      NewShellLogger(opts.ShellLogDir),
+		tabCompleter:     NewTabCompleter(),
 	}
 }
 

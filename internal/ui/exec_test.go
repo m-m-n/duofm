@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -133,6 +134,20 @@ func TestShellCommandFinishedMsg(t *testing.T) {
 	}
 }
 
+func TestShellCommandFinishedMsgFields(t *testing.T) {
+	msg := shellCommandFinishedMsg{
+		err:     nil,
+		command: "ls -la",
+		workDir: "/tmp",
+	}
+	if msg.command != "ls -la" {
+		t.Errorf("expected command 'ls -la', got %q", msg.command)
+	}
+	if msg.workDir != "/tmp" {
+		t.Errorf("expected workDir '/tmp', got %q", msg.workDir)
+	}
+}
+
 func TestExecuteShellCommandReturnsCmd(t *testing.T) {
 	// Create a temporary directory to use as working directory
 	tmpDir, err := os.MkdirTemp("", "test_shell")
@@ -160,7 +175,8 @@ func TestExecuteShellCommandReturnsCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd := executeShellCommand(tt.command, tt.workDir)
+			logFile := filepath.Join(tmpDir, "test.log")
+			cmd := executeShellCommand(tt.command, tt.workDir, logFile)
 			if cmd == nil {
 				t.Error("executeShellCommand() returned nil command")
 			}
@@ -232,30 +248,47 @@ func TestGetPager(t *testing.T) {
 		name     string
 		envValue string
 		setEnv   bool
-		want     string
+		wantCmd  string
+		wantArgs []string
 	}{
 		{
 			name:     "PAGER set to moar",
 			envValue: "moar",
 			setEnv:   true,
-			want:     "moar",
+			wantCmd:  "moar",
+			wantArgs: nil,
 		},
 		{
 			name:     "PAGER set to cat",
 			envValue: "cat",
 			setEnv:   true,
-			want:     "cat",
+			wantCmd:  "cat",
+			wantArgs: nil,
 		},
 		{
-			name:   "PAGER not set",
-			setEnv: false,
-			want:   "less",
+			name:    "PAGER not set",
+			setEnv:  false,
+			wantCmd: "less",
 		},
 		{
 			name:     "PAGER set to empty string",
 			envValue: "",
 			setEnv:   true,
-			want:     "less",
+			wantCmd:  "less",
+		},
+		{
+			name:     "PAGER with arguments",
+			envValue: "less -R",
+			setEnv:   true,
+			wantCmd:  "less",
+			wantArgs: []string{"-R"},
+		},
+		{
+			name:     "PAGER with multiple arguments",
+			envValue: "less -R -N",
+			setEnv:   true,
+			wantCmd:  "less",
+			wantArgs: []string{"-R", "-N"},
 		},
 	}
 
@@ -278,9 +311,18 @@ func TestGetPager(t *testing.T) {
 				os.Unsetenv("PAGER")
 			}
 
-			got := getPager()
-			if got != tt.want {
-				t.Errorf("getPager() = %q, want %q", got, tt.want)
+			gotCmd, gotArgs := getPager()
+			if gotCmd != tt.wantCmd {
+				t.Errorf("getPager() cmd = %q, want %q", gotCmd, tt.wantCmd)
+			}
+			if len(gotArgs) != len(tt.wantArgs) {
+				t.Errorf("getPager() args len = %d, want %d", len(gotArgs), len(tt.wantArgs))
+			} else {
+				for i, arg := range gotArgs {
+					if arg != tt.wantArgs[i] {
+						t.Errorf("getPager() args[%d] = %q, want %q", i, arg, tt.wantArgs[i])
+					}
+				}
 			}
 		})
 	}

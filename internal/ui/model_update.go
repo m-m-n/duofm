@@ -452,6 +452,11 @@ func (m Model) handleExecFinished(msg execFinishedMsg) (tea.Model, tea.Cmd) {
 
 // handleShellCommandFinished はシェルコマンド完了を処理
 func (m Model) handleShellCommandFinished(msg shellCommandFinishedMsg) (tea.Model, tea.Cmd) {
+	// Append footer to shell log after command output
+	if m.shellLogger != nil {
+		m.shellLogger.AppendFooter()
+	}
+
 	m.getActivePane().RefreshDirectoryPreserveCursor()
 	m.getInactivePane().RefreshDirectoryPreserveCursor()
 

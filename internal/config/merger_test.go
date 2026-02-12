@@ -429,7 +429,7 @@ move_down = ["J"]
 		for _, k := range AllColorKeys() {
 			keybindingsToml.WriteString(fmt.Sprintf("%s = %d\n", k, GetDefaultColorValue(k)))
 		}
-		keybindingsToml.WriteString("\nhistory_limit = 1000\nrefresh_rate = 3\n")
+		keybindingsToml.WriteString("\nhistory_limit = 1000\nrefresh_rate = 3\nshell_log_dir = \"/tmp\"\n")
 
 		tmpFile := createTempFile(t, keybindingsToml.String())
 		defer os.Remove(tmpFile)
@@ -445,12 +445,14 @@ move_down = ["J"]
 		historyLimit := 1000
 		refreshRate := 3
 		enterBehavior := "less"
+		shellLogDir := "/tmp"
 		raw := &rawConfig{
 			Keybindings:   allKeybindings,
 			Colors:        colors,
 			HistoryLimit:  &historyLimit,
 			RefreshRate:   &refreshRate,
 			EnterBehavior: &enterBehavior,
+			ShellLogDir:   &shellLogDir,
 			EnterBehaviorMIME: map[string][]string{
 				"fallback": {"xdg-open"},
 			},
@@ -800,6 +802,45 @@ move_down = ["J"]
 	})
 }
 
+// TestIsMissingShellLogDir tests the IsMissingShellLogDir function.
+func TestIsMissingShellLogDir(t *testing.T) {
+	tests := []struct {
+		name        string
+		shellLogDir *string
+		want        bool
+	}{
+		{
+			name:        "nil - missing",
+			shellLogDir: nil,
+			want:        true,
+		},
+		{
+			name:        "value set - not missing",
+			shellLogDir: strPtr("/var/log"),
+			want:        false,
+		},
+		{
+			name:        "empty value set - not missing",
+			shellLogDir: strPtr(""),
+			want:        false,
+		},
+		{
+			name:        "default value set - not missing",
+			shellLogDir: strPtr(DefaultShellLogDir),
+			want:        false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsMissingShellLogDir(tt.shellLogDir)
+			if got != tt.want {
+				t.Errorf("IsMissingShellLogDir() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 // TestIsMissingEnterBehavior tests the IsMissingEnterBehavior function.
 func TestIsMissingEnterBehavior(t *testing.T) {
 	tests := []struct {
@@ -941,6 +982,62 @@ move_down = ["J"]
 	})
 }
 
+// TestMergeConfig_ShellLogDir tests shell_log_dir merge functionality.
+func TestMergeConfig_ShellLogDir(t *testing.T) {
+	t.Run("missing shell_log_dir is added", func(t *testing.T) {
+		tmpFile := createTempFile(t, `[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			Keybindings:  map[string][]string{"move_down": {"J"}},
+			Colors:       nil,
+			HistoryLimit: intPtr(DefaultHistoryLimit),
+			ShellLogDir:  nil, // missing
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+
+		// Should contain shell_log_dir with default value
+		if !strings.Contains(string(content), fmt.Sprintf("shell_log_dir = %q", DefaultShellLogDir)) {
+			t.Errorf("shell_log_dir missing from merged file\nContent:\n%s", string(content))
+		}
+	})
+
+	t.Run("existing shell_log_dir is preserved", func(t *testing.T) {
+		tmpFile := createTempFile(t, `shell_log_dir = "/var/log/duofm"
+
+[keybindings]
+move_down = ["J"]
+`)
+		defer os.Remove(tmpFile)
+
+		raw := &rawConfig{
+			Keybindings:  map[string][]string{"move_down": {"J"}},
+			Colors:       nil,
+			HistoryLimit: intPtr(DefaultHistoryLimit),
+			ShellLogDir:  strPtr("/var/log/duofm"),
+		}
+
+		err := MergeConfig(tmpFile, raw)
+		if err != nil {
+			t.Fatalf("MergeConfig() error = %v", err)
+		}
+
+		content, _ := os.ReadFile(tmpFile)
+
+		if !strings.Contains(string(content), "/var/log/duofm") {
+			t.Error("shell_log_dir was modified")
+		}
+	})
+}
+
 // TestMergeResultHasContent tests the hasContent method.
 func TestMergeResultHasContent(t *testing.T) {
 	tests := []struct {
@@ -1000,6 +1097,16 @@ func TestMergeResultHasContent(t *testing.T) {
 				Colors:              map[string]int{},
 				HistoryLimit:        nil,
 				MIMEFallbackMissing: true,
+			},
+			want: true,
+		},
+		{
+			name: "has ShellLogDir",
+			result: mergeResult{
+				Keybindings:  map[string][]string{},
+				Colors:       map[string]int{},
+				HistoryLimit: nil,
+				ShellLogDir:  strPtr("/tmp"),
 			},
 			want: true,
 		},
@@ -1171,6 +1278,7 @@ move_down = ["J"]
 		// Start with a config that already has fallback
 		tmpFile := createTempFile(t, `enter_behavior = "mime:"
 history_limit = 20000
+shell_log_dir = "/tmp"
 
 [enter_behavior_mime]
 "text/*" = ["less"]
@@ -1192,12 +1300,14 @@ move_down = ["J"]
 
 		historyLimit := 20000
 		refreshRate := DefaultRefreshRate
+		shellLogDir := "/tmp"
 		raw := &rawConfig{
 			EnterBehavior: func() *string { s := "mime:"; return &s }(),
 			Keybindings:   allKeybindings,
 			Colors:        allColors,
 			HistoryLimit:  &historyLimit,
 			RefreshRate:   &refreshRate,
+			ShellLogDir:   &shellLogDir,
 			EnterBehaviorMIME: map[string][]string{
 				"text/*":   {"less"},
 				"fallback": {"xdg-open"},

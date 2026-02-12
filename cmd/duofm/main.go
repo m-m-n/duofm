@@ -52,6 +52,7 @@ func main() {
 				Colors:        config.DefaultColors(),
 				HistoryLimit:  config.DefaultHistoryLimit,
 				RefreshRate:   config.DefaultRefreshRate,
+				ShellLogDir:   config.DefaultShellLogDir,
 				EnterBehavior: config.DefaultEnterBehavior(),
 			},
 		}
@@ -89,6 +90,7 @@ func main() {
 		MIMEBehavior:  cfg.MIMEBehavior,
 		ConfigPath:    configPath,
 		DirSortStore:  dirSortStore,
+		ShellLogDir:   cfg.ShellLogDir,
 	})
 
 	// 起動時エラーがあればpendingReloadResultに設定

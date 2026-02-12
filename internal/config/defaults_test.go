@@ -12,7 +12,7 @@ func TestDefaultKeybindings(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedActions := 42 // Includes sql_filter, trash, open_trash, restore, empty_trash
+	expectedActions := 43 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash
 	if len(defaults) != expectedActions {
 		t.Errorf("DefaultKeybindings() length = %d, want %d", len(defaults), expectedActions)
 	}
@@ -263,7 +263,7 @@ func TestAllActions(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedCount := 42 // Includes sql_filter, trash, open_trash, restore, empty_trash
+	expectedCount := 43 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash
 	if len(actions) != expectedCount {
 		t.Errorf("AllActions() length = %d, want %d", len(actions), expectedCount)
 	}

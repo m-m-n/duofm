@@ -25,18 +25,25 @@ func getEditor() string {
 	return editor
 }
 
-// getPager returns the pager command from $PAGER or "less" as fallback
-func getPager() string {
+// getPager returns the pager command and its arguments from $PAGER or "less" as fallback.
+// Supports $PAGER values with arguments (e.g., "less -R").
+func getPager() (string, []string) {
 	pager := os.Getenv("PAGER")
 	if pager == "" {
-		return "less"
+		return "less", nil
 	}
-	return pager
+	parts := strings.Fields(pager)
+	if len(parts) == 0 {
+		return "less", nil
+	}
+	return parts[0], parts[1:]
 }
 
 // openWithViewer opens the file with pager ($PAGER or less)
 func openWithViewer(path, workDir string) tea.Cmd {
-	c := exec.Command(getPager(), path)
+	pagerCmd, pagerArgs := getPager()
+	args := append(pagerArgs, path)
+	c := exec.Command(pagerCmd, args...)
 	c.Dir = workDir
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		return execFinishedMsg{err: err}
@@ -64,15 +71,22 @@ func checkReadPermission(path string) error {
 
 // shellCommandFinishedMsg is sent when shell command completes
 type shellCommandFinishedMsg struct {
-	err error
+	err     error
+	command string
+	workDir string
 }
 
-// executeShellCommand executes a shell command in the specified directory
-func executeShellCommand(command, workDir string) tea.Cmd {
-	shellCmd := exec.Command("/bin/sh", "-c", command+"; echo; echo 'Press Enter to continue...'; read _")
+// executeShellCommand executes a shell command in the specified directory.
+// Output is displayed on terminal and appended to logFile via tee.
+// After the command finishes, waits 2 seconds before returning to TUI.
+func executeShellCommand(command, workDir, logFile string) tea.Cmd {
+	wrapped := fmt.Sprintf(
+		"set -o pipefail; { %s; } 2>&1 | tee -a %q; _exit=$?; sleep 2; exit $_exit",
+		command, logFile)
+	shellCmd := exec.Command("/bin/sh", "-c", wrapped)
 	shellCmd.Dir = workDir
 	return tea.ExecProcess(shellCmd, func(err error) tea.Msg {
-		return shellCommandFinishedMsg{err: err}
+		return shellCommandFinishedMsg{err: err, command: command, workDir: workDir}
 	})
 }
 

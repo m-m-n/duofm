@@ -13,6 +13,7 @@ type mergeResult struct {
 	Colors              map[string]int
 	HistoryLimit        *int    // nil means not missing
 	RefreshRate         *int    // nil means not missing
+	ShellLogDir         *string // nil means not missing
 	EnterBehavior       *string // nil means not missing
 	EnterBehaviorMIME   bool    // true means section is missing
 	MIMEFallbackMissing bool    // true means section exists but fallback key is absent
@@ -20,7 +21,7 @@ type mergeResult struct {
 
 // hasContent returns true if there are any missing items to merge.
 func (m mergeResult) hasContent() bool {
-	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.RefreshRate != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME || m.MIMEFallbackMissing
+	return len(m.Keybindings) > 0 || len(m.Colors) > 0 || m.HistoryLimit != nil || m.RefreshRate != nil || m.ShellLogDir != nil || m.EnterBehavior != nil || m.EnterBehaviorMIME || m.MIMEFallbackMissing
 }
 
 // FindMissingKeybindings returns keybindings that exist in defaults but not in config.
@@ -74,6 +75,12 @@ func IsMissingRefreshRate(refreshRate *int) bool {
 	return refreshRate == nil
 }
 
+// IsMissingShellLogDir returns true if shell_log_dir is not set in config.
+// A nil pointer indicates the value was not set in the config file.
+func IsMissingShellLogDir(shellLogDir *string) bool {
+	return shellLogDir == nil
+}
+
 // IsMissingEnterBehavior returns true if enter_behavior is not set in config.
 // A nil pointer indicates the value was not set in the config file.
 func IsMissingEnterBehavior(enterBehavior *string) bool {
@@ -118,6 +125,12 @@ func MergeConfig(path string, existing *rawConfig) error {
 	if IsMissingRefreshRate(existing.RefreshRate) {
 		defaultRate := DefaultRefreshRate
 		result.RefreshRate = &defaultRate
+	}
+
+	// Check if shell_log_dir is missing
+	if IsMissingShellLogDir(existing.ShellLogDir) {
+		defaultDir := DefaultShellLogDir
+		result.ShellLogDir = &defaultDir
 	}
 
 	// Check if enter_behavior is missing
@@ -229,6 +242,7 @@ func generateMergedFile(original string, result mergeResult) string {
 	var sb strings.Builder
 	insertedHistoryLimit := false
 	insertedRefreshRate := false
+	insertedShellLogDir := false
 	insertedEnterBehavior := false
 
 	for i, line := range lines {
@@ -242,12 +256,16 @@ func generateMergedFile(original string, result mergeResult) string {
 				sb.WriteString(fmt.Sprintf("refresh_rate = %d\n", *result.RefreshRate))
 				insertedRefreshRate = true
 			}
+			if result.ShellLogDir != nil && !insertedShellLogDir {
+				sb.WriteString(fmt.Sprintf("shell_log_dir = %q\n", *result.ShellLogDir))
+				insertedShellLogDir = true
+			}
 			if result.EnterBehavior != nil && !insertedEnterBehavior {
 				sb.WriteString(fmt.Sprintf("enter_behavior = %q\n", *result.EnterBehavior))
 				insertedEnterBehavior = true
 			}
 			// Add blank line after root-level keys if we inserted any
-			if insertedHistoryLimit || insertedRefreshRate || insertedEnterBehavior {
+			if insertedHistoryLimit || insertedRefreshRate || insertedShellLogDir || insertedEnterBehavior {
 				sb.WriteString("\n")
 			}
 		}
@@ -299,6 +317,9 @@ func generateMergedFile(original string, result mergeResult) string {
 	if result.RefreshRate != nil && !insertedRefreshRate {
 		needsSeparator = true
 	}
+	if result.ShellLogDir != nil && !insertedShellLogDir {
+		needsSeparator = true
+	}
 	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		needsSeparator = true
 	}
@@ -316,6 +337,9 @@ func generateMergedFile(original string, result mergeResult) string {
 	}
 	if result.RefreshRate != nil && !insertedRefreshRate {
 		appendContent.WriteString(fmt.Sprintf("\nrefresh_rate = %d\n", *result.RefreshRate))
+	}
+	if result.ShellLogDir != nil && !insertedShellLogDir {
+		appendContent.WriteString(fmt.Sprintf("\nshell_log_dir = %q\n", *result.ShellLogDir))
 	}
 	if result.EnterBehavior != nil && !insertedEnterBehavior {
 		appendContent.WriteString(fmt.Sprintf("\nenter_behavior = %q\n", *result.EnterBehavior))
