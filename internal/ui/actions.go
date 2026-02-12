@@ -60,6 +60,8 @@ const (
 	ActionOpenTrash
 	ActionRestore
 	ActionEmptyTrash
+	// Shell log
+	ActionShellLog
 )
 
 // actionNames maps Action values to their string names.
@@ -107,6 +109,7 @@ var actionNames = map[Action]string{
 	ActionOpenTrash:      "open_trash",
 	ActionRestore:        "restore",
 	ActionEmptyTrash:     "empty_trash",
+	ActionShellLog:       "shell_log",
 }
 
 // nameToAction maps string names to Action values.
@@ -153,6 +156,7 @@ var nameToAction = map[string]Action{
 	"open_trash":       ActionOpenTrash,
 	"restore":          ActionRestore,
 	"empty_trash":      ActionEmptyTrash,
+	"shell_log":        ActionShellLog,
 }
 
 // String returns the string name of the action.

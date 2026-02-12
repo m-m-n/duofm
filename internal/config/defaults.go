@@ -46,6 +46,7 @@ func DefaultKeybindings() map[string][]string {
 		"view":          {"V"},
 		"edit":          {"E"},
 		"shell_command": {"!"},
+		"shell_log":     {"Ctrl+L"},
 		"context_menu":  {"@"},
 
 		// Application
@@ -104,6 +105,7 @@ func AllActions() []string {
 		"view",
 		"edit",
 		"shell_command",
+		"shell_log",
 		"context_menu",
 		"quit",
 		"escape",

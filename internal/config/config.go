@@ -12,8 +12,9 @@ import (
 type Config struct {
 	Keybindings   map[string][]string `toml:"keybindings"`
 	Colors        *ColorConfig
-	HistoryLimit  int `toml:"history_limit"`
-	RefreshRate   int `toml:"refresh_rate"`
+	HistoryLimit  int    `toml:"history_limit"`
+	RefreshRate   int    `toml:"refresh_rate"`
+	ShellLogDir   string `toml:"shell_log_dir"`
 	EnterBehavior EnterBehavior
 	MIMEBehavior  MIMEBehaviorConfig
 }
@@ -24,12 +25,16 @@ const DefaultHistoryLimit = 20000
 // DefaultRefreshRate is the default auto-refresh interval in seconds.
 const DefaultRefreshRate = 3
 
+// DefaultShellLogDir is the default directory for shell command log files.
+const DefaultShellLogDir = "/tmp"
+
 // rawConfig is used for TOML parsing to handle the [keybindings] and [colors] sections.
 type rawConfig struct {
 	Keybindings       map[string][]string    `toml:"keybindings"`
 	Colors            map[string]interface{} `toml:"colors"`
 	HistoryLimit      *int                   `toml:"history_limit"`
 	RefreshRate       *int                   `toml:"refresh_rate"`
+	ShellLogDir       *string                `toml:"shell_log_dir"`
 	EnterBehavior     *string                `toml:"enter_behavior"`
 	EnterBehaviorMIME map[string][]string    `toml:"enter_behavior_mime"`
 }
@@ -86,6 +91,11 @@ func LoadConfig(path string) (*Config, []string) {
 		}
 	}
 
+	// Load shell_log_dir (use explicit value if provided, otherwise keep default)
+	if raw.ShellLogDir != nil {
+		cfg.ShellLogDir = *raw.ShellLogDir
+	}
+
 	// Load enter_behavior (parse if provided, otherwise keep default)
 	if raw.EnterBehavior != nil {
 		enterBehavior, warning := ParseEnterBehavior(*raw.EnterBehavior)
@@ -114,6 +124,7 @@ func defaultConfig() *Config {
 		Colors:        DefaultColors(),
 		HistoryLimit:  DefaultHistoryLimit,
 		RefreshRate:   DefaultRefreshRate,
+		ShellLogDir:   DefaultShellLogDir,
 		EnterBehavior: DefaultEnterBehavior(),
 	}
 }

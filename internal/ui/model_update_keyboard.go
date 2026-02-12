@@ -84,6 +84,11 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleHistorySearchInput(msg)
 	}
 
+	// Handle TAB for completion
+	if msg.Type == tea.KeyTab {
+		return m.handleShellCommandTab()
+	}
+
 	// Handle Up/Down arrow keys for history navigation
 	if msg.Type == tea.KeyUp {
 		return m.handleHistoryUp()
@@ -109,7 +114,12 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		return m, executeShellCommand(command, workDir)
+		// Log command header before execution
+		if m.shellLogger != nil {
+			m.shellLogger.AppendHeader(command, workDir)
+		}
+
+		return m, executeShellCommand(command, workDir, m.shellLogger.LogPath())
 
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.shellCommandMode = false
@@ -175,6 +185,20 @@ func (m Model) handleHistoryDown() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// handleShellCommandTab handles TAB key for command/path completion
+func (m Model) handleShellCommandTab() (tea.Model, tea.Cmd) {
+	input := m.minibuffer.Input()
+	cursorPos := m.minibuffer.CursorPos()
+	cwd := m.getActivePane().Path()
+
+	newInput, newCursorPos := m.tabCompleter.Complete(input, cursorPos, cwd)
+	if newInput != input {
+		m.minibuffer.SetInput(newInput)
+		m.minibuffer.SetCursorPos(newCursorPos)
+	}
+	return m, nil
+}
+
 // handleHistorySearch handles Ctrl+R press in shell command mode
 func (m Model) handleHistorySearch() (tea.Model, tea.Cmd) {
 	// If history is disabled or not initialized, do nothing
@@ -225,7 +249,12 @@ func (m Model) handleHistorySearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		return m, executeShellCommand(command, workDir)
+		// Log command header before execution
+		if m.shellLogger != nil {
+			m.shellLogger.AppendHeader(command, workDir)
+		}
+
+		return m, executeShellCommand(command, workDir, m.shellLogger.LogPath())
 
 	case tea.KeyEsc, tea.KeyCtrlC:
 		// Cancel history search, return to shell command mode
@@ -283,12 +312,25 @@ func (m *Model) updateHistorySearch() {
 	}
 }
 
+// handleShellLog はシェルログ表示を処理
+func (m Model) handleShellLog() (tea.Model, tea.Cmd) {
+	if m.shellLogger == nil || !m.shellLogger.HasLog() {
+		m.statusMessage = "No shell log"
+		m.isStatusError = false
+		return m, statusMessageClearCmd(3 * time.Second)
+	}
+	return m, openWithViewer(m.shellLogger.LogPath(), m.getActivePane().Path())
+}
+
 // handleCtrlC はCtrl+Cのダブルプレスを処理
 func (m Model) handleCtrlC() (tea.Model, tea.Cmd) {
 	if m.ctrlCPending {
-		// Close shell history before quitting
+		// Close shell history and shell logger before quitting
 		if m.shellHistory != nil {
 			m.shellHistory.Close()
+		}
+		if m.shellLogger != nil {
+			m.shellLogger.Close()
 		}
 		return m, tea.Quit
 	}
@@ -309,9 +351,12 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionQuit:
-		// Close shell history before quitting
+		// Close shell history and shell logger before quitting
 		if m.shellHistory != nil {
 			m.shellHistory.Close()
+		}
+		if m.shellLogger != nil {
+			m.shellLogger.Close()
 		}
 		return m, tea.Quit
 
@@ -449,6 +494,9 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		// Empty trash is now handled within TrashDialog only
 		// This action does nothing outside the dialog
 		return m, nil
+
+	case ActionShellLog:
+		return m.handleShellLog()
 	}
 
 	return m, nil

@@ -122,6 +122,11 @@ func buildConfigFromRaw(raw *rawConfig, result *ConfigLoadResult) *Config {
 		cfg.HistoryLimit = *raw.HistoryLimit
 	}
 
+	// Load shell_log_dir
+	if raw.ShellLogDir != nil {
+		cfg.ShellLogDir = *raw.ShellLogDir
+	}
+
 	// Load refresh_rate with validation
 	if raw.RefreshRate != nil {
 		rate := *raw.RefreshRate

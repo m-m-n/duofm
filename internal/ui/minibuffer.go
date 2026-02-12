@@ -75,6 +75,23 @@ func (m *Minibuffer) IsVisible() bool {
 	return m.visible
 }
 
+// CursorPos returns the current cursor position
+func (m *Minibuffer) CursorPos() int {
+	return m.cursorPos
+}
+
+// SetCursorPos sets the cursor position within valid bounds
+func (m *Minibuffer) SetCursorPos(pos int) {
+	runes := []rune(m.input)
+	if pos < 0 {
+		pos = 0
+	}
+	if pos > len(runes) {
+		pos = len(runes)
+	}
+	m.cursorPos = pos
+}
+
 // HandleKey processes a key message and returns true if handled
 func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 	if !m.visible {

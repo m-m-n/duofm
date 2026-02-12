@@ -824,6 +824,70 @@ quit = ["Q"]
 	}
 }
 
+// Tests for ShellLogDir configuration
+func TestLoadConfig_ShellLogDirDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default shell_log_dir should be "/tmp"
+	if cfg.ShellLogDir != DefaultShellLogDir {
+		t.Errorf("ShellLogDir = %q, want %q", cfg.ShellLogDir, DefaultShellLogDir)
+	}
+}
+
+func TestLoadConfig_ShellLogDirExplicit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config.toml")
+
+	content := `shell_log_dir = "/var/log/duofm"
+
+[keybindings]
+quit = ["Q"]
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatalf("Failed to write test config: %v", err)
+	}
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	if cfg.ShellLogDir != "/var/log/duofm" {
+		t.Errorf("ShellLogDir = %q, want %q", cfg.ShellLogDir, "/var/log/duofm")
+	}
+}
+
+func TestLoadConfig_ShellLogDirFileNotExists(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "nonexistent", "config.toml")
+
+	cfg, _ := LoadConfig(configPath)
+
+	if cfg == nil {
+		t.Fatal("LoadConfig() returned nil config")
+	}
+
+	// Default shell_log_dir should be "/tmp"
+	if cfg.ShellLogDir != DefaultShellLogDir {
+		t.Errorf("ShellLogDir = %q, want %q", cfg.ShellLogDir, DefaultShellLogDir)
+	}
+}
+
 func TestLoadConfig_NonMIMEIgnoresMIMESection(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "config.toml")
