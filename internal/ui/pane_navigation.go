@@ -374,6 +374,10 @@ func (p *Pane) Refresh() error {
 		savedMarks[k] = v
 	}
 
+	// Save current filter state
+	savedPattern := p.filterPattern
+	savedMode := p.filterMode
+
 	// Reload directory with existence check
 	currentPath := p.path
 	for {
@@ -395,17 +399,30 @@ func (p *Pane) Refresh() error {
 		currentPath = parent
 	}
 
-	if currentPath != p.path {
+	dirChanged := currentPath != p.path
+	if dirChanged {
 		// Directory was changed, update previousPath for navigation history
 		p.previousPath = p.path
 		p.path = currentPath
-		// Don't restore marks when directory changes
+		// Don't restore marks or filter when directory changes
 		savedMarks = nil
+		savedPattern = ""
+		savedMode = SearchModeNone
 	}
 
 	err := p.LoadDirectory()
 	if err != nil {
 		return err
+	}
+
+	// Re-apply filter if it was active (and directory didn't change)
+	if savedPattern != "" {
+		if err := p.ApplyFilter(savedPattern, savedMode); err != nil {
+			// If filter re-application fails, stay unfiltered
+			p.entries = p.allEntries
+			p.filterPattern = ""
+			p.filterMode = SearchModeNone
+		}
 	}
 
 	// Restore marks for files that still exist
@@ -423,7 +440,7 @@ func (p *Pane) Refresh() error {
 
 	// Restore cursor position
 	if selectedName != "" {
-		// Search for the same filename
+		// Search for the same filename in (possibly filtered) entries
 		for i, e := range p.entries {
 			if e.Name == selectedName {
 				p.cursor = i

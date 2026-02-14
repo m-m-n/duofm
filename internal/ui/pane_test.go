@@ -1608,7 +1608,7 @@ func TestPaneRefreshFilterPreservation(t *testing.T) {
 		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
-	t.Run("Refreshでフィルタ状態がクリアされる", func(t *testing.T) {
+	t.Run("Refreshでフィルタ状態が保持される", func(t *testing.T) {
 		// フィルタを適用
 		pane.ApplyFilter("go", SearchModeIncremental)
 
@@ -1618,9 +1618,15 @@ func TestPaneRefreshFilterPreservation(t *testing.T) {
 			t.Errorf("Refresh() error = %v", err)
 		}
 
-		// LoadDirectoryはフィルタをクリアする
-		if pane.IsFiltered() {
-			t.Error("Refresh() should clear filter (via LoadDirectory)")
+		// Refreshはフィルタを保持する
+		if !pane.IsFiltered() {
+			t.Error("Refresh() should preserve filter")
+		}
+		if pane.FilterPattern() != "go" {
+			t.Errorf("FilterPattern() = %q, want %q", pane.FilterPattern(), "go")
+		}
+		if pane.FilterMode() != SearchModeIncremental {
+			t.Errorf("FilterMode() = %v, want %v", pane.FilterMode(), SearchModeIncremental)
 		}
 	})
 }
@@ -1900,7 +1906,7 @@ func TestRefreshDirectoryPreserveCursorWithEmpty(t *testing.T) {
 	})
 }
 
-func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
+func TestRefreshDirectoryPreserveCursorPreservesFilter(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	os.WriteFile(filepath.Join(tmpDir, "file1.txt"), []byte(""), 0644)
@@ -1911,8 +1917,7 @@ func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
 		t.Fatalf("NewPane(LeftPane, ) failed: %v", err)
 	}
 
-	t.Run("clears filter pattern", func(t *testing.T) {
-		// フィルタを適用
+	t.Run("preserves incremental filter", func(t *testing.T) {
 		pane.ApplyFilter("go", SearchModeIncremental)
 
 		if !pane.IsFiltered() {
@@ -1924,9 +1929,52 @@ func TestRefreshDirectoryPreserveCursorClearsFilter(t *testing.T) {
 			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
 		}
 
-		// フィルタがクリアされているか確認
+		if !pane.IsFiltered() {
+			t.Error("RefreshDirectoryPreserveCursor() should preserve filter")
+		}
+		if pane.FilterPattern() != "go" {
+			t.Errorf("FilterPattern() = %q, want %q", pane.FilterPattern(), "go")
+		}
+		if pane.FilterMode() != SearchModeIncremental {
+			t.Errorf("FilterMode() = %v, want %v", pane.FilterMode(), SearchModeIncremental)
+		}
+		// フィルタ後のエントリにマッチするものだけ含まれていることを確認
+		for _, e := range pane.entries {
+			if e.IsParentDir() {
+				continue
+			}
+			if !strings.Contains(strings.ToLower(e.Name), "go") {
+				t.Errorf("Entry %q should not be in filtered results", e.Name)
+			}
+		}
+	})
+
+	t.Run("preserves regex filter", func(t *testing.T) {
+		pane.ApplyFilter(`\.go$`, SearchModeRegex)
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		if pane.FilterPattern() != `\.go$` {
+			t.Errorf("FilterPattern() = %q, want %q", pane.FilterPattern(), `\.go$`)
+		}
+		if pane.FilterMode() != SearchModeRegex {
+			t.Errorf("FilterMode() = %v, want %v", pane.FilterMode(), SearchModeRegex)
+		}
+	})
+
+	t.Run("no filter stays unfiltered", func(t *testing.T) {
+		pane.ClearFilter()
+
+		err := pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
 		if pane.IsFiltered() {
-			t.Error("RefreshDirectoryPreserveCursor() should clear filter")
+			t.Error("RefreshDirectoryPreserveCursor() should not add filter when none was set")
 		}
 	})
 }

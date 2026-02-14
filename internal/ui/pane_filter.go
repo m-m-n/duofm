@@ -234,7 +234,8 @@ func (p *Pane) formatFilterIndicator() string {
 	}
 }
 
-// RefreshDirectoryPreserveCursor reloads directory contents while preserving cursor position.
+// RefreshDirectoryPreserveCursor reloads directory contents while preserving cursor position,
+// filter state, and mark state.
 // If the previously selected file still exists, cursor moves to that file's new index.
 // If not found, cursor is clamped to the old index position (min(oldCursor, len(entries)-1)).
 func (p *Pane) RefreshDirectoryPreserveCursor() error {
@@ -245,28 +246,36 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 		selectedName = entry.Name
 	}
 
-	// Reload directory entries
-	entries, err := fs.ReadDirectory(p.path)
+	// Save current filter state
+	savedPattern := p.filterPattern
+	savedMode := p.filterMode
+
+	// Reload directory entries using shared helper
+	entries, err := p.loadEntriesFromDisk()
 	if err != nil {
 		return err
 	}
 
-	entries = SortEntries(entries, p.sortConfig)
+	p.allEntries = entries
 
-	// Filter hidden files
-	if !p.showHidden {
-		entries = filterHiddenFiles(entries)
+	// Re-apply filter if it was active
+	if savedPattern != "" {
+		if err := p.ApplyFilter(savedPattern, savedMode); err != nil {
+			// If filter re-application fails (e.g., invalid regex), fall through to unfiltered
+			p.entries = entries
+			p.filterPattern = ""
+			p.filterMode = SearchModeNone
+		}
+	} else {
+		p.entries = entries
+		p.filterPattern = ""
+		p.filterMode = SearchModeNone
 	}
 
-	p.allEntries = entries
-	p.entries = entries
-	p.filterPattern = ""
-	p.filterMode = SearchModeNone
-
-	// Find the previously selected file in new entries
+	// Find the previously selected file in the (possibly filtered) entries
 	newCursor := -1
 	if selectedName != "" {
-		for i, e := range entries {
+		for i, e := range p.entries {
 			if e.Name == selectedName {
 				newCursor = i
 				break
@@ -276,15 +285,15 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 
 	// If filename match failed, fall back to clamped old index
 	if newCursor < 0 {
-		newCursor = max(0, min(oldCursor, len(entries)-1))
+		newCursor = max(0, min(oldCursor, len(p.entries)-1))
 	}
 
 	p.cursor = newCursor
 	p.adjustScroll()
 
 	// Restore marks for files that still exist after refresh
-	existingFiles := make(map[string]bool, len(entries))
-	for _, entry := range entries {
+	existingFiles := make(map[string]bool, len(p.allEntries))
+	for _, entry := range p.allEntries {
 		existingFiles[entry.Name] = true
 	}
 	for filename := range p.markedFiles {
