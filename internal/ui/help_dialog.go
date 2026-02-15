@@ -154,6 +154,8 @@ func (d *HelpDialog) buildContent() []string {
 	lines = append(lines, "  J/K/Up/Down    : move cursor down/up")
 	lines = append(lines, "  H/L/Left/Right : move to left/right pane or parent")
 	lines = append(lines, "  Enter          : enter directory / view file")
+	lines = append(lines, "  g              : go to first entry")
+	lines = append(lines, "  G (Shift+G)    : go to last entry")
 	lines = append(lines, "  ~              : go to home directory")
 	lines = append(lines, "  -              : go to previous directory")
 	lines = append(lines, "  Q              : quit")

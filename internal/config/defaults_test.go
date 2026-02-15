@@ -12,7 +12,7 @@ func TestDefaultKeybindings(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedActions := 43 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash
+	expectedActions := 45 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash, goto_top, goto_bottom
 	if len(defaults) != expectedActions {
 		t.Errorf("DefaultKeybindings() length = %d, want %d", len(defaults), expectedActions)
 	}
@@ -263,7 +263,7 @@ func TestAllActions(t *testing.T) {
 	}
 
 	// Verify number of actions
-	expectedCount := 43 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash
+	expectedCount := 45 // Includes sql_filter, shell_log, trash, open_trash, restore, empty_trash, goto_top, goto_bottom
 	if len(actions) != expectedCount {
 		t.Errorf("AllActions() length = %d, want %d", len(actions), expectedCount)
 	}
@@ -312,6 +312,8 @@ func TestAllActions(t *testing.T) {
 		"open_trash",
 		"restore",
 		"empty_trash",
+		"goto_top",
+		"goto_bottom",
 	}
 
 	actionSet := make(map[string]bool)

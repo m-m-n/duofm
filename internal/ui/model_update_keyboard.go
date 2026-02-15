@@ -584,6 +584,14 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 
 	case ActionShellLog:
 		return m.handleShellLog()
+
+	case ActionGotoTop:
+		m.getActivePane().GotoTop()
+		return m, nil
+
+	case ActionGotoBottom:
+		m.getActivePane().GotoBottom()
+		return m, nil
 	}
 
 	return m, nil
