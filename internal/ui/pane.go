@@ -191,6 +191,24 @@ func (p *Pane) MoveCursorPageUp() {
 	}
 }
 
+// GotoTop moves cursor to the first entry
+func (p *Pane) GotoTop() {
+	if len(p.entries) == 0 {
+		return
+	}
+	p.cursor = 0
+	p.adjustScroll()
+}
+
+// GotoBottom moves cursor to the last entry
+func (p *Pane) GotoBottom() {
+	if len(p.entries) == 0 {
+		return
+	}
+	p.cursor = len(p.entries) - 1
+	p.adjustScroll()
+}
+
 // getVisibleLines returns the number of lines visible in the pane
 func (p *Pane) getVisibleLines() int {
 	visibleLines := p.height - 4 // header(2) + border(1) + status(1) = 4

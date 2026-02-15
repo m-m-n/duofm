@@ -1,0 +1,52 @@
+schema_version: 1
+feature: goto-top-bottom
+scale: light
+created: 2026-02-15
+
+project:
+  components:
+    main:
+      language: go
+      build_command: "make build"
+      test_command: "go test ./..."
+      format_command: "gofmt -w ."
+
+workflow:
+  - id: create-spec
+    artifacts: [SPEC.md]
+    status: completed
+    completed_at_commit: 26b24bbe9161e86e9c2e86162aa0cc5728bb473a
+  - id: implement
+    status: completed
+    completed_at_commit: 26b24bbe9161e86e9c2e86162aa0cc5728bb473a
+  - id: verify
+    artifacts: [VERIFICATION_RESULT.md]
+    status: completed
+    completed_at_commit: 26b24bbe9161e86e9c2e86162aa0cc5728bb473a
+
+requirements:
+  FR1:
+    title: GotoTop action moves cursor to first entry
+    status: ok
+    tasks: []
+    tests: []
+  FR2:
+    title: GotoBottom action moves cursor to last entry
+    status: ok
+    tasks: []
+    tests: []
+  FR3:
+    title: Default keybindings g and Shift+G
+    status: ok
+    tasks: []
+    tests: []
+  FR4:
+    title: Keybindings configurable via config.toml
+    status: ok
+    tasks: []
+    tests: []
+  FR5:
+    title: No-op on empty file list
+    status: ok
+    tasks: []
+    tests: []

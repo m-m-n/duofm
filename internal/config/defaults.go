@@ -5,13 +5,15 @@ package config
 func DefaultKeybindings() map[string][]string {
 	return map[string][]string{
 		// Navigation
-		"move_down":  {"J", "Down"},
-		"move_up":    {"K", "Up"},
-		"move_left":  {"H", "Left"},
-		"move_right": {"L", "Right"},
-		"enter":      {"Enter"},
-		"page_down":  {"Ctrl+D", "PageDown"},
-		"page_up":    {"Ctrl+U", "PageUp"},
+		"move_down":   {"J", "Down"},
+		"move_up":     {"K", "Up"},
+		"move_left":   {"H", "Left"},
+		"move_right":  {"L", "Right"},
+		"enter":       {"Enter"},
+		"page_down":   {"Ctrl+D", "PageDown"},
+		"page_up":     {"Ctrl+U", "PageUp"},
+		"goto_top":    {"G"},
+		"goto_bottom": {"Shift+G"},
 
 		// File operations
 		"copy":             {"C"},
@@ -117,5 +119,7 @@ func AllActions() []string {
 		"open_trash",
 		"restore",
 		"empty_trash",
+		"goto_top",
+		"goto_bottom",
 	}
 }
