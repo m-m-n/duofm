@@ -3046,3 +3046,259 @@ func TestHistoryNavigationUpdatesPreviousPath(t *testing.T) {
 		}
 	})
 }
+
+// TestRestoreScrollOffset tests the restoreScrollOffset helper method.
+// height=10 → visibleLines = 10 - 4 = 6
+func TestRestoreScrollOffset(t *testing.T) {
+	tests := []struct {
+		name               string
+		numFiles           int // files to create (+ ".." entry)
+		height             int
+		cursor             int
+		savedOffset        int
+		expectedOffset int
+	}{
+		{
+			name:           "normal: savedOffset preserved when cursor is within viewport",
+			numFiles:       20,
+			height:         10, // visibleLines=6
+			cursor:         8,  // within viewport at offset 5: shows 5..10
+			savedOffset:    5,
+			expectedOffset: 5,
+		},
+		{
+			name:           "clamp: savedOffset exceeds maxOffset",
+			numFiles:       10,
+			height:         10, // visibleLines=6, maxOffset = 11 - 6 = 5
+			cursor:         5,
+			savedOffset:    20,
+			expectedOffset: 5, // clamped to maxOffset
+		},
+		{
+			name:           "clamp: negative savedOffset becomes 0",
+			numFiles:       10,
+			height:         10,
+			cursor:         0,
+			savedOffset:    -5,
+			expectedOffset: 0,
+		},
+		{
+			name:           "empty entries: offset becomes 0",
+			numFiles:       0,
+			height:         10,
+			cursor:         0,
+			savedOffset:    10,
+			expectedOffset: 0,
+		},
+		{
+			name:           "cursor below viewport: adjustScroll moves offset down",
+			numFiles:       20,
+			height:         10, // visibleLines=6
+			cursor:         15, // cursor at 15, savedOffset=3 → viewport 3..8, cursor outside
+			savedOffset:    3,
+			expectedOffset: 10, // adjustScroll: 15 - 6 + 1 = 10
+		},
+		{
+			name:           "cursor above viewport: adjustScroll moves offset up",
+			numFiles:       20,
+			height:         10, // visibleLines=6
+			cursor:         2,  // cursor at 2, savedOffset=10 → viewport 10..15, cursor outside
+			savedOffset:    10,
+			expectedOffset: 2, // adjustScroll: scrollOffset = cursor = 2
+		},
+		{
+			name:           "all entries fit: maxOffset is 0",
+			numFiles:       3,
+			height:         10, // visibleLines=6, entries=4 (3 files + ..), maxOffset=0
+			cursor:         2,
+			savedOffset:    5,
+			expectedOffset: 0, // clamped to maxOffset=0
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			for i := 0; i < tt.numFiles; i++ {
+				os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%03d.txt", i)), []byte(""), 0644)
+			}
+
+			pane, err := NewPane(LeftPane, tmpDir, 40, tt.height, true, nil)
+			if err != nil {
+				t.Fatalf("NewPane() failed: %v", err)
+			}
+
+			// Set cursor position
+			if tt.cursor < len(pane.entries) {
+				pane.cursor = tt.cursor
+			}
+
+			pane.restoreScrollOffset(tt.savedOffset)
+
+			if pane.scrollOffset != tt.expectedOffset {
+				t.Errorf("scrollOffset = %d, want %d (entries=%d, visibleLines=%d)",
+					pane.scrollOffset, tt.expectedOffset, len(pane.entries), pane.getVisibleLines())
+			}
+		})
+	}
+}
+
+// TestRefreshPreservesScrollOffset tests that Refresh() preserves viewport position.
+func TestRefreshPreservesScrollOffset(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create enough files to require scrolling (height=10 → visibleLines=6)
+	for i := 0; i < 20; i++ {
+		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%03d.txt", i)), []byte(""), 0644)
+	}
+
+	t.Run("scroll offset preserved when file still exists", func(t *testing.T) {
+		pane, err := NewPane(LeftPane, tmpDir, 40, 10, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane() failed: %v", err)
+		}
+
+		// Scroll down: set cursor to file010.txt (index ~11) and scrollOffset to 8
+		// Viewport shows entries 8..13, cursor at 11
+		targetIdx := -1
+		for i, e := range pane.entries {
+			if e.Name == "file010.txt" {
+				targetIdx = i
+				break
+			}
+		}
+		if targetIdx < 0 {
+			t.Fatal("file010.txt not found")
+		}
+
+		pane.cursor = targetIdx
+		pane.scrollOffset = targetIdx - 3 // cursor in middle of viewport
+		savedOffset := pane.scrollOffset
+
+		err = pane.Refresh()
+		if err != nil {
+			t.Fatalf("Refresh() failed: %v", err)
+		}
+
+		// Cursor should still be on file010.txt
+		entry := pane.SelectedEntry()
+		if entry == nil || entry.Name != "file010.txt" {
+			t.Errorf("cursor should be on file010.txt, got %v", entry)
+		}
+
+		// scrollOffset should be preserved (not reset to place cursor at bottom)
+		if pane.scrollOffset != savedOffset {
+			t.Errorf("scrollOffset = %d, want %d (should be preserved)", pane.scrollOffset, savedOffset)
+		}
+	})
+
+	t.Run("scroll offset clamped when entries shrink", func(t *testing.T) {
+		pane, err := NewPane(LeftPane, tmpDir, 40, 10, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane() failed: %v", err)
+		}
+
+		// Set scrollOffset to a high value
+		pane.cursor = len(pane.entries) - 1
+		pane.scrollOffset = len(pane.entries) - pane.getVisibleLines()
+
+		// Delete most files to make entries much shorter
+		for i := 5; i < 20; i++ {
+			os.Remove(filepath.Join(tmpDir, fmt.Sprintf("file%03d.txt", i)))
+		}
+
+		err = pane.Refresh()
+		if err != nil {
+			t.Fatalf("Refresh() failed: %v", err)
+		}
+
+		// scrollOffset should be clamped to valid range
+		maxOffset := len(pane.entries) - pane.getVisibleLines()
+		if maxOffset < 0 {
+			maxOffset = 0
+		}
+		if pane.scrollOffset > maxOffset {
+			t.Errorf("scrollOffset = %d, exceeds maxOffset %d", pane.scrollOffset, maxOffset)
+		}
+		if pane.scrollOffset < 0 {
+			t.Errorf("scrollOffset = %d, should not be negative", pane.scrollOffset)
+		}
+
+	})
+}
+
+// TestRefreshDirectoryPreserveCursorPreservesScrollOffset tests that
+// RefreshDirectoryPreserveCursor() preserves viewport position.
+func TestRefreshDirectoryPreserveCursorPreservesScrollOffset(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	for i := 0; i < 20; i++ {
+		os.WriteFile(filepath.Join(tmpDir, fmt.Sprintf("file%03d.txt", i)), []byte(""), 0644)
+	}
+
+	t.Run("scroll offset preserved on auto-refresh", func(t *testing.T) {
+		pane, err := NewPane(LeftPane, tmpDir, 40, 10, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane() failed: %v", err)
+		}
+
+		// Position cursor at file010.txt with scroll offset in middle
+		targetIdx := -1
+		for i, e := range pane.entries {
+			if e.Name == "file010.txt" {
+				targetIdx = i
+				break
+			}
+		}
+		if targetIdx < 0 {
+			t.Fatal("file010.txt not found")
+		}
+
+		pane.cursor = targetIdx
+		pane.scrollOffset = targetIdx - 3
+		savedOffset := pane.scrollOffset
+
+		err = pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		entry := pane.SelectedEntry()
+		if entry == nil || entry.Name != "file010.txt" {
+			t.Errorf("cursor should be on file010.txt, got %v", entry)
+		}
+
+		if pane.scrollOffset != savedOffset {
+			t.Errorf("scrollOffset = %d, want %d (should be preserved)", pane.scrollOffset, savedOffset)
+		}
+	})
+
+	t.Run("scroll offset preserved with active filter", func(t *testing.T) {
+		pane, err := NewPane(LeftPane, tmpDir, 40, 10, true, nil)
+		if err != nil {
+			t.Fatalf("NewPane() failed: %v", err)
+		}
+
+		// Apply filter that matches enough files to scroll
+		err = pane.ApplyFilter("file01", SearchModeIncremental)
+		if err != nil {
+			t.Fatalf("ApplyFilter() failed: %v", err)
+		}
+
+		// Position cursor with non-zero scroll offset
+		if len(pane.entries) > 3 {
+			pane.cursor = 3
+			pane.scrollOffset = 1
+		}
+		savedOffset := pane.scrollOffset
+
+		err = pane.RefreshDirectoryPreserveCursor()
+		if err != nil {
+			t.Fatalf("RefreshDirectoryPreserveCursor() failed: %v", err)
+		}
+
+		if pane.scrollOffset != savedOffset {
+			t.Errorf("scrollOffset = %d, want %d (should be preserved with filter)", pane.scrollOffset, savedOffset)
+		}
+	})
+}

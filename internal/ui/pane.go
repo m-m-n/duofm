@@ -518,6 +518,29 @@ func (p *Pane) calculateCursorTargetAfterBatchMove(markedFiles map[string]bool) 
 	return ""
 }
 
+// restoreScrollOffset restores the saved scroll offset, clamping it to valid bounds,
+// then calls adjustScroll to ensure the cursor remains visible.
+// This preserves the viewport position across refresh operations instead of
+// always placing the cursor at the bottom of the visible area.
+func (p *Pane) restoreScrollOffset(savedOffset int) {
+	visibleLines := p.getVisibleLines()
+
+	// Clamp scrollOffset to valid range
+	maxOffset := len(p.entries) - visibleLines
+	if maxOffset < 0 {
+		maxOffset = 0
+	}
+	if savedOffset > maxOffset {
+		savedOffset = maxOffset
+	}
+	if savedOffset < 0 {
+		savedOffset = 0
+	}
+
+	p.scrollOffset = savedOffset
+	p.adjustScroll()
+}
+
 // SetTheme updates the pane's color theme.
 // If theme is nil, the existing theme is kept.
 func (p *Pane) SetTheme(theme *Theme) {

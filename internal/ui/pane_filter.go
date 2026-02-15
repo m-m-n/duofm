@@ -242,6 +242,7 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 	// Store current selected file name and cursor index
 	var selectedName string
 	oldCursor := p.cursor
+	savedScrollOffset := p.scrollOffset
 	if entry := p.SelectedEntry(); entry != nil {
 		selectedName = entry.Name
 	}
@@ -289,7 +290,7 @@ func (p *Pane) RefreshDirectoryPreserveCursor() error {
 	}
 
 	p.cursor = newCursor
-	p.adjustScroll()
+	p.restoreScrollOffset(savedScrollOffset)
 
 	// Restore marks for files that still exist after refresh
 	existingFiles := make(map[string]bool, len(p.allEntries))

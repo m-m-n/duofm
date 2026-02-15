@@ -367,6 +367,7 @@ func (p *Pane) Refresh() error {
 		selectedName = p.entries[p.cursor].Name
 	}
 	savedCursor := p.cursor
+	savedScrollOffset := p.scrollOffset
 
 	// Save marks before reload
 	savedMarks := make(map[string]bool)
@@ -427,7 +428,7 @@ func (p *Pane) Refresh() error {
 
 	// Restore marks for files that still exist
 	if savedMarks != nil {
-		existingFiles := make(map[string]bool)
+		existingFiles := make(map[string]bool, len(p.allEntries))
 		for _, entry := range p.allEntries {
 			existingFiles[entry.Name] = true
 		}
@@ -444,7 +445,7 @@ func (p *Pane) Refresh() error {
 		for i, e := range p.entries {
 			if e.Name == selectedName {
 				p.cursor = i
-				p.adjustScroll()
+				p.restoreScrollOffset(savedScrollOffset)
 				return nil
 			}
 		}
@@ -458,7 +459,7 @@ func (p *Pane) Refresh() error {
 	} else {
 		p.cursor = 0
 	}
-	p.adjustScroll()
+	p.restoreScrollOffset(savedScrollOffset)
 
 	return nil
 }
