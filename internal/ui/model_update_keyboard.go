@@ -123,7 +123,7 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		// Log command header before execution and get log path for tee
+		// Log command header before execution and get log path for script
 		logFile := m.shellLogger.LogPath()
 		if err := m.shellLogger.AppendHeader(command, workDir); err != nil {
 			m.statusMessage = fmt.Sprintf("Shell log error: %v", err)
@@ -334,7 +334,7 @@ func (m Model) handleHistorySearchInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.shellHistory.Add(command)
 		}
 
-		// Log command header before execution and get log path for tee
+		// Log command header before execution and get log path for script
 		logFile := m.shellLogger.LogPath()
 		if err := m.shellLogger.AppendHeader(command, workDir); err != nil {
 			m.statusMessage = fmt.Sprintf("Shell log error: %v", err)

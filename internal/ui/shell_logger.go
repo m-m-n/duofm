@@ -70,7 +70,7 @@ func (sl *ShellLogger) AppendFooter() error {
 	return err
 }
 
-// LogPath returns the log file path (used by tee -a).
+// LogPath returns the log file path for command output capture.
 func (sl *ShellLogger) LogPath() string {
 	return sl.logPath
 }

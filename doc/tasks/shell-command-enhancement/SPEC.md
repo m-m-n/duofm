@@ -67,8 +67,8 @@ As a user, I want to view the output of previously executed shell commands, so t
 
 - **FR11:** Shell command execution shall no longer append `echo 'Press Enter to continue...'; read _`
 - **FR12:** After command finishes, wait 2 seconds before returning to TUI
-- **FR13:** Both stdout and stderr of the command shall be captured to a buffer
-- **FR14:** The captured output shall also be displayed on the terminal during execution
+- **FR13:** Both stdout and stderr of the command shall be captured to a log file via `script(1)` pseudo-TTY
+- **FR14:** The captured output shall also be displayed on the terminal during execution, with TTY preserved for interactive programs
 - **FR15:** After the 2-second wait, TUI resumes and both panes reload
 
 #### Shell Log Viewer
@@ -122,7 +122,7 @@ As a user, I want to view the output of previously executed shell commands, so t
 │  ┌─────────────────────────────────────────────────────────┐│
 │  │              Modified executeShellCommand                ││
 │  │                                                          ││
-│  │  - Output via tee -a to log file + terminal              ││
+│  │  - Output via script(1) PTY to log file + terminal       ││
 │  │  - Wait 2 seconds after command exits                    ││
 │  │  - Return shellCommandFinishedMsg (command, workDir)     ││
 │  └─────────────────────────────────────────────────────────┘│
@@ -197,8 +197,8 @@ ShellLogger.AppendHeader(command, workDir)
 Suspend TUI via tea.ExecProcess
        │
        v
-Execute /bin/sh -c "{ <command>; } 2>&1 | tee -a <logFile>; sleep 2"
- (stdout/stderr → terminal + log file via tee)
+Execute /bin/sh -c "script -q -e -a -c <command> <logFile>; sleep 2"
+ (stdout/stderr → terminal + log file via script PTY)
        │
        v
 Return shellCommandFinishedMsg (command, workDir)
@@ -321,7 +321,7 @@ func (sl *ShellLogger) AppendHeader(command, workDir string) error
 // AppendFooter writes a blank line separator after command output.
 func (sl *ShellLogger) AppendFooter() error
 
-// LogPath returns the log file path (used by tee -a)
+// LogPath returns the log file path for command output capture
 func (sl *ShellLogger) LogPath() string
 
 // HasLog returns true if log file has been created (first AppendHeader call)
@@ -341,12 +341,12 @@ type shellCommandFinishedMsg struct {
     workDir string
 }
 
-// executeShellCommand executes a shell command with output captured via tee,
-// waits 2 seconds, then returns to TUI.
-// logFile is the path for tee -a to append output.
+// executeShellCommand executes a shell command with output captured via script(1).
+// Uses script to allocate a pseudo-TTY so interactive TUI programs work correctly.
+// logFile is the path for script -a to append output.
 func executeShellCommand(command, workDir, logFile string) tea.Cmd {
     wrapped := fmt.Sprintf(
-        "set -o pipefail; { %s; } 2>&1 | tee -a %q; _exit=$?; sleep 2; exit $_exit",
+        "script -q -e -a -c %q %q; _exit=$?; sleep 2; exit $_exit",
         command, logFile)
     shellCmd := exec.Command("/bin/sh", "-c", wrapped)
     shellCmd.Dir = workDir
@@ -531,14 +531,15 @@ Add entries:
 
 ## Known Limitations
 
-- tee pipe causes `isatty()` to return false for command output, so some commands may suppress color output (acceptable trade-off for log capture)
+- `script(1)` log output may contain ANSI escape sequences and terminal control characters (acceptable; pager with `-R` flag handles these correctly)
+- `script` flags are Linux (util-linux) specific; macOS BSD `script` has different syntax
 
 ## Implementation Phases
 
 ### Phase 1: Auto-Return and Output Capture
 
 **Deliverables:**
-- Modified `executeShellCommand` with tee and 2-second wait
+- Modified `executeShellCommand` with script(1) PTY and 2-second wait
 - `ShellLogger` struct and methods (AppendHeader/AppendFooter API)
 - Unit tests
 
