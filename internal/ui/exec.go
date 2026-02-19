@@ -79,11 +79,12 @@ type shellCommandFinishedMsg struct {
 }
 
 // executeShellCommand executes a shell command in the specified directory.
-// Output is displayed on terminal and appended to logFile via tee.
+// Output is displayed on terminal and appended to logFile via script(1).
+// Uses script to allocate a pseudo-TTY so interactive TUI programs (fx, htop, etc.) work correctly.
 // After the command finishes, waits 2 seconds before returning to TUI.
 func executeShellCommand(command, workDir, logFile string) tea.Cmd {
 	wrapped := fmt.Sprintf(
-		"set -o pipefail; { %s; } 2>&1 | tee -a %q; _exit=$?; sleep 2; exit $_exit",
+		"script -q -e -a -c %q %q; _exit=$?; sleep 2; exit $_exit",
 		command, logFile)
 	shellCmd := exec.Command("/bin/sh", "-c", wrapped)
 	shellCmd.Dir = workDir
