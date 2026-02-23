@@ -71,9 +71,14 @@ func (r *BackgroundRunner) Start(command, workDir string, pane PanePosition,
 	// Scanner goroutine: reads lines and calls onOutput
 	go func() {
 		scanner := bufio.NewScanner(stdout)
+		// Increase max token size to 1MB for commands producing long lines
+		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
 		for scanner.Scan() {
 			line := scanner.Text()
 			onOutput(line)
+		}
+		if err := scanner.Err(); err != nil {
+			onOutput(fmt.Sprintf("[scanner error: %v]", err))
 		}
 		// Drain any remaining data
 		io.Copy(io.Discard, stdout)

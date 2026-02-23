@@ -25,6 +25,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Directory history: Browser-like forward/back navigation (`Alt+←`/`Alt+→` or `[`/`]`)
   - Path jump: Direct navigation to any directory with `Ctrl+J` and bash-style Tab completion
   - Page scrolling: Ctrl+D/U and PageUp/PageDown for fast navigation through large lists
+  - Jump to top/bottom: `g` jumps to first entry, `G` (Shift+G) jumps to last entry (less-style)
   - Hidden files: Toggle visibility with `Ctrl+H` (per-pane setting with `[H]` indicator)
   - Quick navigation: Home (`~`), previous directory (`-`), sync panes (`=`)
   - Sort options: By name, size, or date with dropdown menus and live preview
@@ -58,6 +59,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - MIME-type based opening: Map file types to applications with wildcard support and command fallback
   - External editor: Edit files with $EDITOR (`E` key) in file's directory
   - Shell commands: Execute commands with `!` key in current directory (auto-return after 2 seconds)
+  - Background shell commands: Press `!` twice to run commands in background while using the TUI; real-time output displayed in bottom 1/3 of pane; TAB to focus output area; Ctrl+C to cancel
   - Shell command TAB completion: Auto-complete command names (from PATH) and file paths
   - Shell command log viewer: View command output history with Ctrl+L (opens in pager)
   - Shell history: Ctrl+R incremental search with bash-style up/down arrow navigation

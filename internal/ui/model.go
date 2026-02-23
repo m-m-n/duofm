@@ -101,6 +101,7 @@ type Model struct {
 	bgDoneCh        chan error        // channel for completion signal from background goroutine
 	bgCommand       string            // the background command string (for done msg)
 	bgWorkDir       string            // the working directory for bg command (for done msg)
+	bgSessionID     uint64            // monotonic session ID to prevent stale timer interference
 }
 
 // PanePosition はペインの位置を表す
@@ -333,7 +334,7 @@ func (m *Model) updateDiskSpace() {
 	m.diskSpaceMonitor.Update(leftPath, rightPath)
 }
 
-// bgCleanup resets all background state and refreshes both panes.
+// bgCleanup resets all background state.
 func (m *Model) bgCleanup() {
 	m.bgClosing = false
 	m.bgOutputFocused = false
@@ -342,6 +343,18 @@ func (m *Model) bgCleanup() {
 	m.bgDoneCh = nil
 	m.bgCommand = ""
 	m.bgWorkDir = ""
+}
+
+// bgCleanupAndRefresh resets background state and refreshes both panes.
+func (m *Model) bgCleanupAndRefresh() {
+	m.bgCleanup()
+	if m.leftPane != nil {
+		m.leftPane.RefreshDirectoryPreserveCursor()
+	}
+	if m.rightPane != nil {
+		m.rightPane.RefreshDirectoryPreserveCursor()
+	}
+	m.updateDiskSpace()
 }
 
 // isBgActive returns true if a background command is running or closing.

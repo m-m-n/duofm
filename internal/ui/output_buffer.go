@@ -59,6 +59,23 @@ func (b *OutputBuffer) LineCount() int {
 	return b.count
 }
 
+// TailLines returns the last n lines in insertion order.
+// If n exceeds the stored count, all lines are returned.
+func (b *OutputBuffer) TailLines(n int) []string {
+	if n <= 0 || b.count == 0 {
+		return []string{}
+	}
+	if n > b.count {
+		n = b.count
+	}
+	result := make([]string, n)
+	start := (b.head - n + b.maxLines) % b.maxLines
+	for i := 0; i < n; i++ {
+		result[i] = b.lines[(start+i)%b.maxLines]
+	}
+	return result
+}
+
 // sanitizeUTF8 replaces invalid UTF-8 bytes with the replacement character U+FFFD.
 func sanitizeUTF8(s string) string {
 	var b []byte

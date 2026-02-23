@@ -41,6 +41,7 @@ declare -A TEST_FILES=(
     ["history"]="history_tests.sh"
     ["archive"]="archive_tests.sh"
     ["cursor-preserve"]="cursor_preserve_tests.sh"
+    ["background"]="background_tests.sh"
 )
 
 # Show usage
@@ -259,6 +260,15 @@ run_all() {
     run_test test_compress_complete_workflow
     run_test test_extract_complete_workflow
     run_test test_multifile_compress
+
+    # Background command tests
+    echo ""
+    echo "=== Background Command Tests ==="
+    run_test test_bg_command_execution
+    run_test test_bg_mode_prompt
+    run_test test_bg_cancel_with_ctrlc
+    run_test test_bg_file_ops_during_execution
+    run_test test_bg_blocked_during_execution
 
     # Cursor preserve tests
     echo ""
