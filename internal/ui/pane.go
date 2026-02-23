@@ -214,7 +214,7 @@ func (p *Pane) GotoBottom() {
 // background output split view. This is the single source of truth used by
 // both getVisibleLines() and ViewWithBgOutput().
 func (p *Pane) bgSplitHeights() (fileListHeight, outputHeight int) {
-	totalContent := p.height - 3 // header(2) + border(1)
+	totalContent := p.height - 4 // header(2) + border(1) + trailing(1)
 	if totalContent < 3 {
 		totalContent = 3
 	}
