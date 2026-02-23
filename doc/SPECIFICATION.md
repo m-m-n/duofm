@@ -69,6 +69,7 @@ graph TB
 - Cursor position remembered when navigating to parent directory
 - Browser-like directory history with forward/back navigation (Alt+←/Alt+→ or [/])
 - Page scrolling with Ctrl+D/U and PageUp/PageDown keys
+- Jump to first entry with `g` and last entry with `G` (less-style keybindings)
 
 #### Directory History
 - Independent history stack for each pane (up to 100 entries)
@@ -281,6 +282,23 @@ Three display modes toggled with `I` key:
 - TAB completion for command names (from PATH) and file paths
 - Command output captured in session log at `/tmp/duofm-shell-<PID>.log`
 - View command history log with Ctrl+L (opens in pager)
+
+#### Background Shell Command (!!)
+- Execute shell commands in the background while continuing to use the TUI
+- Activate background mode by pressing `!` again in shell command mode (pink `!` prompt)
+- Backspace on empty background mode input returns to normal shell command mode
+- Command runs via `/bin/sh -c` without suspending the TUI
+- Output displayed in real-time in the bottom 1/3 of the active pane (tail -f behavior)
+- All file management operations remain available during background execution
+- All existing shell command features (history, Ctrl+R, TAB completion) work in background mode
+- Output area header shows the running command
+- Press TAB to focus the output area; Ctrl+C in focused mode cancels the background command
+- Output area closes automatically 2 seconds after command completion
+- Both panes reload when the output area closes
+- Only one background command can run at a time; attempting to start another shows a warning in the status bar
+- Background command output recorded in shell log (viewable with Ctrl+L)
+- Process group terminated on cancellation to clean up child processes
+- Background process cleaned up on duofm exit to prevent orphans
 
 ### Context Menu
 
@@ -559,6 +577,8 @@ All dialogs follow consistent UI patterns:
 | L / Right | Right pane / Parent directory |
 | Ctrl+D / PageDown | Scroll down one page |
 | Ctrl+U / PageUp | Scroll up one page |
+| g | Jump to first entry (top) |
+| G (Shift+G) | Jump to last entry (bottom) |
 | Enter | Enter directory / View file |
 | ~ | Go to home directory |
 | - | Go to previous directory |
@@ -608,7 +628,10 @@ All dialogs follow consistent UI patterns:
 |-----|--------|
 | V | View with pager |
 | E | Edit with editor |
-| ! | Execute shell command |
+| ! | Execute shell command (foreground) |
+| !! | Execute shell command (background) |
+| TAB | Focus background command output area |
+| Ctrl+C (in output area) | Cancel background command |
 | Ctrl+L | View shell command log |
 | @ | Context menu |
 
@@ -630,6 +653,8 @@ move_down = ["J", "Down"]
 move_up = ["K", "Up"]
 page_down = ["Ctrl+D", "PageDown"]
 page_up = ["Ctrl+U", "PageUp"]
+goto_top = ["G"]
+goto_bottom = ["Shift+G"]
 copy = ["C"]
 delete = ["D"]
 help = ["?"]

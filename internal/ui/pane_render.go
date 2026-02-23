@@ -544,12 +544,8 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 	b.WriteString(sepStyle.Render(separatorLine))
 	b.WriteString("\n")
 
-	// Output lines (auto-scroll to show latest)
-	lines := buf.Lines()
-	startLine := 0
-	if len(lines) > outputHeight {
-		startLine = len(lines) - outputHeight
-	}
+	// Output lines (auto-scroll to show latest, only copy visible lines)
+	lines := buf.TailLines(outputHeight)
 
 	outputStyle := lipgloss.NewStyle().
 		Width(p.width-2).
@@ -557,8 +553,8 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 		Foreground(lipgloss.Color("252"))
 
 	rendered := 0
-	for i := startLine; i < len(lines); i++ {
-		b.WriteString(outputStyle.Render(lines[i]))
+	for _, line := range lines {
+		b.WriteString(outputStyle.Render(line))
 		b.WriteString("\n")
 		rendered++
 	}

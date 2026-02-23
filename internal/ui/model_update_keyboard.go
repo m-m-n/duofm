@@ -81,22 +81,8 @@ func (m Model) handleBgOutputFocusedInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.shellLogger != nil {
 			m.shellLogger.AppendFooter()
 		}
-		// Clean up state
-		m.bgClosing = false
-		m.bgOutputFocused = false
-		m.bgOutputBuffer.Clear()
-		m.bgOutputCh = nil
-		m.bgDoneCh = nil
-		m.bgCommand = ""
-		m.bgWorkDir = ""
-		// Refresh both panes
-		if m.leftPane != nil {
-			m.leftPane.RefreshDirectoryPreserveCursor()
-		}
-		if m.rightPane != nil {
-			m.rightPane.RefreshDirectoryPreserveCursor()
-		}
-		m.updateDiskSpace()
+		// Clean up state and refresh panes
+		m.bgCleanupAndRefresh()
 		return m, nil
 
 	case tea.KeyTab, tea.KeyEsc:
@@ -257,6 +243,9 @@ func (m Model) handleBgEnter(command string) (tea.Model, tea.Cmd) {
 	// Clear output buffer for new command
 	m.bgOutputBuffer.Clear()
 
+	// Increment session ID to invalidate any stale timers
+	m.bgSessionID++
+
 	// Create channels and store on model
 	m.bgOutputCh = make(chan string, 100)
 	m.bgDoneCh = make(chan error, 1)
@@ -287,6 +276,10 @@ func (m Model) waitForBgEvent() tea.Cmd {
 	doneCh := m.bgDoneCh
 	command := m.bgCommand
 	workDir := m.bgWorkDir
+	sessionID := m.bgSessionID
+	if outputCh == nil || doneCh == nil {
+		return nil
+	}
 	return func() tea.Msg {
 		select {
 		case line, ok := <-outputCh:
@@ -295,7 +288,7 @@ func (m Model) waitForBgEvent() tea.Cmd {
 			}
 			return bgOutputMsg{line: line}
 		case err := <-doneCh:
-			return bgCommandDoneMsg{err: err, command: command, workDir: workDir}
+			return bgCommandDoneMsg{err: err, command: command, workDir: workDir, sessionID: sessionID}
 		}
 	}
 }

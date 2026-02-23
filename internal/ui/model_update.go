@@ -103,6 +103,11 @@ func (m Model) handleBgMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return m, m.waitForBgEvent(), true
 
 	case bgCommandDoneMsg:
+		// Ignore stale done messages from a previous session
+		if msg.sessionID != m.bgSessionID {
+			return m, nil, true
+		}
+
 		// Log footer
 		if m.shellLogger != nil {
 			m.shellLogger.AppendFooter()
@@ -111,28 +116,18 @@ func (m Model) handleBgMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		// Set closing state
 		m.bgClosing = true
 
-		// Start 2-second auto-close timer
+		// Start 2-second auto-close timer with session ID
+		sessionID := m.bgSessionID
 		return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
-			return bgAutoCloseMsg{}
+			return bgAutoCloseMsg{sessionID: sessionID}
 		}), true
 
 	case bgAutoCloseMsg:
-		// Reset all background state
-		m.bgClosing = false
-		m.bgOutputFocused = false
-		m.bgOutputBuffer.Clear()
-		m.bgOutputCh = nil
-		m.bgDoneCh = nil
-		m.bgCommand = ""
-		m.bgWorkDir = ""
-		// Refresh both panes
-		if m.leftPane != nil {
-			m.leftPane.RefreshDirectoryPreserveCursor()
+		// Ignore stale timer from a previous session
+		if msg.sessionID != m.bgSessionID {
+			return m, nil, true
 		}
-		if m.rightPane != nil {
-			m.rightPane.RefreshDirectoryPreserveCursor()
-		}
-		m.updateDiskSpace()
+		m.bgCleanupAndRefresh()
 		return m, nil, true
 	}
 

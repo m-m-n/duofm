@@ -171,10 +171,13 @@ type bgOutputMsg struct {
 
 // bgCommandDoneMsg signals that the background command has finished
 type bgCommandDoneMsg struct {
-	err     error
-	command string
-	workDir string
+	err       error
+	command   string
+	workDir   string
+	sessionID uint64
 }
 
 // bgAutoCloseMsg signals that the 2-second post-completion timer has fired
-type bgAutoCloseMsg struct{}
+type bgAutoCloseMsg struct {
+	sessionID uint64
+}
