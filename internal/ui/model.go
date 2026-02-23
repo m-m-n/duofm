@@ -90,6 +90,17 @@ type Model struct {
 
 	// Tab completion
 	tabCompleter *TabCompleter
+
+	// Background shell command
+	bgMode          bool              // true when in background input mode (pink prompt)
+	bgRunner        *BackgroundRunner // manages the background process
+	bgOutputBuffer  *OutputBuffer     // circular buffer for output lines
+	bgOutputFocused bool              // true when output area has keyboard focus
+	bgClosing       bool              // true during 2-sec auto-close delay
+	bgOutputCh      chan string       // channel for output lines from background goroutine
+	bgDoneCh        chan error        // channel for completion signal from background goroutine
+	bgCommand       string            // the background command string (for done msg)
+	bgWorkDir       string            // the working directory for bg command (for done msg)
 }
 
 // PanePosition はペインの位置を表す
@@ -199,6 +210,8 @@ func NewModelWithConfig(opts ModelOptions) Model {
 		dirSortStore:     opts.DirSortStore,
 		shellLogger:      NewShellLogger(opts.ShellLogDir),
 		tabCompleter:     NewTabCompleter(),
+		bgRunner:         NewBackgroundRunner(),
+		bgOutputBuffer:   NewOutputBuffer(10000),
 	}
 }
 
@@ -318,6 +331,22 @@ func (m *Model) updateDiskSpace() {
 		rightPath = m.rightPane.Path()
 	}
 	m.diskSpaceMonitor.Update(leftPath, rightPath)
+}
+
+// bgCleanup resets all background state and refreshes both panes.
+func (m *Model) bgCleanup() {
+	m.bgClosing = false
+	m.bgOutputFocused = false
+	m.bgOutputBuffer.Clear()
+	m.bgOutputCh = nil
+	m.bgDoneCh = nil
+	m.bgCommand = ""
+	m.bgWorkDir = ""
+}
+
+// isBgActive returns true if a background command is running or closing.
+func (m *Model) isBgActive() bool {
+	return (m.bgRunner != nil && m.bgRunner.IsRunning()) || m.bgClosing
 }
 
 // startShellCommandMode はシェルコマンドモードを開始する

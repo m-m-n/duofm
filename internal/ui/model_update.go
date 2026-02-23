@@ -79,6 +79,63 @@ func (m Model) handleCustomMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
 		return newModel, cmd, true
 	}
 
+	// バックグラウンドコマンド関連メッセージ
+	if newModel, cmd, handled := m.handleBgMessages(msg); handled {
+		return newModel, cmd, true
+	}
+
+	return m, nil, false
+}
+
+// handleBgMessages handles background command messages
+func (m Model) handleBgMessages(msg tea.Msg) (Model, tea.Cmd, bool) {
+	switch msg := msg.(type) {
+	case bgOutputMsg:
+		// Append line to output buffer
+		m.bgOutputBuffer.Append(msg.line)
+
+		// Log line to shell logger
+		if m.shellLogger != nil {
+			m.shellLogger.AppendLine(msg.line)
+		}
+
+		// Wait for next event
+		return m, m.waitForBgEvent(), true
+
+	case bgCommandDoneMsg:
+		// Log footer
+		if m.shellLogger != nil {
+			m.shellLogger.AppendFooter()
+		}
+
+		// Set closing state
+		m.bgClosing = true
+
+		// Start 2-second auto-close timer
+		return m, tea.Tick(2*time.Second, func(t time.Time) tea.Msg {
+			return bgAutoCloseMsg{}
+		}), true
+
+	case bgAutoCloseMsg:
+		// Reset all background state
+		m.bgClosing = false
+		m.bgOutputFocused = false
+		m.bgOutputBuffer.Clear()
+		m.bgOutputCh = nil
+		m.bgDoneCh = nil
+		m.bgCommand = ""
+		m.bgWorkDir = ""
+		// Refresh both panes
+		if m.leftPane != nil {
+			m.leftPane.RefreshDirectoryPreserveCursor()
+		}
+		if m.rightPane != nil {
+			m.rightPane.RefreshDirectoryPreserveCursor()
+		}
+		m.updateDiskSpace()
+		return m, nil, true
+	}
+
 	return m, nil, false
 }
 

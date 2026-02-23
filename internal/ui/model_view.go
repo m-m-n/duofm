@@ -26,6 +26,8 @@ func (m Model) View() string {
 	rightSpace := m.diskSpaceMonitor.RightSpace()
 
 	var leftView, rightView string
+	bgActive := m.isBgActive()
+
 	if m.searchState.IsActive || m.shellCommandMode {
 		if m.activePane == LeftPane {
 			leftView = m.leftPane.ViewWithMinibuffer(leftSpace, m.minibuffer)
@@ -33,6 +35,20 @@ func (m Model) View() string {
 		} else {
 			leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
 			rightView = m.rightPane.ViewWithMinibuffer(rightSpace, m.minibuffer)
+		}
+	} else if bgActive {
+		// Background command active: render split view on launching pane
+		bgPane := m.bgRunner.Pane()
+		if bgPane == LeftPane && m.activePane == LeftPane {
+			leftView = m.leftPane.ViewWithBgOutput(leftSpace, m.bgOutputBuffer, m.bgRunner.Command(), m.bgOutputFocused)
+			rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
+		} else if bgPane == RightPane && m.activePane == RightPane {
+			leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+			rightView = m.rightPane.ViewWithBgOutput(rightSpace, m.bgOutputBuffer, m.bgRunner.Command(), m.bgOutputFocused)
+		} else {
+			// Launching pane is not active: show normal view (output hidden)
+			leftView = m.leftPane.ViewWithDiskSpace(leftSpace)
+			rightView = m.rightPane.ViewWithDiskSpace(rightSpace)
 		}
 	} else {
 		leftView = m.leftPane.ViewWithDiskSpace(leftSpace)

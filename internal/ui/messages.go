@@ -163,3 +163,18 @@ type querySearchResultMsg struct {
 	query     string // search query (empty string means clear filter)
 	cancelled bool   // true if cancelled
 }
+
+// bgOutputMsg delivers a line of output from the background command
+type bgOutputMsg struct {
+	line string
+}
+
+// bgCommandDoneMsg signals that the background command has finished
+type bgCommandDoneMsg struct {
+	err     error
+	command string
+	workDir string
+}
+
+// bgAutoCloseMsg signals that the 2-second post-completion timer has fired
+type bgAutoCloseMsg struct{}

@@ -60,6 +60,16 @@ func (sl *ShellLogger) AppendHeader(command, workDir string) error {
 	return err
 }
 
+// AppendLine writes a single output line to the log file.
+// If the log file has not been created yet, this is a no-op.
+func (sl *ShellLogger) AppendLine(line string) error {
+	if sl.logFile == nil {
+		return nil
+	}
+	_, err := sl.logFile.WriteString(line + "\n")
+	return err
+}
+
 // AppendFooter writes a blank line separator after command output.
 // If the log file has not been created yet, this is a no-op.
 func (sl *ShellLogger) AppendFooter() error {
