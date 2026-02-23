@@ -266,6 +266,9 @@ func (m Model) handleBgEnter(command string) (tea.Model, tea.Cmd) {
 		return m, statusMessageClearCmd(5 * time.Second)
 	}
 
+	// Update pane bg output state so cursor constraints apply immediately
+	m.syncPaneBgOutputState()
+
 	// Return a tea.Cmd that waits for the first output or completion
 	return m, m.waitForBgEvent()
 }

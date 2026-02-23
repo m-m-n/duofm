@@ -54,6 +54,7 @@ type Pane struct {
 	markedFiles         map[string]bool      // key: filename, value: marked state
 	sortConfig          SortConfig           // ソート設定
 	theme               *Theme               // カラーテーマ
+	bgOutputActive      bool                 // true when background output area is displayed on this pane
 	pendingCursorTarget string               // 親ディレクトリ遷移後のカーソル位置決定用（サブディレクトリ名）
 	history             DirectoryHistory     // ディレクトリ履歴（ブラウザ風のback/forward）
 	gitBranch           string               // 現在のGitブランチ名（Git管理外では空文字列）
@@ -209,8 +210,34 @@ func (p *Pane) GotoBottom() {
 	p.adjustScroll()
 }
 
-// getVisibleLines returns the number of lines visible in the pane
+// bgSplitHeights calculates the file list and output area heights for the
+// background output split view. This is the single source of truth used by
+// both getVisibleLines() and ViewWithBgOutput().
+func (p *Pane) bgSplitHeights() (fileListHeight, outputHeight int) {
+	totalContent := p.height - 3 // header(2) + border(1)
+	if totalContent < 3 {
+		totalContent = 3
+	}
+	outputHeight = totalContent / 3
+	if outputHeight < 2 {
+		outputHeight = 2
+	}
+	fileListHeight = totalContent - outputHeight - 1 // -1 for separator
+	if fileListHeight < 1 {
+		fileListHeight = 1
+	}
+	return fileListHeight, outputHeight
+}
+
+// getVisibleLines returns the number of lines visible in the pane.
+// When background output is active, returns the reduced file list height
+// that matches the split view in ViewWithBgOutput().
 func (p *Pane) getVisibleLines() int {
+	if p.bgOutputActive {
+		fileListHeight, _ := p.bgSplitHeights()
+		return fileListHeight
+	}
+
 	visibleLines := p.height - 4 // header(2) + border(1) + status(1) = 4
 	if visibleLines < 1 {
 		return 1 // Minimum 1 line
@@ -557,6 +584,19 @@ func (p *Pane) restoreScrollOffset(savedOffset int) {
 
 	p.scrollOffset = savedOffset
 	p.adjustScroll()
+}
+
+// SetBgOutputActive sets whether background output area is displayed on this pane.
+// When active, getVisibleLines() returns a reduced height matching the split view.
+// adjustScroll is called to ensure the cursor stays within the new visible range.
+func (p *Pane) SetBgOutputActive(active bool) {
+	p.bgOutputActive = active
+	p.adjustScroll()
+}
+
+// IsBgOutputActive returns whether background output area is displayed on this pane.
+func (p *Pane) IsBgOutputActive() bool {
+	return p.bgOutputActive
 }
 
 // SetTheme updates the pane's color theme.

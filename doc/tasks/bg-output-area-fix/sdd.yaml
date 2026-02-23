@@ -1,0 +1,68 @@
+schema_version: 1
+feature: bg-output-area-fix
+scale: light
+created: 2026-02-23
+
+project:
+  components:
+    main:
+      language: go
+      build_command: "make build"
+      test_command: "go test ./..."
+      format_command: "gofmt -w ."
+      e2e_test_command: "make test-e2e"
+
+workflow:
+  - id: create-spec
+    artifacts: [SPEC.md]
+    status: completed
+    completed_at_commit: 82fc3d25f5c9f72b64b472fc782db66d8529862a
+  - id: implement
+    status: completed
+    completed_at_commit: 82fc3d25f5c9f72b64b472fc782db66d8529862a
+  - id: verify
+    artifacts: [VERIFICATION_RESULT.md]
+    status: completed
+    completed_at_commit: 82fc3d25f5c9f72b64b472fc782db66d8529862a
+
+requirements:
+  FR1:
+    title: Separator line uses BorderFg (gray) when not focused
+    status: ok
+    tasks: []
+    tests: []
+  FR2:
+    title: Separator line uses highlightColor + bold when focused
+    status: ok
+    tasks: []
+    tests: []
+  FR3:
+    title: Separator line displays running command text
+    status: ok
+    tasks: []
+    tests: []
+  FR4:
+    title: getVisibleLines() returns reduced height during bg output
+    status: ok
+    tasks: []
+    tests: []
+  FR5:
+    title: Cursor constrained to reduced visible area during bg execution
+    status: ok
+    tasks: []
+    tests: []
+  FR6:
+    title: Visible lines return to normal after bg output closes
+    status: ok
+    tasks: []
+    tests: []
+  NFR1:
+    title: All existing cursor/scroll behavior unaffected without bg command
+    status: ok
+    tasks: []
+    tests: []
+  NFR2:
+    title: All existing background shell command features intact
+    status: ok
+    tasks: []
+    tests: []
