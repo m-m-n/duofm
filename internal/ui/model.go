@@ -319,6 +319,7 @@ func (m *Model) switchToPane(pos PanePosition) {
 	m.activePane = pos
 	m.leftPane.SetActive(pos == LeftPane)
 	m.rightPane.SetActive(pos == RightPane)
+	m.syncPaneBgOutputState()
 }
 
 // updateDiskSpace はディスク容量を更新
@@ -343,6 +344,7 @@ func (m *Model) bgCleanup() {
 	m.bgDoneCh = nil
 	m.bgCommand = ""
 	m.bgWorkDir = ""
+	m.syncPaneBgOutputState()
 }
 
 // bgCleanupAndRefresh resets background state and refreshes both panes.
@@ -360,6 +362,24 @@ func (m *Model) bgCleanupAndRefresh() {
 // isBgActive returns true if a background command is running or closing.
 func (m *Model) isBgActive() bool {
 	return (m.bgRunner != nil && m.bgRunner.IsRunning()) || m.bgClosing
+}
+
+// syncPaneBgOutputState updates each pane's bgOutputActive flag based on
+// whether background output is currently displayed on that pane.
+// Background output is only displayed when isBgActive() && bgRunner.Pane() == activePane.
+func (m *Model) syncPaneBgOutputState() {
+	bgActive := m.isBgActive()
+	var bgPane PanePosition
+	if m.bgRunner != nil {
+		bgPane = m.bgRunner.Pane()
+	}
+
+	if m.leftPane != nil {
+		m.leftPane.SetBgOutputActive(bgActive && bgPane == LeftPane && m.activePane == LeftPane)
+	}
+	if m.rightPane != nil {
+		m.rightPane.SetBgOutputActive(bgActive && bgPane == RightPane && m.activePane == RightPane)
+	}
 }
 
 // startShellCommandMode はシェルコマンドモードを開始する

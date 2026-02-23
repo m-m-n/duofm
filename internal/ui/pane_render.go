@@ -484,19 +484,8 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 	b.WriteString(borderStyle.Render(border))
 	b.WriteString("\n")
 
-	// Calculate split: total content area - header(2) - border(1) = height-3
-	// Then we reserve 1 line for output header separator
-	totalContent := p.height - 3
-	if totalContent < 3 {
-		totalContent = 3
-	}
-
-	// File list gets 2/3, output gets 1/3
-	outputHeight := totalContent / 3
-	if outputHeight < 2 {
-		outputHeight = 2
-	}
-	fileListHeight := totalContent - outputHeight - 1 // -1 for output header
+	// Use shared height calculation (single source of truth with getVisibleLines)
+	fileListHeight, outputHeight := p.bgSplitHeights()
 
 	// File list rendering
 	endIdx := p.scrollOffset + fileListHeight
@@ -539,7 +528,7 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 		sepStyle = lipgloss.NewStyle().
 			Width(p.width-2).
 			Padding(0, 1).
-			Foreground(highlightColor)
+			Foreground(p.theme.BorderFg)
 	}
 	b.WriteString(sepStyle.Render(separatorLine))
 	b.WriteString("\n")
