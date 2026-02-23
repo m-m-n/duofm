@@ -37,10 +37,10 @@ func TestGetVisibleLines_ReducedWhenBgActive(t *testing.T) {
 
 	visible := pane.getVisibleLines()
 
-	// Calculate expected: totalContent = 40-3 = 37, outputHeight = 37/3 = 12,
-	// fileListHeight = 37 - 12 - 1 = 24
-	if visible != 24 {
-		t.Errorf("getVisibleLines() with bg = %d, want 24", visible)
+	// Calculate expected: totalContent = 40-4 = 36, outputHeight = 36/3 = 12,
+	// fileListHeight = 36 - 12 - 1 = 23
+	if visible != 23 {
+		t.Errorf("getVisibleLines() with bg = %d, want 23", visible)
 	}
 }
 
@@ -73,10 +73,10 @@ func TestGetVisibleLines_BgActive_SmallHeight(t *testing.T) {
 
 	visible := pane.getVisibleLines()
 
-	// totalContent = 10-3 = 7, outputHeight = max(2, 7/3) = max(2, 2) = 2,
-	// fileListHeight = 7 - 2 - 1 = 4
-	if visible != 4 {
-		t.Errorf("getVisibleLines() bg active small height = %d, want 4", visible)
+	// totalContent = 10-4 = 6, outputHeight = max(2, 6/3) = max(2, 2) = 2,
+	// fileListHeight = 6 - 2 - 1 = 3
+	if visible != 3 {
+		t.Errorf("getVisibleLines() bg active small height = %d, want 3", visible)
 	}
 
 	// Must always be at least 1
