@@ -222,7 +222,12 @@ func truncateStringWithEllipsis(s string, maxWidth int) string {
 func (p *Pane) renderHeaderLine2(diskSpace uint64) string {
 	if p.loading {
 		// ローディング中はローディングメッセージを表示
-		return p.loadingProgress
+		// Width(p.width-2)+Padding(0,1)のコンテンツ領域に収める
+		availableWidth := p.width - 4
+		if availableWidth < 0 {
+			availableWidth = 0
+		}
+		return runewidth.Truncate(p.loadingProgress, availableWidth, "")
 	}
 
 	// マーク情報を計算
@@ -260,8 +265,9 @@ func (p *Pane) renderHeaderLine2(diskSpace uint64) string {
 	totalContentWidth := markedLen + sortLen + freeLen
 	remainingSpace := availableWidth - totalContentWidth
 	if remainingSpace < 2 {
-		// スペースが足りない場合は最小限のパディング
-		return markedInfo + " " + sortInfo + " " + freeInfo
+		// スペースが足りない場合は最小限のパディングでトランケート
+		line := markedInfo + " " + sortInfo + " " + freeInfo
+		return runewidth.Truncate(line, availableWidth, "")
 	}
 
 	// ソート情報を中央に配置するため、左右のパディングを均等に分配
@@ -507,11 +513,22 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 	}
 
 	// Output area separator/header
+	// Content area = Width(p.width-2) - Padding(0,1)*2 = p.width-4
 	headerText := " " + command
-	if len(headerText) > p.width-4 {
-		headerText = headerText[:p.width-4] + "..."
+	contentWidth := p.width - 4
+	if contentWidth < 0 {
+		contentWidth = 0
 	}
-	remaining := p.width - 2 - len(headerText)
+	headerWidth := runewidth.StringWidth(headerText)
+	if headerWidth > contentWidth {
+		tail := "..."
+		if contentWidth < 3 {
+			tail = ""
+		}
+		headerText = runewidth.Truncate(headerText, contentWidth, tail)
+		headerWidth = runewidth.StringWidth(headerText)
+	}
+	remaining := contentWidth - headerWidth
 	if remaining < 0 {
 		remaining = 0
 	}
