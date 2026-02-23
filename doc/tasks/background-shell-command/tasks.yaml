@@ -1,0 +1,134 @@
+schema_version: 1
+feature: background-shell-command
+
+tasks:
+  - id: phase-1
+    title: "Core Data Structures"
+    description: "Create OutputBuffer (circular line buffer) and BackgroundRunner (process lifecycle management) with full unit tests"
+    phase: 1
+    status: completed
+    effort: small
+    files_create:
+      - internal/ui/output_buffer.go
+      - internal/ui/output_buffer_test.go
+      - internal/ui/background_runner.go
+      - internal/ui/background_runner_test.go
+    files_modify: []
+    dependencies: []
+    requirements:
+      - FR7
+      - FR10
+      - FR11
+      - NFR5
+
+  - id: phase-2
+    title: "Background Mode Input"
+    description: "Extend shell command mode with background mode toggle via ! keystroke, pink prompt, and bg state fields in Model"
+    phase: 2
+    status: completed
+    effort: small
+    files_create: []
+    files_modify:
+      - internal/ui/model.go
+      - internal/ui/model_update_keyboard.go
+      - internal/ui/messages.go
+    dependencies:
+      - phase-1
+    requirements:
+      - FR1
+      - FR2
+      - FR3
+      - FR4
+      - FR5
+
+  - id: phase-3
+    title: "Background Execution and Output Streaming"
+    description: "Execute commands in background mode, stream output to buffer, handle completion, shell log integration"
+    phase: 3
+    status: completed
+    effort: medium
+    files_create: []
+    files_modify:
+      - internal/ui/exec.go
+      - internal/ui/model_update_keyboard.go
+      - internal/ui/model_update.go
+      - internal/ui/shell_logger.go
+    dependencies:
+      - phase-1
+      - phase-2
+    requirements:
+      - FR6
+      - FR7
+      - FR8
+      - FR9
+      - FR10
+      - FR11
+      - FR12
+      - FR28
+      - FR29
+
+  - id: phase-4
+    title: "Output Display Rendering"
+    description: "Render output area in bottom 1/3 of launching pane with auto-scroll and command header"
+    phase: 4
+    status: completed
+    effort: medium
+    files_create: []
+    files_modify:
+      - internal/ui/pane_render.go
+      - internal/ui/model_view.go
+    dependencies:
+      - phase-3
+    requirements:
+      - FR13
+      - FR14
+      - FR15
+      - FR16
+      - FR26
+      - FR27
+
+  - id: phase-5
+    title: "Focus, Cancellation, and Auto-Close"
+    description: "Output area focus via TAB, Ctrl+C cancellation, 2-second auto-close timer, pane reload"
+    phase: 5
+    status: completed
+    effort: medium
+    files_create: []
+    files_modify:
+      - internal/ui/model_update_keyboard.go
+      - internal/ui/model_update.go
+      - internal/ui/model.go
+    dependencies:
+      - phase-3
+      - phase-4
+    requirements:
+      - FR17
+      - FR18
+      - FR19
+      - FR20
+      - FR21
+      - FR22
+      - FR23
+      - FR24
+      - FR25
+
+  - id: phase-6
+    title: "Polish and Edge Cases"
+    description: "Graceful shutdown, binary output handling, terminal resize, help dialog update"
+    phase: 6
+    status: completed
+    effort: small
+    files_create: []
+    files_modify:
+      - internal/ui/model.go
+      - internal/ui/background_runner.go
+      - internal/ui/help_dialog.go
+      - internal/ui/pane_render.go
+    dependencies:
+      - phase-5
+    requirements:
+      - NFR1
+      - NFR2
+      - NFR3
+      - NFR4
+      - NFR5

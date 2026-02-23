@@ -447,6 +447,132 @@ func (p *Pane) formatDetailEntry(entry fs.FileEntry, nameWidth int) string {
 	return fmt.Sprintf("%s%s  %s  %s  %s", name, strings.Repeat(" ", namePadding), perms, ownerPadded, groupPadded)
 }
 
+// ViewWithBgOutput renders the pane with a split view: file list in top 2/3, background output in bottom 1/3.
+func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command string, focused bool) string {
+	var b strings.Builder
+
+	// ヘッダー1行目: パス + Gitブランチ
+	headerLine1 := p.renderHeaderLine1()
+	pathStyle := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1).
+		Bold(true)
+	if p.isActive {
+		pathStyle = pathStyle.Foreground(p.theme.PathFg)
+	} else {
+		pathStyle = pathStyle.Foreground(p.theme.PathFgInactive)
+	}
+	b.WriteString(pathStyle.Render(headerLine1))
+	b.WriteString("\n")
+
+	// ヘッダー2行目
+	headerLine2 := p.renderHeaderLine2(diskSpace)
+	headerStyle := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1)
+	if p.isActive {
+		headerStyle = headerStyle.Foreground(p.theme.HeaderFg)
+	} else {
+		headerStyle = headerStyle.Foreground(p.theme.HeaderFgInactive)
+	}
+	b.WriteString(headerStyle.Render(headerLine2))
+	b.WriteString("\n")
+
+	// 区切り線
+	border := strings.Repeat("─", p.width-2)
+	borderStyle := lipgloss.NewStyle().Padding(0, 1).Foreground(p.theme.BorderFg)
+	b.WriteString(borderStyle.Render(border))
+	b.WriteString("\n")
+
+	// Calculate split: total content area - header(2) - border(1) = height-3
+	// Then we reserve 1 line for output header separator
+	totalContent := p.height - 3
+	if totalContent < 3 {
+		totalContent = 3
+	}
+
+	// File list gets 2/3, output gets 1/3
+	outputHeight := totalContent / 3
+	if outputHeight < 2 {
+		outputHeight = 2
+	}
+	fileListHeight := totalContent - outputHeight - 1 // -1 for output header
+
+	// File list rendering
+	endIdx := p.scrollOffset + fileListHeight
+	if endIdx > len(p.entries) {
+		endIdx = len(p.entries)
+	}
+
+	for i := p.scrollOffset; i < endIdx; i++ {
+		entry := p.entries[i]
+		line := p.formatEntry(entry, i == p.cursor)
+		b.WriteString(line)
+		b.WriteString("\n")
+	}
+
+	// Fill empty file list lines
+	for i := endIdx - p.scrollOffset; i < fileListHeight; i++ {
+		b.WriteString(strings.Repeat(" ", p.width))
+		b.WriteString("\n")
+	}
+
+	// Output area separator/header
+	headerText := " " + command
+	if len(headerText) > p.width-4 {
+		headerText = headerText[:p.width-4] + "..."
+	}
+	remaining := p.width - 2 - len(headerText)
+	if remaining < 0 {
+		remaining = 0
+	}
+	separatorLine := headerText + strings.Repeat("─", remaining)
+
+	var sepStyle lipgloss.Style
+	if focused {
+		sepStyle = lipgloss.NewStyle().
+			Width(p.width-2).
+			Padding(0, 1).
+			Foreground(highlightColor).
+			Bold(true)
+	} else {
+		sepStyle = lipgloss.NewStyle().
+			Width(p.width-2).
+			Padding(0, 1).
+			Foreground(highlightColor)
+	}
+	b.WriteString(sepStyle.Render(separatorLine))
+	b.WriteString("\n")
+
+	// Output lines (auto-scroll to show latest)
+	lines := buf.Lines()
+	startLine := 0
+	if len(lines) > outputHeight {
+		startLine = len(lines) - outputHeight
+	}
+
+	outputStyle := lipgloss.NewStyle().
+		Width(p.width-2).
+		Padding(0, 1).
+		Foreground(lipgloss.Color("252"))
+
+	rendered := 0
+	for i := startLine; i < len(lines); i++ {
+		b.WriteString(outputStyle.Render(lines[i]))
+		b.WriteString("\n")
+		rendered++
+	}
+
+	// Fill remaining output lines
+	emptyStyle := lipgloss.NewStyle().Width(p.width)
+	for i := rendered; i < outputHeight; i++ {
+		b.WriteString(emptyStyle.Render(""))
+		b.WriteString("\n")
+	}
+
+	return b.String()
+}
+
 // ViewDimmedWithDiskSpace はダイアログオーバーレイ用にdimmedスタイルでペインをレンダリング
 func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	var b strings.Builder

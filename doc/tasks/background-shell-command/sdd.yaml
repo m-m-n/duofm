@@ -1,0 +1,204 @@
+schema_version: 1
+feature: background-shell-command
+scale: standard
+created: 2026-02-23
+
+project:
+  components:
+    main:
+      language: go
+      build_command: "make build"
+      test_command: "go test ./..."
+      format_command: "gofmt -w ."
+      e2e_test_command: "make test-e2e"
+
+workflow:
+  - id: create-spec
+    artifacts: [SPEC.md]
+    status: completed
+    completed_at_commit: 07837d574ea54bf2a42f300d6d8593ab29a61e29
+  - id: create-plan
+    artifacts: [IMPLEMENTATION.md, VERIFICATION.md]
+    status: completed
+    completed_at_commit: 07837d574ea54bf2a42f300d6d8593ab29a61e29
+  - id: implement
+    status: in_progress
+  - id: check
+    status: pending
+  - id: verify
+    artifacts: [VERIFICATION_RESULT.md]
+    status: pending
+  - id: review
+    status: pending
+
+requirements:
+  FR1:
+    title: Background mode activation via double-! keystroke
+    status: ok
+    tasks: []
+    tests: []
+  FR2:
+    title: Pink colored prompt in background mode
+    status: ok
+    tasks: []
+    tests: []
+  FR3:
+    title: Backspace returns to normal shell command mode
+    status: ok
+    tasks: []
+    tests: []
+  FR4:
+    title: Escape cancels background mode
+    status: ok
+    tasks: []
+    tests: []
+  FR5:
+    title: Existing shell features work in background mode
+    status: ok
+    tasks: []
+    tests: []
+  FR6:
+    title: Enter executes command as background process
+    status: ok
+    tasks: []
+    tests: []
+  FR7:
+    title: Command execution via /bin/sh -c
+    status: ok
+    tasks: []
+    tests: []
+  FR8:
+    title: Working directory from active pane at input time
+    status: ok
+    tasks: []
+    tests: []
+  FR9:
+    title: TUI does not suspend during background execution
+    status: ok
+    tasks: []
+    tests: []
+  FR10:
+    title: Capture both stdout and stderr
+    status: ok
+    tasks: []
+    tests: []
+  FR11:
+    title: Single background command limit
+    status: ok
+    tasks: []
+    tests: []
+  FR12:
+    title: Warning when attempting new command during bg execution
+    status: ok
+    tasks: []
+    tests: []
+  FR13:
+    title: Output display in bottom 1/3 of active pane
+    status: ok
+    tasks: []
+    tests: []
+  FR14:
+    title: Auto-scroll output display
+    status: ok
+    tasks: []
+    tests: []
+  FR15:
+    title: File list remains interactive above output area
+    status: ok
+    tasks: []
+    tests: []
+  FR16:
+    title: Output area header with running command
+    status: ok
+    tasks: []
+    tests: []
+  FR17:
+    title: 2-second post-completion display
+    status: ok
+    tasks: []
+    tests: []
+  FR18:
+    title: Auto-close after 2-second delay
+    status: ok
+    tasks: []
+    tests: []
+  FR19:
+    title: Both panes reload on close
+    status: ok
+    tasks: []
+    tests: []
+  FR20:
+    title: TAB focuses output area
+    status: ok
+    tasks: []
+    tests: []
+  FR21:
+    title: Ctrl+C cancels background command when focused
+    status: ok
+    tasks: []
+    tests: []
+  FR22:
+    title: Focus returns to file list after cancel or TAB/Esc
+    status: ok
+    tasks: []
+    tests: []
+  FR23:
+    title: Only Ctrl+C and TAB/Esc work when focused
+    status: ok
+    tasks: []
+    tests: []
+  FR24:
+    title: Pane switching works during bg execution
+    status: ok
+    tasks: []
+    tests: []
+  FR25:
+    title: File operations work during bg execution
+    status: ok
+    tasks: []
+    tests: []
+  FR26:
+    title: Output area tied to launching pane
+    status: ok
+    tasks: []
+    tests: []
+  FR27:
+    title: Output area hidden when launching pane not active
+    status: ok
+    tasks: []
+    tests: []
+  FR28:
+    title: Background output recorded in shell log
+    status: ok
+    tasks: []
+    tests: []
+  FR29:
+    title: Background commands visible in shell log viewer
+    status: ok
+    tasks: []
+    tests: []
+  NFR1:
+    title: Output display latency under 100ms
+    status: ok
+    tasks: []
+    tests: []
+  NFR2:
+    title: No noticeable TUI lag during bg execution
+    status: ok
+    tasks: []
+    tests: []
+  NFR3:
+    title: All existing shell command functionality intact
+    status: ok
+    tasks: []
+    tests: []
+  NFR4:
+    title: All existing keybindings unaffected
+    status: ok
+    tasks: []
+    tests: []
+  NFR5:
+    title: Background process cleanup on duofm exit
+    status: ok
+    tasks: []
+    tests: []

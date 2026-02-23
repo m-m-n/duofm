@@ -7,12 +7,18 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/mattn/go-runewidth"
 	"github.com/sakura/duofm/internal/config"
 )
 
 // handleKeyInput はキーボード入力を処理する
 func (m Model) handleKeyInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// バックグラウンド出力フォーカス中
+	if m.bgOutputFocused {
+		return m.handleBgOutputFocusedInput(msg)
+	}
+
 	// ソートダイアログが開いている場合
 	if m.sortDialog != nil && m.sortDialog.IsActive() {
 		var cmd tea.Cmd
@@ -49,9 +55,58 @@ func (m Model) handleKeyInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.ctrlCPending = false
 	}
 
+	// TABキーでバックグラウンド出力エリアにフォーカス
+	if msg.Type == tea.KeyTab {
+		if m.bgRunner != nil && m.bgRunner.IsRunning() && m.bgRunner.Pane() == m.activePane {
+			m.bgOutputFocused = true
+			return m, nil
+		}
+	}
+
 	// keybindingMapを使ってアクションを決定
 	action := m.keybindingMap.GetAction(msg.String())
 	return m.handleAction(action)
+}
+
+// handleBgOutputFocusedInput handles keyboard input when the background output area is focused.
+// Only Ctrl+C (cancel), TAB, and Esc (return to file list) are accepted.
+func (m Model) handleBgOutputFocusedInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type {
+	case tea.KeyCtrlC:
+		// Cancel background command
+		if m.bgRunner != nil {
+			m.bgRunner.Cancel()
+		}
+		// Log footer
+		if m.shellLogger != nil {
+			m.shellLogger.AppendFooter()
+		}
+		// Clean up state
+		m.bgClosing = false
+		m.bgOutputFocused = false
+		m.bgOutputBuffer.Clear()
+		m.bgOutputCh = nil
+		m.bgDoneCh = nil
+		m.bgCommand = ""
+		m.bgWorkDir = ""
+		// Refresh both panes
+		if m.leftPane != nil {
+			m.leftPane.RefreshDirectoryPreserveCursor()
+		}
+		if m.rightPane != nil {
+			m.rightPane.RefreshDirectoryPreserveCursor()
+		}
+		m.updateDiskSpace()
+		return m, nil
+
+	case tea.KeyTab, tea.KeyEsc:
+		// Return focus to file list
+		m.bgOutputFocused = false
+		return m, nil
+	}
+
+	// All other keys are ignored
+	return m, nil
 }
 
 // handleSearchInput は検索中の入力を処理
@@ -106,14 +161,44 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleHistoryDown()
 	}
 
+	// Handle ! key for background mode toggle
+	if msg.Type == tea.KeyRunes && string(msg.Runes) == "!" {
+		if !m.bgMode {
+			// Enter background mode
+			m.bgMode = true
+			m.minibuffer.SetPrompt(m.bgModePrompt())
+			return m, nil
+		}
+		// Already in bgMode: append ! character normally (fall through to default)
+	}
+
+	// Handle Backspace in background mode
+	if m.bgMode && msg.Type == tea.KeyBackspace {
+		if m.minibuffer.Input() == "" {
+			// Empty input + backspace = exit background mode
+			m.bgMode = false
+			m.minibuffer.SetPrompt("!: ")
+			return m, nil
+		}
+		// Non-empty: normal backspace handling (fall through to default)
+	}
+
 	switch msg.Type {
 	case tea.KeyEnter:
 		command := m.minibuffer.Input()
 		if command == "" {
 			m.shellCommandMode = false
+			m.bgMode = false
 			m.minibuffer.Hide()
 			return m, nil
 		}
+
+		if m.bgMode {
+			// Background mode execution
+			return m.handleBgEnter(command)
+		}
+
+		// Foreground execution
 		workDir := m.getActivePane().Path()
 		m.shellCommandMode = false
 		m.minibuffer.Hide()
@@ -134,12 +219,84 @@ func (m Model) handleShellCommandInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyEsc, tea.KeyCtrlC:
 		m.shellCommandMode = false
+		m.bgMode = false
 		m.minibuffer.Hide()
 		return m, nil
 
 	default:
 		m.minibuffer.HandleKey(msg)
 		return m, nil
+	}
+}
+
+// bgModePrompt returns the pink-colored prompt for background mode
+func (m Model) bgModePrompt() string {
+	return lipgloss.NewStyle().Foreground(highlightColor).Render("!") + ": "
+}
+
+// handleBgEnter handles Enter in background mode
+func (m Model) handleBgEnter(command string) (tea.Model, tea.Cmd) {
+	workDir := m.getActivePane().Path()
+	launchPane := m.activePane
+
+	m.shellCommandMode = false
+	m.bgMode = false
+	m.minibuffer.Hide()
+
+	// Add to history
+	if m.shellHistory != nil && m.shellHistory.IsEnabled() {
+		m.shellHistory.Add(command)
+	}
+
+	// Log command header
+	if err := m.shellLogger.AppendHeader(command, workDir); err != nil {
+		m.statusMessage = fmt.Sprintf("Shell log error: %v", err)
+		m.isStatusError = true
+	}
+
+	// Clear output buffer for new command
+	m.bgOutputBuffer.Clear()
+
+	// Create channels and store on model
+	m.bgOutputCh = make(chan string, 100)
+	m.bgDoneCh = make(chan error, 1)
+	m.bgCommand = command
+	m.bgWorkDir = workDir
+
+	err := m.bgRunner.Start(command, workDir, launchPane,
+		func(line string) {
+			m.bgOutputCh <- line
+		},
+		func(err error) {
+			m.bgDoneCh <- err
+		},
+	)
+	if err != nil {
+		m.statusMessage = fmt.Sprintf("Background command failed: %v", err)
+		m.isStatusError = true
+		return m, statusMessageClearCmd(5 * time.Second)
+	}
+
+	// Return a tea.Cmd that waits for the first output or completion
+	return m, m.waitForBgEvent()
+}
+
+// waitForBgEvent returns a tea.Cmd that waits for the next background event
+func (m Model) waitForBgEvent() tea.Cmd {
+	outputCh := m.bgOutputCh
+	doneCh := m.bgDoneCh
+	command := m.bgCommand
+	workDir := m.bgWorkDir
+	return func() tea.Msg {
+		select {
+		case line, ok := <-outputCh:
+			if !ok {
+				return nil
+			}
+			return bgOutputMsg{line: line}
+		case err := <-doneCh:
+			return bgCommandDoneMsg{err: err, command: command, workDir: workDir}
+		}
 	}
 }
 
@@ -412,6 +569,10 @@ func (m Model) handleShellLog() (tea.Model, tea.Cmd) {
 // handleCtrlC はCtrl+Cのダブルプレスを処理
 func (m Model) handleCtrlC() (tea.Model, tea.Cmd) {
 	if m.ctrlCPending {
+		// Cancel background process to avoid orphans
+		if m.bgRunner != nil && m.bgRunner.IsRunning() {
+			m.bgRunner.Cancel()
+		}
 		// Close shell history and shell logger before quitting
 		if m.shellHistory != nil {
 			m.shellHistory.Close()
@@ -438,6 +599,10 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionQuit:
+		// Cancel background process to avoid orphans
+		if m.bgRunner != nil && m.bgRunner.IsRunning() {
+			m.bgRunner.Cancel()
+		}
 		// Close shell history and shell logger before quitting
 		if m.shellHistory != nil {
 			m.shellHistory.Close()
@@ -464,6 +629,12 @@ func (m Model) handleAction(action Action) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ActionShellCommand:
+		// Block new shell commands during background execution
+		if m.bgRunner != nil && m.bgRunner.IsRunning() {
+			m.statusMessage = "Background command running"
+			m.isStatusError = false
+			return m, statusMessageClearCmd(3 * time.Second)
+		}
 		m.startShellCommandMode()
 		return m, nil
 
