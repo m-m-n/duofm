@@ -2,6 +2,7 @@ package ui
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -185,40 +186,92 @@ func TestExecuteShellCommandReturnsCmd(t *testing.T) {
 }
 
 func TestGetEditor(t *testing.T) {
+	// lookPathFound simulates all commands being available
+	lookPathFound := func(file string) (string, error) {
+		return "/usr/bin/" + file, nil
+	}
+	// lookPathNoVim simulates vim missing, vi available
+	lookPathNoVim := func(file string) (string, error) {
+		if file == "vim" {
+			return "", exec.ErrNotFound
+		}
+		return "/usr/bin/" + file, nil
+	}
+	// lookPathNone simulates neither vim nor vi available
+	lookPathNone := func(file string) (string, error) {
+		return "", exec.ErrNotFound
+	}
+
 	tests := []struct {
-		name     string
-		envValue string
-		setEnv   bool
-		want     string
+		name       string
+		envValue   string
+		setEnv     bool
+		lookPathFn func(string) (string, error)
+		want       string
 	}{
 		{
-			name:     "EDITOR set to nano",
-			envValue: "nano",
-			setEnv:   true,
-			want:     "nano",
+			name:       "EDITOR set to nano",
+			envValue:   "nano",
+			setEnv:     true,
+			lookPathFn: lookPathFound,
+			want:       "nano",
 		},
 		{
-			name:     "EDITOR set to emacs",
-			envValue: "emacs",
-			setEnv:   true,
-			want:     "emacs",
+			name:       "EDITOR set to emacs",
+			envValue:   "emacs",
+			setEnv:     true,
+			lookPathFn: lookPathFound,
+			want:       "emacs",
 		},
 		{
-			name:   "EDITOR not set",
-			setEnv: false,
-			want:   "vim",
+			name:       "EDITOR not set, vim available",
+			setEnv:     false,
+			lookPathFn: lookPathFound,
+			want:       "vim",
 		},
 		{
-			name:     "EDITOR set to empty string",
-			envValue: "",
-			setEnv:   true,
-			want:     "vim",
+			name:       "EDITOR set to empty string, vim available",
+			envValue:   "",
+			setEnv:     true,
+			lookPathFn: lookPathFound,
+			want:       "vim",
+		},
+		{
+			name:       "EDITOR not set, vim unavailable, vi available",
+			setEnv:     false,
+			lookPathFn: lookPathNoVim,
+			want:       "vi",
+		},
+		{
+			name:       "EDITOR empty, vim unavailable, vi available",
+			envValue:   "",
+			setEnv:     true,
+			lookPathFn: lookPathNoVim,
+			want:       "vi",
+		},
+		{
+			name:       "EDITOR not set, neither vim nor vi available",
+			setEnv:     false,
+			lookPathFn: lookPathNone,
+			want:       "vi",
+		},
+		{
+			name:       "EDITOR with spaces returns as-is",
+			envValue:   "vim -u NONE",
+			setEnv:     true,
+			lookPathFn: lookPathFound,
+			want:       "vim -u NONE",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save original value
+			// Save and restore original lookPathFn
+			origLookPath := lookPathFn
+			defer func() { lookPathFn = origLookPath }()
+			lookPathFn = tt.lookPathFn
+
+			// Save original EDITOR value
 			originalValue, originalSet := os.LookupEnv("EDITOR")
 			defer func() {
 				if originalSet {

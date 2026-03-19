@@ -16,13 +16,21 @@ type execFinishedMsg struct {
 	err error
 }
 
-// getEditor returns the editor command from $EDITOR or "vim" as fallback
+// lookPathFn is the function used to look up commands in PATH.
+// It defaults to exec.LookPath and can be overridden in tests.
+var lookPathFn = exec.LookPath
+
+// getEditor returns the editor command using the fallback chain: $EDITOR -> vim -> vi.
+// When $EDITOR is not set, it uses exec.LookPath to find an available editor.
 func getEditor() string {
 	editor := os.Getenv("EDITOR")
-	if editor == "" {
+	if editor != "" {
+		return editor
+	}
+	if _, err := lookPathFn("vim"); err == nil {
 		return "vim"
 	}
-	return editor
+	return "vi"
 }
 
 // getPager returns the pager command and its arguments from $PAGER or "less" as fallback.
