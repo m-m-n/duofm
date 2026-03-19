@@ -1,0 +1,58 @@
+schema_version: 1
+feature: editor-fallback-chain
+scale: light
+created: 2026-03-20
+
+project:
+  components:
+    main:
+      language: go
+      build_command: "make build"
+      test_command: "make test"
+      format_command: "gofmt -w ."
+      e2e_test_command: ""
+
+workflow:
+  - id: create-spec
+    artifacts: [SPEC.md]
+    status: completed
+    completed_at_commit: c01c111cbc037f56fa8959d2b6db3a9cd1b068d6
+  - id: implement
+    status: completed
+    completed_at_commit: c01c111cbc037f56fa8959d2b6db3a9cd1b068d6
+  - id: verify
+    artifacts: [VERIFICATION_RESULT.md]
+    status: completed
+    completed_at_commit: c01c111cbc037f56fa8959d2b6db3a9cd1b068d6
+
+requirements:
+  FR1:
+    title: Return $EDITOR when set
+    status: ok
+    tasks: []
+    tests: []
+  FR2:
+    title: Fallback to vim when $EDITOR unset and vim found
+    status: ok
+    tasks: []
+    tests: []
+  FR3:
+    title: Fallback to vi when vim not found
+    status: ok
+    tasks: []
+    tests: []
+  FR4:
+    title: Final fallback to vi when neither found
+    status: ok
+    tasks: []
+    tests: []
+  NFR1:
+    title: No behavior change for $EDITOR users
+    status: ok
+    tasks: []
+    tests: []
+  NFR2:
+    title: Negligible performance overhead
+    status: ok
+    tasks: []
+    tests: []
