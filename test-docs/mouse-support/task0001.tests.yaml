@@ -1,0 +1,100 @@
+task_id: task0001
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests:
+      - TestHitTest_BasicGridAndPaneSelection
+      - TestHitTest_ScrollOffsetShiftsEntryIndex
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: undefined: mouseFirstEntryRow (mouse_hittest.go did not exist yet); hitTest/paneHitLayout were also undefined."
+  AC-2:
+    tests:
+      - TestHitTest_OutOfScreenAndBars
+      - TestHitTest_HeaderRowsAndBlankRowAreNonEntry
+      - TestHitTest_FilterWithNoMatchesIsNonEntry
+      - TestHitTest_BgSplit_FileListRowsAreEntriesSeparatorIsNot
+      - TestPaneHitLayout_FollowsLiveState
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: undefined: hitTest, paneHitLayout, and Pane.hitLayout (mouse_hittest.go did not exist yet)."
+  AC-3:
+    tests:
+      - TestClampedEntryIndex
+      - TestClampedEntryIndex_BlankRowInShortListClampsToLastEntry
+      - TestClampedEntryIndex_NothingDisplayed
+      - TestModelAdapters_AbsentPane_NoPanicNoIndex
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: undefined: clampedEntryIndex, Model.mouseHitAt, Model.mouseDragIndexAt (mouse_hittest.go did not exist yet)."
+  AC-4:
+    tests:
+      - TestApplyDragMarks_GrowsOverBaseline
+      - TestApplyDragMarks_RecomputesFromSameBaselineEachCall
+      - TestApplyDragMarks_ReverseAnchorTarget
+      - TestApplyDragMarks_ExcludesParentDir
+      - TestApplyDragMarks_ScrollOffsetNeverTouched
+      - TestApplyDragMarks_OutOfRangeReturnsFalseUnchanged
+      - TestApplyDragMarks_EmptyEntriesReturnsFalse
+      - TestSnapshotMarks_IndependentBothDirections
+      - TestApplyDragMarks_NeverMutatesBaseline
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: Pane.snapshotMarks and Pane.applyDragMarks undefined (pane_drag.go did not exist yet)."
+  AC-5:
+    tests:
+      - TestDoubleClickDetector_SameKeyWithinWindow
+      - TestDoubleClickDetector_WindowBoundaryInclusiveAt500
+      - TestDoubleClickDetector_PastWindowIsFalse
+      - TestDoubleClickDetector_KeyMustMatchAllFields
+      - TestDoubleClickDetector_SameKeySequenceAlternatesTrueFalse
+      - TestDoubleClickDetector_ABASequenceNeverTriggers
+      - TestDoubleClickDetector_ResetRestartsSequence
+      - TestDoubleClickDetector_BackwardsClockNeverTriggers
+      - TestDoubleClickDetector_NoTimeSourceUsesSystemClock
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: undefined: clickKey, newDoubleClickDetector (mouse_doubleclick.go did not exist yet)."
+  AC-6:
+    tests:
+      - TestHandleMouse_PressViaUpdateMovesCursor
+      - TestHandleMouse_BeforePanesExist_NoPanicNilCmd
+      - TestNewModel_InitializesDetector
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: unknown field detector in struct literal of type Model, undefined: newDoubleClickDetector, Model.handleMouse undefined (model_update_mouse.go and the Model.detector field did not exist yet). \"every pre-existing unit test passes unchanged\" and \"cmd/duofm/main.go has no diff\" are verified by the full `go test ./...` run (all green, baseline preserved) and `git diff --stat -- cmd/duofm/main.go` (empty) respectively, not by a dedicated test function."
+  AC-7:
+    tests:
+      - TestHandleMouse_ModalStates_IgnoreGesture
+      - TestHandleMouse_ArmedSessionDisarmedByModal
+      - TestHandleMouse_OtherButtons_NoEffect
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: Model.mouseDrag undefined, Model.handleMouse undefined (model_update_mouse.go did not exist yet)."
+  AC-8:
+    tests:
+      - TestHandleMouse_ClickMovesCursorKeepsMarks
+      - TestHandleMouse_ClickActivatesInactivePane
+      - TestHandleMouse_PressReleaseNoMove_NoMarks
+      - TestHandleMouse_ClickOnParentDir_CursorOnParent
+      - TestHandleMouse_NonEntryClickOnRightPane_ActivatesOnly
+      - TestHandleMouse_NoneHits_ChangeNothing
+      - TestHandleMouse_OddWidthLeftoverColumn_NoEffect
+      - TestHandleMouse_BgSplit_FileListClickMovesCursorSeparatorDoesNot
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: Model.handleMouse and Model.mouseHitAt undefined (model_update_mouse.go / mouse_hittest.go did not exist yet), so tea.MouseMsg was never routed and no click effect could occur."
+  AC-9:
+    tests:
+      - TestHandleMouse_Drag_ExtendsRangeOverExistingMark
+      - TestHandleMouse_Drag_ShrinkBackRemovesAddedMarks
+      - TestHandleMouse_Drag_ReverseDirection
+      - TestHandleMouse_Drag_FromParentDir
+      - TestHandleMouse_Drag_ClampsAtScrolledWindowEdgesAndIgnoresColumn
+      - TestHandleMouse_Drag_ActivatesInactivePaneFirst
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: Model.mouseDrag, Model.mouseDragIndexAt and Pane.applyDragMarks undefined (model_update_mouse.go / mouse_hittest.go / pane_drag.go did not exist yet)."
+  AC-10:
+    tests:
+      - TestHandleMouse_DoubleClick_OnDirectory_StartsLoading
+      - TestHandleMouse_DoubleClick_OnParentDir_RemembersSubdirAndLoads
+      - TestHandleMouse_DoubleClick_OnFile_ReturnsCommandPathUnchanged
+      - TestHandleMouse_NoDoubleClick_NonTriggeringSequences
+      - TestHandleMouse_ThreePressesWithin500ms_ExactlyOneEnter
+      - TestHandleMouse_DoubleClick_OnInactiveRightPane_Activates
+      - TestHandleMouse_PressAfterDragActivated_NoEnterEvenWithinWindow
+    red_confirmed: true
+    red_reason: "internal/ui package failed to build: unknown field detector in struct literal of type Model, undefined: newDoubleClickDetector, Model.handleMouse undefined (model_update_mouse.go / mouse_doubleclick.go did not exist yet, and Model had no detector field to inject the fake clock into)."
