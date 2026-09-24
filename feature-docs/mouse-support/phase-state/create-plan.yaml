@@ -4,15 +4,33 @@ phase: create-plan
 status: dispatching
 generation: 1
 base_revision: eda1f0c8bfab7960f398467ccf828ceb9ae66eed
-last_input_digest: sha256:2a8450f3862b8718a6cdab0ec002770703b750b4ba7914892dcf5482dffc5812
-active_request_id: null
+last_input_digest: sha256:19b8cf59b98d9e789bced87aab228e0271e0fa2e08e776b2827a36d6555ff437
+active_request_id: create-plan-run-0002
 packets: {}
-answers: {}
+answers:
+  create-plan.task-split-review:
+    packet_id: null
+    answered_at: '2026-09-24T23:46:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - q1:B
+    - q2:A
+    - q3:A
+    freeform: null
+    normalized_answer: merge former task0001-0004 into one task; FR6 previous press
+      = immediately preceding left press on same entry; Dockerfile fix stays in E2E
+      task [recorded as assumption]
+    resolution_note: see batch-audit.yaml create-plan.task-split-review
 worker_runs:
 - request_id: create-plan-run-0001
   status: completed
   input_digest: sha256:2a8450f3862b8718a6cdab0ec002770703b750b4ba7914892dcf5482dffc5812
   output_digest: sha256:86a8b0567454b9e27a14e76c441f28d515f52c27061db4367d68778ec915d82e
+- request_id: create-plan-run-0002
+  status: dispatched
+  input_digest: sha256:19b8cf59b98d9e789bced87aab228e0271e0fa2e08e776b2827a36d6555ff437
+  output_digest: null
 artifacts:
 - path: feature-docs/mouse-support/IMPLEMENTATION.md
   sha256: sha256:f9a07a2617c86ce9ecb5588946f8378bdc8e0ce088469adb0fa948fead17a586
