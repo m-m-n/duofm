@@ -1,0 +1,21 @@
+schema_version: 1
+feature: mouse-support
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: eda1f0c8bfab7960f398467ccf828ceb9ae66eed
+last_input_digest: sha256:2a8450f3862b8718a6cdab0ec002770703b750b4ba7914892dcf5482dffc5812
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:2a8450f3862b8718a6cdab0ec002770703b750b4ba7914892dcf5482dffc5812
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
