@@ -4,8 +4,8 @@ phase: create-spec
 status: dispatching
 generation: 1
 base_revision: 526db3a5b7409562aafb13502ece9283b60f2bef
-last_input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
-active_request_id: create-spec-run-0002
+last_input_digest: sha256:1d7d0b1841d7208aadcb2256352a318c81137f582d3f3dd0d11bfd68ced8ea7c
+active_request_id: create-spec-run-0003
 packets:
   create-spec-q0001:
     status: obsolete
@@ -179,6 +179,10 @@ worker_runs:
   status: needs_user_input
   input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
   output_digest: sha256:698e7e1551d41626061142e5f8e039d8c8086c620e236bd5f83d4f2bae05486e
+- request_id: create-spec-run-0003
+  status: dispatched
+  input_digest: sha256:1d7d0b1841d7208aadcb2256352a318c81137f582d3f3dd0d11bfd68ced8ea7c
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
@@ -190,5 +194,4 @@ resolved_input_cache:
     paths: []
     digests: {}
     truncated: false
-last_error: 'run-0001: dispatch-time digest computed with unsplit file list (orchestrator
-  bug); result rejected by validator (design-step gate missing decide_autonomously)'
+last_error: null
