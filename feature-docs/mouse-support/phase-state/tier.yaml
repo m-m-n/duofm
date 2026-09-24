@@ -1,0 +1,40 @@
+schema_version: 1
+feature: mouse-support
+tier: full
+rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full;
+  both readings: P(0)=0.0)'
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.0
+    '1': 0.21
+    '2': 0.79
+    '3': 0.0
+  expectation_clear: 0.42
+  observed_at: '2026-09-24T23:03:50+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.0
+    '1': 0.02
+    '2': 0.98
+    '3': 0.0
+  expectation_clear: 0.44
+  observed_at: '2026-09-24T23:03:55+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/model.go
+  - internal/ui/model_update.go
+  - internal/ui/model_update_mouse.go
+  - internal/ui/pane_marks.go
+  - internal/ui/model_update_mouse_test.go
+  - internal/ui/pane_mark_test.go
+  changed_lines_approx: 400
+  new_functions_needed: 5
+  new_files_needed: 2
+  new_dependencies_needed: []
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  evidence: cmd/duofm/main.go:104でマウス通知は有効だけど、internal/ui/model_update.go:284にはMouseMsg処理がなく、3要件とも未実装だよ。座標から表示行への変換にはinternal/ui/pane_render.go:67の表示行数とスクロール位置を使い、入力欄・背景出力・ダイアログを考慮する必要があるよ。ペイン切替はinternal/ui/model.go:313、カーソル設定はinternal/ui/pane.go:451、ダブルクリック時のEnter動作はinternal/ui/model_update_keyboard.go:793を再利用できるよ。internal/ui/pane_marks.go:7は単独マークだけなので、ドラッグ範囲の設定とクリック時刻・対象の管理を追加する見込みだよ。関連テストはinternal/ui/model_keyboard_test.go:49、internal/ui/pane_mark_test.go:56にあるけど、マウス専用テストはないよ。約400行はテスト込み、関数5個は実装側の見積もりで、変更はinternal/ui内に収まる想定だよ。ファイル変更もテスト実行もしていないよ
+decided_at: '2026-09-24T23:04:18+09:00'
+
