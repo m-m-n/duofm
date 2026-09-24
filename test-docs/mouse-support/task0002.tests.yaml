@@ -1,0 +1,89 @@
+task_id: task0002
+baseline_failures: []          # `go test ./...` before any change: all packages passed
+final_failures: []             # `go test ./...` after implementation: unchanged (no Go files touched)
+acceptance_tests:
+  AC-1:
+    tests:
+      - test_mouse_click_moves_cursor
+      - test_mouse_drag_marks_range
+      - test_mouse_double_click_enters_directory
+    red_confirmed: true
+    red_reason: >-
+      Ran `docker run --rm duofm-e2e-test /e2e/scripts/run_all_tests.sh
+      mouse` in this worktree, where task0001's mouse handling does not
+      exist. All three failed for the expected reason: cursor stayed off
+      position 3 after press+release, "Marked 2/" never appeared after the
+      press/motion/release drag sequence, and "another.txt" never appeared
+      after the double press/release pair on dir2 — i.e. the mouse
+      sequences reached duofm (sessions started/stopped cleanly) but had no
+      observable effect, which is exactly what is expected before task0001
+      merges.
+  AC-2:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before editing run_all_tests.sh, `mouse` was not a key in TEST_FILES:
+      `run_all_tests.sh mouse` printed "Error: Unknown category 'mouse'"
+      and `--list` did not show it. After registration, `--list` lists
+      "mouse   mouse_tests.sh (3 tests)", `run_all_tests.sh mouse` runs
+      exactly the three mouse tests, and the full run prints a "=== Mouse
+      Tests ===" section with the three tests after every existing section.
+  AC-3:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      The task plan's stated premise — that /e2e/scripts/run_tests.sh does
+      not exist — does not hold in this repository: `git ls-files` shows
+      test/e2e/scripts/run_tests.sh is already a tracked symlink to
+      run_all_tests.sh, and running the old CMD value directly against the
+      built image (`docker run --rm duofm-e2e-test /e2e/scripts/run_tests.sh`)
+      executed the full suite normally, with no observable difference from
+      running run_all_tests.sh directly. There is no "cannot start" failure
+      to reproduce. The Dockerfile CMD line was still changed to
+      /e2e/scripts/run_all_tests.sh exactly as AC-3 specifies (no other
+      Dockerfile line touched) — this matches test/README.md's explicit
+      guidance against relying on the run_tests.sh symlink, even though the
+      plan's stated justification for the change does not match the
+      current repository state. See report notes for detail.
+  AC-4:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before this task, `bash -n test/e2e/scripts/tests/mouse_tests.sh`
+      failed ("No such file or directory") since the file did not exist.
+      After creation, `bash -n` succeeds for both
+      test/e2e/scripts/tests/mouse_tests.sh and
+      test/e2e/scripts/run_all_tests.sh.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      This criterion is a scope/build constraint, not something with an
+      observable failing state beforehand: `docker build` never validates
+      CMD contents, so `make test-e2e-build` already succeeded before this
+      task's changes regardless of the Dockerfile CMD value. Verified
+      post-implementation: `git status --short` shows exactly the three
+      Scope files changed (test/e2e/Dockerfile, test/e2e/scripts/run_all_tests.sh
+      modified; test/e2e/scripts/tests/mouse_tests.sh added), and
+      `make test-e2e-build` succeeds.
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Ran `make test-e2e-build && make test-e2e` (equivalent to the
+      project's E2E command) from this worktree. The runner starts through
+      the image's default command and completes: 217 tests total, 184
+      passed, 32 failed. Of the 32 failures, 3 are the new mouse tests
+      (expected and explicitly not a criterion here per the task plan's
+      Test Notes). The other 29 are pre-existing archive/compression E2E
+      tests (Archive Tests section: format/compression-level/archive-name
+      dialogs, complete compress/extract workflows, multi-file compress)
+      that this task's 3-file diff cannot have caused: that section runs
+      before this task's appended "Mouse Tests" section, and re-running the
+      OLD default command path (the tracked run_tests.sh symlink, see AC-3)
+      against the same image reproduces the identical failures. Fixing
+      them is out of this task's scope (no existing test changes, no other
+      Dockerfile line, no Go changes per Out of Scope). So AC-6's literal
+      "every pre-existing test passed" does not hold in this environment,
+      for reasons unrelated to and outside this task's diff. See report
+      notes.
