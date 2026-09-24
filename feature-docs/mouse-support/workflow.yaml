@@ -106,7 +106,8 @@ workflow:
   completed_at_commit: f99062530400c250ffe7bbe288191d7deef5dbe0
   base_commit: cb86593c0f169ec1733c4fad39e10614e40f3b7c
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: d8dd599cadc9c6585cbfbe6a6d8df17aaf65ce07
 - id: verify
   status: pending
   result: null
@@ -172,8 +173,8 @@ tasks:
     status: merged
     branch: em-workflow/mouse-support/task0002
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
   plan:
     floor:
     - comprehensive
@@ -182,7 +183,11 @@ review:
     - spec
     discretionary: []
     cross_validation: true
-  perspectives: {}
+  perspectives:
+    security: completed
+    comprehensive: completed
+    architecture: completed
+    spec: completed
   residual_critical_high: 0
   needs_rework: false
 requirements:
