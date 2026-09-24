@@ -1,0 +1,27 @@
+schema_version: 1
+feature: mouse-support
+phase: create-spec
+status: dispatching
+generation: 1
+base_revision: 526db3a5b7409562aafb13502ece9283b60f2bef
+last_input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+  - request_id: create-spec-run-0001
+    status: dispatched
+    input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
+    output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache:
+  design_system_candidates:
+    generation_digest: sha256:549cc09a68bbf8d8c433c1c74704a68ce7dbbb4799a0847bc88f825b613d91f7
+    resolved_at_generation: 1
+    paths: []
+    digests: {}
+    truncated: false
+last_error: null
