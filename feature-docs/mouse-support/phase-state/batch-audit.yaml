@@ -55,3 +55,32 @@ records:
     task / B file separate task -> chose A (not chosen B); reason: 実在しない実行先では E2E
     検証を開始できず、1 行の修正で範囲が明確。Opus escalation: no; orchestrator judgement: agrees with
     all three.'
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-25T08:53:00+09:00'
+  source: batch-decision-table
+  answer_mode: multi_select
+  selected_option_ids: []
+  freeform: null
+  normalized_answer: auto-recorded 1 amended command (project.components.duofm.build_command)
+  resolution_note: 'gate create-spec.command-approval (Step A.5 re-run during verify);
+    batch-policies action auto_record; no refusal pattern matched. Auto-approved command
+    (verbatim): project.components.duofm.build_command: podman run --rm --userns=keep-id
+    -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+    -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache
+    -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
+    -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+    docker.io/library/golang:1.25.5-trixie make build | Reason for amendment: in the
+    verify phase the previously approved build_command failed from the integration
+    worktree with "error obtaining VCS status: exit status 128". A git wrapper showed
+    Go running "git status --porcelain" in /home/sakura/go/src/duofm (the parent repo,
+    root-owned inside the container because only sub-paths are bind-mounted) and git
+    refusing with "detected dubious ownership". Unclear-point resolution (fail-closed-route,
+    no gate_id): options A record build as verify failed_item and auto-rework / B
+    treat as command-definition defect, add safe.directory via GIT_CONFIG_COUNT=2
+    and re-approve / C other -> chose B (not chosen A, C). Codex consulted: yes (1
+    turn, readonly). Codex key points: A would send an environment defect to feature
+    rework and leave the cause in place; scope safe.directory to /home/sakura/go/src/duofm
+    instead of * because * disables the ownership check for every repository; docker
+    resolves to /usr/bin/docker so the approved e2e_test_command is kept as is. Opus
+    escalation: no; orchestrator judgement: agrees.'

@@ -64,8 +64,9 @@ project:
       build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
         /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
         -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
-        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
-        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
       test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
         /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
         -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
