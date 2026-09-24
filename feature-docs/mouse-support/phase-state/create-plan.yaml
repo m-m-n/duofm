@@ -1,11 +1,11 @@
 schema_version: 1
 feature: mouse-support
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: eda1f0c8bfab7960f398467ccf828ceb9ae66eed
 last_input_digest: sha256:19b8cf59b98d9e789bced87aab228e0271e0fa2e08e776b2827a36d6555ff437
-active_request_id: create-plan-run-0002
+active_request_id: null
 packets: {}
 answers:
   create-plan.task-split-review:
