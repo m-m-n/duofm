@@ -1,0 +1,12 @@
+schema_version: 1
+feature: mouse-support
+records:
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-24T23:50:00+09:00'
+  source: batch-decision-table
+  answer_mode: multi_select
+  selected_option_ids: []
+  freeform: null
+  normalized_answer: auto-recorded all 4 unapproved commands
+  resolution_note: 'gate create-spec.command-approval; batch-policies action auto_record; no refusal pattern matched. Auto-approved commands (verbatim): project.components.duofm.build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build | project.components.duofm.test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./... | project.components.duofm.format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w . | project.components.duofm.e2e_test_command: make test-e2e-build && make test-e2e. Basis: host has no Go toolchain; Codex consulted (1 turn) and recommended running Go via a pinned golang:1.25.5-trixie container (podman rootless, keep-id, named cache volumes, GOTOOLCHAIN=local) over installing Go on the host or stopping; DISPLAY=:0 and init.defaultBranch=main are passed so existing environment-dependent tests pass (baseline go test ./... all ok in container).'
