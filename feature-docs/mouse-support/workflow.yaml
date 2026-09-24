@@ -148,7 +148,7 @@ tasks:
     - NFR3
     - NFR4
     - NFR5
-    status: in_progress
+    status: merged
     branch: em-workflow/mouse-support/task0001
   task0002:
     title: E2E mouse scenarios and E2E runner entry point
