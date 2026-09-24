@@ -1,7 +1,7 @@
 schema_version: 1
 feature: mouse-support
 phase: create-spec
-status: applying_patch
+status: completed
 generation: 1
 base_revision: 526db3a5b7409562aafb13502ece9283b60f2bef
 last_input_digest: sha256:59863ccf829a9f777d29f65b44cce4f29aa08ea44cae0fd121c9c813f57f53bb
