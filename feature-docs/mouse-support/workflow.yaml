@@ -168,7 +168,7 @@ tasks:
     - FR4
     - FR6
     - NFR1
-    status: in_progress
+    status: merged
     branch: em-workflow/mouse-support/task0002
 review:
   status: pending
