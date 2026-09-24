@@ -6,17 +6,179 @@ generation: 1
 base_revision: 526db3a5b7409562aafb13502ece9283b60f2bef
 last_input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
 active_request_id: create-spec-run-0002
-packets: {}
-answers: {}
+packets:
+  create-spec-q0001:
+    status: obsolete
+    issued_at: '2026-09-24T23:12:00+09:00'
+    questions: []
+  create-spec-q0002:
+    status: answered
+    issued_at: '2026-09-24T23:22:00+09:00'
+    questions:
+    - question_id: requirement.click-marks
+      status: answered
+    - question_id: requirement.drag-marks
+      status: answered
+    - question_id: requirement.inactive-pane-click
+      status: answered
+    - question_id: requirement.non-entry-area
+      status: answered
+    - question_id: requirement.modal-states
+      status: answered
+    - question_id: requirement.drag-overflow
+      status: answered
+    - question_id: requirement.wheel-scope
+      status: answered
+    - question_id: requirement.double-click-window
+      status: answered
+    - question_id: design-step.recommendation
+      status: answered
+answers:
+  requirement.click-marks:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - cursor_only_keep_marks
+    freeform: null
+    normalized_answer: 'Move cursor, keep marks: Click only moves the cursor to the
+      clicked entry; existing marks stay unchanged. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen cursor_only_keep_marks; not chosen [''cursor_and_clear_marks''];
+      codex reason: キーボードでのカーソル移動と一貫し、既存のマークを誤って消さずに操作できるよ; orchestrator mapping judgement:
+      agrees (matches worker tentative position)'
+  requirement.drag-marks:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - add_range
+    freeform: null
+    normalized_answer: 'Mark range, add: Entries from the drag start row to the current
+      row are marked, added to existing marks; the range follows the pointer live
+      and the cursor ends on the release row. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen add_range; not chosen [''replace_range'', ''toggle_range''];
+      codex reason: 既存のマークを保って選択を追加できるよ。開始時のマークと現在の範囲を合わせれば、折り返しでも反転の重複を避けられるよ; orchestrator
+      mapping judgement: agrees (matches worker tentative position)'
+  requirement.inactive-pane-click:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - activate_and_act
+    freeform: null
+    normalized_answer: 'Activate and act: The pane becomes active and the click/drag
+      applies immediately in the same gesture. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen activate_and_act; not chosen [''activate_only''];
+      codex reason: 一度の操作で目的の項目を選べて、最初のクリックだけ扱いを変える必要もないよ; orchestrator mapping judgement:
+      agrees (matches worker tentative position)'
+  requirement.non-entry-area:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - activate_pane_only
+    freeform: null
+    normalized_answer: 'Activate pane only: Inside a pane''s area the pane becomes
+      active but the cursor does not move; title bar and status bar clicks are ignored.
+      [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen activate_pane_only; not chosen [''ignore_all'',
+      ''cursor_to_last'']; codex reason: 空白でも操作するペインを切り替えられ、項目のない場所からカーソル移動先を推測する必要がないよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.modal-states:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - ignore_when_modal
+    freeform: null
+    normalized_answer: 'Ignore while modal: Mouse input is ignored while any dialog,
+      sort dialog, or minibuffer is open, or while bg output has focus. In the bg
+      split view with the file list focused, clicks on the file-list part work and
+      clicks on the output part are ignored. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen ignore_when_modal; not chosen [''cancel_then_act''];
+      codex reason: 入力中の内容や確認画面を誤って閉じず、背後の選択変更も防げるよ。既存の入力制御とも合わせやすいよ; orchestrator
+      mapping judgement: agrees (matches worker tentative position)'
+  requirement.drag-overflow:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - clamp_no_scroll
+    freeform: null
+    normalized_answer: 'Clamp, no scroll: The range stops at the first/last visible
+      row; the list does not scroll during a drag. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen clamp_no_scroll; not chosen [''auto_scroll'']; codex
+      reason: 画面外への選択拡大を防げて、座標と項目の対応も安定するよ。移動イベントの頻度に依存するスクロールを避けられるよ; orchestrator
+      mapping judgement: agrees (matches worker tentative position)'
+  requirement.wheel-scope:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - out_of_scope
+    freeform: null
+    normalized_answer: 'Out of scope: Wheel events stay ignored; only click, drag
+      and double-click are implemented. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen out_of_scope; not chosen [''move_cursor'', ''scroll_view''];
+      codex reason: 受け入れ条件のクリック・ドラッグ・ダブルクリックに範囲を絞れて、スクロールとカーソルの連動による不具合を増やさずに済むよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.double-click-window:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - fixed_500ms
+    freeform: null
+    normalized_answer: 'Fixed 500 ms: Second press on the same entry within 500 ms
+      triggers the Enter action on that entry. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen fixed_500ms; not chosen [''fixed_300ms'', ''configurable''];
+      codex reason: 300msよりゆっくりした連続クリックを受け付けられ、設定項目を増やさずに実装と検証を単純に保てるよ; orchestrator
+      mapping judgement: agrees (matches worker tentative position)'
+  design-step.recommendation:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-24T23:25:00+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: 'Accept recommendation: design step skipped (no new screen
+      elements; reuses existing cursor/mark rendering)'
+    resolution_note: batch-policies.yaml create-spec.design-step -> decide_autonomously;
+      analyst recommendation 'skip' accepted
 worker_runs:
 - request_id: create-spec-run-0001
   status: invalid_input
   input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
   output_digest: validation-error:gate_id create-spec.design-step missing option decide_autonomously
 - request_id: create-spec-run-0002
-  status: dispatched
+  status: needs_user_input
   input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
-  output_digest: null
+  output_digest: sha256:698e7e1551d41626061142e5f8e039d8c8086c620e236bd5f83d4f2bae05486e
 artifacts: []
 patches: []
 progress_fingerprint: null
