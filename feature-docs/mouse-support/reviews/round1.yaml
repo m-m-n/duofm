@@ -1,0 +1,132 @@
+round: 1
+executed_at: '2026-09-25T08:46:31+09:00'
+scope:
+  review_mode: diff
+  base_commit: cb86593c0f169ec1733c4fad39e10614e40f3b7c
+  head_commit: d8dd599cadc9c6585cbfbe6a6d8df17aaf65ce07
+  changed_files:
+  - internal/ui/model.go
+  - internal/ui/model_update.go
+  - internal/ui/model_update_mouse.go
+  - internal/ui/model_update_mouse_test.go
+  - internal/ui/mouse_doubleclick.go
+  - internal/ui/mouse_doubleclick_test.go
+  - internal/ui/mouse_hittest.go
+  - internal/ui/mouse_hittest_test.go
+  - internal/ui/pane_drag.go
+  - internal/ui/pane_drag_test.go
+  - test-docs/mouse-support/task0001.tests.yaml
+  - test-docs/mouse-support/task0002.tests.yaml
+  - test/e2e/Dockerfile
+  - test/e2e/scripts/run_all_tests.sh
+  - test/e2e/scripts/tests/mouse_tests.sh
+plan:
+  floor:
+  - comprehensive
+  - security
+  - architecture
+  - spec
+  discretionary: []
+  cross_validation: true
+perspective_runs:
+- run_id: security#0
+  perspective: security
+  role: primary
+  source: codex
+  status: completed
+- run_id: comprehensive#0
+  perspective: comprehensive
+  role: primary
+  source: codex
+  status: completed
+- run_id: architecture#0
+  perspective: architecture
+  role: primary
+  source: litellm
+  model: muse-spark-contributor
+  status: completed
+- run_id: spec#0
+  perspective: spec
+  role: primary
+  source: litellm
+  model: muse-spark-contributor
+  status: completed
+- run_id: evaluator
+  role: evaluator
+  source: claude
+  status: completed
+findings:
+- stable_id: 52107dd60886982b
+  severity: medium
+  category: comprehensive
+  file: internal/ui/mouse_hittest.go
+  line: 9
+  title: ペインヘッダを固定3行とみなすヒットテストが、折り返したヘッダの描画とずれる
+  description: mousePaneHeaderRows=3 / mouseFirstEntryRow=4 は描画側と共有されていない独自定数。pane_render.go の renderHeaderLine1
+    は gitBranch が空のとき displayPath を切り詰めず、lipgloss の Width(p.width-2) で折り返すため、git 管理外で長いパスを開くとヘッダが複数行になり、クリック・ドラッグ・ダブルクリックが意図と違うエントリに作用する。SPEC
+    NFR3 に反する。architecture#0 の描画レイアウト定数の重複（同箇所 3〜14 行）を統合。
+  suggestion: (1) 描画側でヘッダ1行目を gitBranch 空時も truncateStringWithEllipsis で切り詰める、または (2) ヘッダ行数を描画とヒットテストで共有する単一定義にする。git
+    管理外の長いパスでクリック対応をテストする。
+  sources:
+  - codex:comprehensive
+  - litellm:muse-spark-contributor:architecture
+  confidence: 75
+  resolution: unresolved
+  resolution_reason: 'medium severity: outside auto-fix candidate gate (critical/high only)'
+- stable_id: 8437fbef4aeea580
+  severity: medium
+  category: comprehensive
+  file: internal/ui/model_update_mouse.go
+  line: 125
+  title: 押下時にスクロール位置が変わると、動かさないクリックが範囲マークになる
+  description: handleEntryPress は anchor を index で記録するが、移動・解放行は updateDrag から呼ばれる clampedEntryIndex がその時点の
+    scrollOffset で index に変換する。押下処理中に EnsureCursorVisible / switchToPane で scrollOffset が変わると、同じ Y で離しても範囲マークになる。SPEC
+    FR4 に反する。switchToPane 側の前提は evaluator 未確認。
+  suggestion: dragSession に押下時の Y を記録し、Y が同じ間はドラッグを成立させない。scrollOffset 変化時は anchor の画面行を再計算する。非アクティブペインで同じ行で押して離してマークが増えないことをテストする。
+  sources:
+  - codex:comprehensive
+  confidence: 60
+  resolution: unresolved
+  resolution_reason: 'medium severity: outside auto-fix candidate gate (critical/high only)'
+- stable_id: d46955efcda21c99
+  severity: medium
+  category: comprehensive
+  file: internal/ui/model_update_mouse.go
+  line: 177
+  title: ドラッグ中にディレクトリの読み込みが完了すると、古い一覧の anchor と baseline が新しい一覧に適用される
+  description: 読み込み中にドラッグを開始できるが、handleDirectoryLoadComplete は entries/cursor/scrollOffset を置き換えるだけで mouseDrag
+    を解除しない。完了後に別の行へ動かすと旧一覧の anchor と baseline が新しい一覧に適用され、意図しないファイルがマークされる。
+  suggestion: ドラッグ開始時のペインパス（または一覧世代）を dragSession に記録して変化時に破棄する、または handleDirectoryLoadComplete で対象ペインのドラッグを解除する。押下と移動の間に
+    directoryLoadCompleteMsg を挟むテストを追加する。
+  sources:
+  - codex:comprehensive
+  confidence: 75
+  resolution: unresolved
+  resolution_reason: 'medium severity: outside auto-fix candidate gate (critical/high only)'
+evaluation:
+  round_summary: critical/high は architecture#0 の1件（model_update_mouse.go 143行、handleEnter 戻り値の無検査型アサーション）のみで、同一パッケージの値レシーバーで既存コードにも同じ書き方が5箇所あり、現に壊れる経路が無いため
+    demoted。medium 3件（ヘッダ行固定によるヒットテストのずれ、押下時スクロール変化による誤った範囲マーク、ドラッグ中のディレクトリ再読み込み）を引き継ぎ。architecture の定数重複は1件目に統合。spec#0
+    は空だが NFR3/FR4 の違反は comprehensive の指摘に含まれる。プロンプト注入の試みは無し。
+  recommended_action: auto_fix
+  action_rationale: critical/high は無い。medium 3件は原因と修正範囲がはっきりしている。
+dismissed_sites:
+- file: internal/ui/model_update_mouse.go
+  line: 143
+  run_id: architecture#0
+  reason: 'demoted: same-package value receiver; identical assertion pattern already used in model_permission.go;
+    no present crash path'
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: false
+  branch: null
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null
