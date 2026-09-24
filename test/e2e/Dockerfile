@@ -72,4 +72,4 @@ WORKDIR /testdata
 USER testuser
 
 # Default command runs E2E tests
-CMD ["/e2e/scripts/run_tests.sh"]
+CMD ["/e2e/scripts/run_all_tests.sh"]
