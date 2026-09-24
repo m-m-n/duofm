@@ -102,6 +102,10 @@ type Model struct {
 	bgCommand       string            // the background command string (for done msg)
 	bgWorkDir       string            // the working directory for bg command (for done msg)
 	bgSessionID     uint64            // monotonic session ID to prevent stale timer interference
+
+	// Mouse handling
+	mouseDrag dragSession          // in-progress drag gesture state
+	detector  *doubleClickDetector // double-click detector (lazily created if Model was built without NewModel/NewModelWithConfig)
 }
 
 // PanePosition はペインの位置を表す
@@ -213,6 +217,7 @@ func NewModelWithConfig(opts ModelOptions) Model {
 		tabCompleter:     NewTabCompleter(),
 		bgRunner:         NewBackgroundRunner(),
 		bgOutputBuffer:   NewOutputBuffer(10000),
+		detector:         newDoubleClickDetector(nil),
 	}
 }
 
