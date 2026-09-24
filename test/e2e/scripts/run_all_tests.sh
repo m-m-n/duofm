@@ -11,7 +11,7 @@
 #
 # Available categories:
 #   basic, directory, file-ops, copy-move, cursor, cursor-preserve,
-#   sort, shell, config, bookmark, mark, history, archive
+#   sort, shell, config, bookmark, mark, history, archive, mouse
 
 set -e
 
@@ -42,6 +42,7 @@ declare -A TEST_FILES=(
     ["archive"]="archive_tests.sh"
     ["cursor-preserve"]="cursor_preserve_tests.sh"
     ["background"]="background_tests.sh"
+    ["mouse"]="mouse_tests.sh"
 )
 
 # Show usage
@@ -287,6 +288,13 @@ run_all() {
     run_test test_delete_cursor_not_regressed
     run_test test_batch_delete_cursor_not_regressed
     run_test test_directory_nav_cursor_not_regressed
+
+    # Mouse tests
+    echo ""
+    echo "=== Mouse Tests ==="
+    run_test test_mouse_click_moves_cursor
+    run_test test_mouse_drag_marks_range
+    run_test test_mouse_double_click_enters_directory
 }
 
 # Main entry point
