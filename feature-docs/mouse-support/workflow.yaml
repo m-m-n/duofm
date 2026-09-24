@@ -2,21 +2,34 @@ schema_version: 1
 feature: mouse-support
 created: '2026-09-24'
 base_branch: main
-goal: |
-  # マウス操作をサポートする
+goal: '# マウス操作をサポートする
+
 
   ## やりたいこと (必須)
+
   マウス操作をサポートする。
+
   ## 背景・なぜ (必須)
+
   UXの向上
+
   ## 受け入れ条件 / 完了の定義 (必須)
+
   - [ ] クリックでファイルを選択できる
+
   - [ ] ドラッグで複数のファイルを選択できる
+
   - [ ] ダブルクリックで Enter キーと同じ挙動になる
+
   ## スコープ外 (任意)
+
   \<今回やらないこと。あれば\>
+
   ## 制約・前提 (任意)
+
   \<触ってほしくない箇所 / 使う技術 / 互換性など。あれば\>
+
+  '
 parent_branch: em-workflow/mouse-support/integration
 tier: full
 tier_decision:
@@ -48,9 +61,23 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
+        ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD"
+        -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w
+        .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -64,7 +91,9 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: No new screen elements; interaction reuses existing cursor and mark rendering (analyst recommendation accepted via create-spec.design-step decide_autonomously, batch)
+  skipped_reason: No new screen elements; interaction reuses existing cursor and mark
+    rendering (analyst recommendation accepted via create-spec.design-step decide_autonomously,
+    batch)
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -82,7 +111,62 @@ workflow:
   failed_items: []
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Mouse support in the file panes (hit test, drag marking, double-click,
+      controller)
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/mouse_hittest.go
+    - internal/ui/mouse_hittest_test.go
+    - internal/ui/pane_drag.go
+    - internal/ui/pane_drag_test.go
+    - internal/ui/mouse_doubleclick.go
+    - internal/ui/mouse_doubleclick_test.go
+    - internal/ui/model_update_mouse.go
+    - internal/ui/model_update_mouse_test.go
+    - internal/ui/model.go
+    - internal/ui/model_update.go
+    skills:
+    - frontend-impl
+    domains:
+    - ui
+    - input-handling
+    complexity: high
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - FR6
+    - FR7
+    - FR8
+    - NFR1
+    - NFR2
+    - NFR3
+    - NFR4
+    - NFR5
+    status: pending
+  task0002:
+    title: E2E mouse scenarios and E2E runner entry point
+    plan: tasks/task0002.md
+    files:
+    - test/e2e/scripts/tests/mouse_tests.sh
+    - test/e2e/scripts/run_all_tests.sh
+    - test/e2e/Dockerfile
+    skills:
+    - infra-impl
+    domains:
+    - ui
+    - config-infra
+    complexity: low
+    requirements:
+    - FR2
+    - FR4
+    - FR6
+    - NFR1
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -96,7 +180,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-2
@@ -107,7 +192,9 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
+    - task0002
     tests:
     - TS-5
     - TS-6
@@ -119,7 +206,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-3
     - TS-7
@@ -128,7 +216,9 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
+    - task0002
     tests:
     - TS-8
     - TS-9
@@ -140,7 +230,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-11
   FR6:
@@ -148,7 +239,9 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
+    - task0002
     tests:
     - TS-13
     - TS-14
@@ -159,7 +252,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-4
     - TS-16
@@ -169,7 +263,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-18
   NFR1:
@@ -177,7 +272,9 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
+    - task0002
     tests:
     - TS-19
   NFR2:
@@ -185,7 +282,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
   NFR3:
@@ -193,7 +291,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-2
@@ -203,7 +302,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-13
     - TS-14
@@ -212,7 +312,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests: []
 batch:
   review_rework_count: 0
