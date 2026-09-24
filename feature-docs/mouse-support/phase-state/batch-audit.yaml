@@ -9,4 +9,49 @@ records:
   selected_option_ids: []
   freeform: null
   normalized_answer: auto-recorded all 4 unapproved commands
-  resolution_note: 'gate create-spec.command-approval; batch-policies action auto_record; no refusal pattern matched. Auto-approved commands (verbatim): project.components.duofm.build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build | project.components.duofm.test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./... | project.components.duofm.format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w . | project.components.duofm.e2e_test_command: make test-e2e-build && make test-e2e. Basis: host has no Go toolchain; Codex consulted (1 turn) and recommended running Go via a pinned golang:1.25.5-trixie container (podman rootless, keep-id, named cache volumes, GOTOOLCHAIN=local) over installing Go on the host or stopping; DISPLAY=:0 and init.defaultBranch=main are passed so existing environment-dependent tests pass (baseline go test ./... all ok in container).'
+  resolution_note: 'gate create-spec.command-approval; batch-policies action auto_record;
+    no refusal pattern matched. Auto-approved commands (verbatim): project.components.duofm.build_command:
+    podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+    -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache
+    -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+    -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie make build |
+    project.components.duofm.test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD"
+    -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+    -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache
+    -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+    -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+    | project.components.duofm.format_command: podman run --rm --userns=keep-id -v
+    "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+    -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache
+    -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+    -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w . |
+    project.components.duofm.e2e_test_command: make test-e2e-build && make test-e2e.
+    Basis: host has no Go toolchain; Codex consulted (1 turn) and recommended running
+    Go via a pinned golang:1.25.5-trixie container (podman rootless, keep-id, named
+    cache volumes, GOTOOLCHAIN=local) over installing Go on the host or stopping;
+    DISPLAY=:0 and init.defaultBranch=main are passed so existing environment-dependent
+    tests pass (baseline go test ./... all ok in container).'
+- question_id: create-plan.task-split-review
+  packet_id: null
+  answered_at: '2026-09-25T00:05:00+09:00'
+  source: batch-codex-consultation
+  answer_mode: single_select
+  selected_option_ids:
+  - q1:B
+  - q2:A
+  - q3:A
+  freeform: null
+  normalized_answer: Q1 merge task0001-0004 into one task (E2E task stays separate);
+    Q2 FR6 'previous press' = immediately preceding left press on the same entry (A->B->A
+    does not trigger Enter), state it explicitly; Q3 fix test/e2e/Dockerfile default
+    command inside the E2E task
+  resolution_note: 'unlisted-gate fallback (orchestrator review of planner run-0001
+    open points; no gate_id); Codex consulted: yes (1 turn, harness codex, readonly).
+    Q1 options A keep D1 stand-in parallel plan / B merge task0001-0004 / C other
+    re-split -> chose B (not chosen A, C); Codex reason: 同じベースから始めるため D1 では task0004
+    も三部品を実装し作業が重複、親側採用後の修正と再検証が増える。C でも実装不在で単独検証できない。Q2 options A immediately-preceding
+    press / B last press on that entry -> chose A (not chosen B); reason: A->B->A
+    の選択切り替えで誤って開く誤作動を避けられ D4・task0003 AC-6 と一致、FR6 の文言は明記する。Q3 options A fix in E2E
+    task / B file separate task -> chose A (not chosen B); reason: 実在しない実行先では E2E
+    検証を開始できず、1 行の修正で範囲が明確。Opus escalation: no; orchestrator judgement: agrees with
+    all three.'
