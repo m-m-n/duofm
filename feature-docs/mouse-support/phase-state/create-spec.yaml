@@ -4,15 +4,19 @@ phase: create-spec
 status: dispatching
 generation: 1
 base_revision: 526db3a5b7409562aafb13502ece9283b60f2bef
-last_input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
-active_request_id: create-spec-run-0001
+last_input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
+active_request_id: create-spec-run-0002
 packets: {}
 answers: {}
 worker_runs:
-  - request_id: create-spec-run-0001
-    status: dispatched
-    input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
-    output_digest: null
+- request_id: create-spec-run-0001
+  status: invalid_input
+  input_digest: sha256:e581bf1159d50d8b8b0806aeb4b2c72e64fdcf5751c13d849d3a17a9c66a6ae9
+  output_digest: validation-error:gate_id create-spec.design-step missing option decide_autonomously
+- request_id: create-spec-run-0002
+  status: dispatched
+  input_digest: sha256:224c8a85244fa6a4d21bea68f47b5aca30643330aa90244ae1f4a7c6e50bd859
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
@@ -24,4 +28,5 @@ resolved_input_cache:
     paths: []
     digests: {}
     truncated: false
-last_error: null
+last_error: 'run-0001: dispatch-time digest computed with unsplit file list (orchestrator
+  bug); result rejected by validator (design-step gate missing decide_autonomously)'
