@@ -148,7 +148,8 @@ tasks:
     - NFR3
     - NFR4
     - NFR5
-    status: pending
+    status: in_progress
+    branch: em-workflow/mouse-support/task0001
   task0002:
     title: E2E mouse scenarios and E2E runner entry point
     plan: tasks/task0002.md
@@ -167,7 +168,8 @@ tasks:
     - FR4
     - FR6
     - NFR1
-    status: pending
+    status: in_progress
+    branch: em-workflow/mouse-support/task0002
 review:
   status: pending
   rounds_completed: 0
