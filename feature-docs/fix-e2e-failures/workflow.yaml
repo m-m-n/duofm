@@ -238,6 +238,14 @@ tasks:
     branch: em-workflow/fix-e2e-failures/task0005
 review:
   status: pending
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - performance
+    - spec
+    discretionary: []
+    cross_validation: false
   rounds_completed: 0
   residual_critical_high: 0
   needs_rework: false
