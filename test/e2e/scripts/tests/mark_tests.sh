@@ -147,25 +147,27 @@ test_marks_cleared_on_directory_change() {
 
 # Test: Batch delete marked files
 test_batch_delete_marked_files() {
+    # Remove leftover fixture names before starting
+    rm -f /testdata/user_owned/del1.txt /testdata/user_owned/del2.txt
+
     # Create test files BEFORE starting duofm
     echo "delete me 1" > /testdata/user_owned/del1.txt
     echo "delete me 2" > /testdata/user_owned/del2.txt
 
     start_duofm "$CURRENT_SESSION" "/testdata/user_owned"
 
-    # File order (sorted alphabetically):
-    # 1. .. (parent dir)
-    # 2. del1.txt
-    # 3. del2.txt
+    # Reach each file by name (works regardless of what else is in the
+    # directory, e.g. leftover files from other tests that sort earlier)
 
-    # Navigate to first file (skip parent dir)
-    send_keys "$CURRENT_SESSION" "j"  # Move to del1.txt (position 2)
+    # Reach and mark del1.txt
+    send_keys "$CURRENT_SESSION" "/" "d" "e" "l" "1" "Enter"
     sleep 0.2
-
-    # Mark del1.txt (cursor auto-moves to del2.txt)
     send_keys "$CURRENT_SESSION" "Space"
     sleep 0.2
-    # Mark del2.txt (cursor stays or moves to next if exists)
+
+    # Reach and mark del2.txt
+    send_keys "$CURRENT_SESSION" "/" "d" "e" "l" "2" "Enter"
+    sleep 0.2
     send_keys "$CURRENT_SESSION" "Space"
     sleep 0.2
 
@@ -178,11 +180,11 @@ test_batch_delete_marked_files() {
     sleep 0.3
 
     # Confirm deletion dialog should appear
-    assert_contains "$CURRENT_SESSION" "Delete 2" \
+    assert_contains "$CURRENT_SESSION" "Delete 2 files?" \
         "Delete confirmation shows 2 files"
 
-    # Confirm deletion with Enter (Yes is default)
-    send_keys "$CURRENT_SESSION" "Enter"
+    # Confirm deletion with y (Enter is ignored by the confirmation dialog)
+    send_keys "$CURRENT_SESSION" "y"
     sleep 0.5
 
     # Files should be gone
@@ -201,6 +203,9 @@ test_batch_delete_marked_files() {
         "Marks cleared after deletion"
 
     stop_duofm "$CURRENT_SESSION"
+
+    # Cleanup regardless of outcome
+    rm -f /testdata/user_owned/del1.txt /testdata/user_owned/del2.txt
 }
 
 # Test: Context menu shows mark count

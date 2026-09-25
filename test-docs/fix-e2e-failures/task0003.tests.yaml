@@ -1,0 +1,121 @@
+task_id: task0003
+# The task plan's Test Notes assumed Docker is unavailable in the
+# implementer worktree and specified static verification (read + grep +
+# `bash -n`). Docker was in fact available and functional in this sandbox
+# (confirmed via `docker ps`/`docker info`), and the two edited files are
+# independently runnable (`if [ "${BASH_SOURCE[0]}" = "${0}" ]; then ... fi`
+# blocks), so real red/green confirmation was obtained by building the
+# project's own test/e2e/Dockerfile image and running
+# `/e2e/scripts/run_tests.sh file-ops` and `... mark` inside a container,
+# both before and after each edit. This is strictly stronger evidence than
+# the plan required; see the implementer report for the full account.
+baseline_failures:
+  # From the unmodified worktree, docker run --rm duofm-e2e-test
+  # /e2e/scripts/run_tests.sh file-ops (25 tests, 23 passed, 2 failed):
+  - "file-ops: test_rename_file (Rename dialog appears [expected \"Rename to:\", extension dialog shows \"Rename (extension: .txt):\" instead]; New filename appears in listing [screen showed \"before_renameafter_r...\", a garbled append since the old code never cleared the pre-filled input])"
+  # From the unmodified worktree, docker run --rm duofm-e2e-test
+  # /e2e/scripts/run_tests.sh mark (18 tests, 17 passed, 1 failed):
+  - "mark: test_batch_delete_marked_files (Files were not deleted [confirmed with Enter, which ConfirmDialog ignores; only y/n/esc/ctrl+c are handled])"
+  # go test ./... (podman, project_commands.test) baseline: all packages ok,
+  # no failures (unaffected by this task's bash-only scope).
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: [test_rename_file]
+    red_confirmed: true
+    red_reason: >
+      Directly observed in the docker run above: "Rename dialog appears"
+      failed (expected literal "Rename to:", which never appears for a
+      .txt file since ExtensionRenameDialog is used, title "Rename
+      (extension: .txt):"), and "New filename appears in listing" failed
+      because the old code typed into the pre-filled field without
+      clearing it first, producing a garbled name. After adding the
+      dialog-title/pre-fill assertions, the C-u clear-then-type flow, the
+      "/","Enter" idiom to reset the still-active search filter before
+      re-checking the listing, and the on-disk existence check, a rebuild
+      + rerun showed all 5 checks in test_rename_file passing (see report).
+  AC-2:
+    tests: [test_navigation_after_rename]
+    red_confirmed: true
+    red_reason: >
+      The original test passed in the baseline run but vacuously (it only
+      checked that "q" quits the app, never the rename outcome). To get a
+      real red for the new disk-existence check specifically, it was added
+      in isolation first (kept the old, unfixed dialog flow: no dialog
+      title/pre-fill assertions, no C-u clear, typed the full name with
+      extension) and rebuilt/reran: the added "TEMP-RED-PROBE disk check"
+      failed as expected (navren_after.txt did not exist because the old
+      flow produced a garbled combined name, same mechanism as AC-1). The
+      probe was then replaced by the full final fix (dialog assertions +
+      C-u clear + base-name-only typing + disk check before the existing
+      quit check) and a rebuild/rerun showed all 4 checks passing.
+  AC-3:
+    tests: [test_batch_delete_marked_files]
+    red_confirmed: true
+    red_reason: >
+      Directly observed in the mark-category baseline run: "Files were not
+      deleted" failed because the test confirmed with Enter, which
+      ConfirmDialog's Update ignores (only "y"/"n"/"esc"/"ctrl+c" are
+      handled; internal/ui/confirm_dialog.go). After switching to
+      name-based reach for del1.txt/del2.txt (via "/","d","e","l","1"/"2",
+      "Enter") and confirming with "y", a rebuild + rerun showed all 4
+      checks passing, including "Both files deleted successfully".
+  AC-4:
+    tests: [test_rename_file, test_navigation_after_rename, test_batch_delete_marked_files]
+    red_confirmed: false
+    red_reason: >
+      Fixture-cleanup hygiene and TESTS_RUN==PASSED+FAILED accounting are
+      structural properties verified by code review of the final diff
+      (unconditional rm -f before start and after stop_duofm/quit-check in
+      all three functions; no branch increments TESTS_RUN alone), not a
+      behavior with a natural pre-implementation red state (the original
+      tests already had end-of-test cleanup in some form). The docker runs
+      above corroborate the accounting: file-ops Total 30 = Passed 30,
+      mark Total 18 = Passed 18, both with no unbalanced counters.
+  AC-5:
+    tests: [test_delete_confirmation_enter_ignored, test_delete_confirmation_y_key_works]
+    red_confirmed: false
+    red_reason: >
+      Audited against internal/ui at the base commit (ConfirmDialog only
+      reacts to y/n/esc/ctrl+c; single-file delete shows "Delete file?").
+      Both tests already matched current behavior in the baseline docker
+      run (both fully green, no assertion or key mismatch), so there was
+      no red state to confirm for their key/literal correctness. The only
+      change made was making test_delete_confirmation_y_key_works' cleanup
+      unconditional (moved rm -f out of the failure-only branch to after
+      stop_duofm, matching test_delete_confirmation_enter_ignored's
+      pattern) for AC-5 compliance; this is non-behavioral tidying with no
+      observable red/green transition. Both tests remained green after the
+      change (see docker run in report).
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Build/lint-shaped criterion, not a test. `bash -n` exits 0 for both
+      edited files. The set of top-level test_-prefixed function names is
+      byte-identical before and after the edit (13 in
+      file_operation_tests.sh, 8 in mark_tests.sh, diffed via git show
+      HEAD:<file> vs working tree). shellcheck is not installed in this
+      environment, so that sub-check could not run; no findings were
+      introduced or removed by this task's edits regardless.
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Traceability check, not a red/green test. Literal -> source mapping
+      for every screen literal newly asserted or relied on by the edited
+      tests: "Rename (extension: .txt):" -> internal/ui/extension_rename_dialog.go:50
+      (title = "Rename (extension: " + extension + "):"); the pre-filled
+      base name (e.g. "before_rename", "navren_before") ->
+      internal/ui/extension_util.go hasEditableExtension (base =
+      strings.TrimSuffix(name, ext)) fed into
+      internal/ui/extension_rename_dialog.go:56 (NewTextInput(baseName))
+      and rendered by its View()/renderInputFieldWithExtension; "Marked 2/"
+      and "Marked 0/" -> internal/ui/pane_render.go:244,247
+      (fmt.Sprintf("Marked %d/%d ...", markedCount, ...)); "Delete 2
+      files?" -> internal/ui/model_update_keyboard.go:891
+      (fmt.Sprintf("Delete %d files?", len(markedFiles))); "Delete"
+      (single-file confirm, unedited tests) ->
+      internal/ui/model_update_keyboard.go:898 ("Delete file?"). All of
+      these were additionally exercised (not just read) via the docker
+      runs in the report.
