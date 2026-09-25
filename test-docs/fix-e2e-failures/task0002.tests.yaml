@@ -1,0 +1,141 @@
+task_id: task0002
+# This task cannot exercise the E2E suite inside the implementer worktree
+# (no Docker here; test/e2e/scripts/tests/archive_tests.sh only runs inside
+# the project's Docker image via `make test-e2e-build && make test-e2e`).
+# baseline_failures/final_failures below refer to the project's Go test
+# suite (project_commands.test), which is unaffected by this task's
+# bash-only edit and was run once (identical before/after by construction,
+# since no .go file was touched). Acceptance-criteria verification for the
+# shell-script behavior itself is by source review + `bash -n` per the task
+# plan's Test Notes; AC-3 and the actual pass/fail behavior of the 9 tests
+# are confirmed later by the full E2E run in the verify phase (VERIFICATION.md
+# TS1, TS5, TS10).
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before editing, all 9 tests opened the context menu with the "o" key
+      and chose Compress/Extract via minibuffer search ("/Compress"+Enter)
+      followed by a second Enter to execute — never "@", never a bare
+      number key. Confirmed by reading the original file content (all 9
+      occurrences of `send_keys "$CURRENT_SESSION" "o"` followed by a
+      "/Compress"+Enter+Enter or "/Extract"+Enter+Enter sequence) before any
+      edit was made. After the edit, every menu open uses `"@"`
+      (internal/ui/keys.go:17 KeyContextMenu = "@"), each Compress/Extract
+      selection is preceded by an assert_contains on its numbered line
+      (e.g. "8. Compress", "9. Extract archive"), and the very next
+      send_keys call after the number key is never "Enter" (verified by
+      reading the rewritten file).
+  AC-2:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before editing: format-number presses ("2" for tar.gz in 5 tests, "1"
+      for tar in 3 tests) had no preceding numbered-label assertion — only
+      bare substring checks like "tar.gz format option is shown" existed
+      elsewhere, not tied to the number about to be pressed.
+      test_multifile_compress pressed "5" for zip and had a "skipped"
+      branch. After editing: every format-number press in
+      test_compress_format_navigation, test_compression_level_dialog,
+      test_archive_name_dialog, test_archive_conflict_dialog,
+      test_compress_cancel_workflow (x2), test_compress_complete_workflow
+      and test_multifile_compress is immediately preceded by
+      `assert_contains ... "1. tar"` or `assert_contains ... "2. tar.gz"`.
+      test_multifile_compress now presses "2" (tar.gz) and its "skipped"
+      branch (which incremented TESTS_RUN with no pass/fail) was removed.
+  AC-3:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Cannot be red/green-confirmed without Docker (no tmux/duofm session
+      can run in this worktree). Source review: before editing,
+      test_compress_complete_workflow and test_multifile_compress never
+      synced the inactive (right) pane before compressing, yet asserted
+      output at /testdata/user_owned/... — since the right pane defaults to
+      $HOME (internal/ui/model.go: rightPath = home) and compression writes
+      to m.getInactivePane().Path() (internal/ui/model_update_archive.go),
+      those checks were structurally pointed at the wrong directory.
+      test_archive_conflict_dialog and test_extract_complete_workflow
+      already synced the right pane. After editing, all four tests press
+      "=" to sync the inactive pane at (or navigate it into) the exact
+      destination before starting the compress/extract flow, and the
+      on-disk checks target that same path. Actual pass/fail is confirmed
+      by the full E2E run in the verify phase (VERIFICATION.md TS1, TS5,
+      TS10), not by this task.
+  AC-4:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before editing, test_multifile_compress had a branch (zip not found)
+      that did `TESTS_RUN=$((TESTS_RUN + 1))` with no corresponding
+      TESTS_PASSED/TESTS_FAILED increment — an always-incomplete count for
+      that path. Confirmed by reading the original "Multi-file archive test
+      skipped" branch. That branch was removed; the rewritten test only
+      uses assert_contains/assert_not_contains (which always increment
+      TESTS_RUN together with exactly one of TESTS_PASSED/TESTS_FAILED,
+      per helpers.sh) or the paired manual TESTS_RUN/TESTS_PASSED/
+      TESTS_FAILED blocks already used elsewhere in the file, all of which
+      keep the invariant.
+  AC-5:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Before editing, test_multifile_compress's pre-cleanup and end-cleanup
+      used a wildcard deletion: `rm -f /testdata/user_owned/*.zip`.
+      Confirmed by reading the original lines. After editing, both are
+      exact-name deletions of `/testdata/user_owned/user_owned.tar.gz` (the
+      deterministic default name for 3 marked files whose parent directory
+      is user_owned). No test in the file touches deletable.txt or uses a
+      wildcard anywhere (grep confirmed no remaining `*` in any rm/find
+      path argument).
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Not a red/green criterion — the 9 function names and bash syntax
+      validity were already correct before this task touched the file (no
+      prior violation to observe). Verified post-edit: `bash -n
+      test/e2e/scripts/tests/archive_tests.sh` passes; the function name
+      set (test_compress_format_dialog_opens, test_compress_format_navigation,
+      test_compression_level_dialog, test_archive_name_dialog,
+      test_archive_conflict_dialog, test_compress_cancel_workflow,
+      test_compress_complete_workflow, test_extract_complete_workflow,
+      test_multifile_compress) is unchanged and no new test_-prefixed
+      function was added. shellcheck is not installed in this environment,
+      so that half of the check could not be run (out of the implementer's
+      control; noted in the report).
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Traceability check, not a red/green criterion. Every literal the
+      rewritten tests expect on screen, with its source:
+      "@" key -> internal/ui/keys.go:17 (KeyContextMenu = "@");
+      "Compress" label, item position 8th of 8/9 menu items ->
+      internal/ui/context_menu_dialog.go:130-155 (buildMenuItems order:
+      open, open_with, copy, move, delete, copy_name, copy_path, compress,
+      [extract]) and :247-258 (buildCompressMenuItem, label "Compress" /
+      "Compress N files"); "Extract archive" label, item position 9th ->
+      internal/ui/context_menu_dialog.go:147-150, 260-284
+      (buildExtractMenuItem, Label "Extract archive"); numbered prefix
+      "N. " for both dialogs -> internal/ui/context_menu_dialog.go:494-498
+      and internal/ui/compress_format_dialog.go:118-127 (fmt.Sprintf("%d.
+      ", itemNumber)); "Select Archive Format" ->
+      internal/ui/compress_format_dialog.go:105; "tar (no compression)" /
+      "tar.gz (gzip compression)" labels and their 1/2 ordering ->
+      internal/ui/compress_format_dialog.go:109-116 (formatLabels map) and
+      internal/archive/command_availability.go:48-56 (GetAvailableFormats
+      preserves the fixed [tar, tar.gz, tar.bz2, tar.xz, zip, 7z] order,
+      filtering only by availability); "Compression Level" (substring of
+      "Select Compression Level") -> internal/ui/compression_level_dialog.go:78;
+      "Level 6" / "Level 9" -> internal/ui/compression_level_dialog.go:91-108;
+      "Archive Name" -> internal/ui/archive_name_dialog.go:24; default
+      archive name derivation (single file -> basename minus extension,
+      multiple files -> parent directory name) ->
+      internal/ui/model.go:771-797 (generateDefaultArchiveName); "already
+      exists" (substring of "Archive already exists") ->
+      internal/ui/archive_conflict_dialog.go:139; "Overwrite" / "Rename" /
+      "Cancel" -> internal/ui/archive_conflict_dialog.go:158.
