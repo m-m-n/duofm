@@ -84,3 +84,43 @@ records:
     instead of * because * disables the ownership check for every repository; docker
     resolves to /usr/bin/docker so the approved e2e_test_command is kept as is. Opus
     escalation: no; orchestrator judgement: agrees.'
+- packet_id: null
+  source: batch-codex-consultation
+  answer_mode: single_select
+  freeform: null
+  question_id: verify.format-preexisting
+  answered_at: '2026-09-25T09:05:00+09:00'
+  selected_option_ids:
+  - A
+  normalized_answer: record the format check as verify failed_item CQ-FORMAT and auto-rework
+    (gofmt internal/ui/pane_test.go only)
+  resolution_note: 'unlisted-gate fallback / fail-closed-route (verify; no gate_id).
+    gofmt -w . changed only internal/ui/pane_test.go, untouched since base cb86593;
+    feature-changed Go files are gofmt-clean (Codex checked with gofmt -l). Options
+    A failed_item + auto-rework / B treat as satisfied for feature scope, revert,
+    file follow-up / C commit the gofmt fix directly in verify -> chose A (not chosen
+    B, C). Codex consulted: yes (1 turn, readonly). Key points: the criterion is "no
+    diff on the integrated branch", so a pre-existing defect still fails it; B needs
+    an explicit rule excluding pre-existing defects; C widens scope like A but bypasses
+    the rework procedure. Opus escalation: no; orchestrator judgement: agrees.'
+- packet_id: null
+  source: batch-codex-consultation
+  answer_mode: single_select
+  freeform: null
+  question_id: verify.e2e-preexisting-failures
+  answered_at: '2026-09-25T09:14:00+09:00'
+  selected_option_ids:
+  - C
+  normalized_answer: record TS-19 as verify failed_item with rework scope none (no
+    task for the 29 pre-existing E2E failures); accept that the lineage cap leaves
+    verify failed
+  resolution_note: 'unlisted-gate fallback / fail-closed-route (verify; no gate_id).
+    Integration E2E 217/187 pass/29 fail; baseline on cb86593 214/184/29 with the
+    identical failure set; mouse E2E TS-20..22 pass. Options A failed_item and rework
+    all 29 / B judge TS-19 passed in substance and file follow-up / C failed_item
+    with no rework task -> chose C (not chosen A, B). Codex consulted: yes (1 turn,
+    readonly). Key points: "every existing test passes" is unmet; identical failures
+    prove only no regression, so B would reinterpret the criterion; A expands into
+    unrelated archive/rename/bookmark/sort/help/history fixes; C keeps the failure
+    honest and consistent with the cap path to PR. Opus escalation: no; orchestrator
+    judgement: agrees.'
