@@ -132,7 +132,8 @@ workflow:
   completed_at_commit: e0074661cc9ed5425e23fecbe572fc130cb2fddc
   base_commit: 4d6eeb594515cc21041c20ac1f4a5a759992e406
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 61925fe164ab579dcd56fedca7a661deff27b79f
 - id: verify
   status: pending
   result: null
@@ -237,7 +238,7 @@ tasks:
     notes: null
     branch: em-workflow/fix-e2e-failures/task0005
 review:
-  status: pending
+  status: completed
   plan:
     floor:
     - comprehensive
@@ -246,7 +247,8 @@ review:
     - spec
     discretionary: []
     cross_validation: false
-  rounds_completed: 0
+  rounds_completed: 1
+  perspectives: [comprehensive, security, performance, spec]
   residual_critical_high: 0
   needs_rework: false
 requirements:
