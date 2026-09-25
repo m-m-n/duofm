@@ -1,0 +1,21 @@
+schema_version: 1
+feature: fix-e2e-failures
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 91a59fc946860baefe0b689af4e333c43e2c43f4
+last_input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
