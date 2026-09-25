@@ -103,14 +103,14 @@ workflow:
   status: completed
   completed_at_commit: de46e1abbbeed92937facef0eca957399c6beb9b
 - id: implement
-  status: completed
+  status: pending
   completed_at_commit: f99062530400c250ffe7bbe288191d7deef5dbe0
   base_commit: cb86593c0f169ec1733c4fad39e10614e40f3b7c
 - id: review
   status: completed
   completed_at_commit: d8dd599cadc9c6585cbfbe6a6d8df17aaf65ce07
 - id: verify
-  status: failed
+  status: pending
   result: fail
   failed_items:
   - id: CQ-FORMAT
@@ -199,6 +199,21 @@ tasks:
     - NFR1
     status: merged
     branch: em-workflow/mouse-support/task0002
+  task0003:
+    title: gofmt internal/ui/pane_test.go
+    plan: tasks/task0003.md
+    files:
+    - internal/ui/pane_test.go
+    skills: []
+    domains:
+    - ui
+    complexity: low
+    requirements: []
+    status: pending
+    provenance:
+      source: verify
+      source_ids:
+      - CQ-FORMAT
 review:
   status: completed
   rounds_completed: 1
