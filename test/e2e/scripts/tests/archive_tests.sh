@@ -34,18 +34,16 @@ test_compress_format_dialog_opens() {
     send_keys "$CURRENT_SESSION" "/" "a" "r" "c" "h" "i" "v" "e" "_" "t" "e" "s" "t" "Enter"
     sleep 0.3
 
-    # Open context menu with 'o'
-    send_keys "$CURRENT_SESSION" "o"
+    # Open context menu with '@'
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
 
-    # Should show context menu
-    assert_contains "$CURRENT_SESSION" "Compress" \
-        "Context menu shows Compress option"
+    # Should show context menu with numbered Compress item
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
 
-    # Navigate to Compress option and select it
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+    # Select Compress by its number
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
 
     # Should show format selection dialog
@@ -85,14 +83,15 @@ test_compress_format_navigation() {
     send_keys "$CURRENT_SESSION" "/" "n" "a" "v" "t" "e" "s" "t" "_" "a" "r" "c" "h" "Enter"
     sleep 0.3
 
-    # Open context menu
-    send_keys "$CURRENT_SESSION" "o"
+    # Open context menu with '@'
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
 
-    # Select Compress
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    # Select Compress by its number
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
 
     # Navigate with j/k
@@ -107,7 +106,11 @@ test_compress_format_navigation() {
     assert_contains "$CURRENT_SESSION" "Select Archive Format" \
         "Format dialog stays open during navigation"
 
-    # Test number selection (press 2 for tar.gz if available)
+    # Assert the numbered tar.gz line before selecting it
+    assert_contains "$CURRENT_SESSION" "2. tar.gz" \
+        "Format dialog shows numbered tar.gz option"
+
+    # Test number selection (press 2 for tar.gz)
     send_keys "$CURRENT_SESSION" "2"
     sleep 0.5
 
@@ -115,19 +118,9 @@ test_compress_format_navigation() {
     assert_not_contains "$CURRENT_SESSION" "Select Archive Format" \
         "Format dialog closes after selection"
 
-    # Should show next dialog (compression level or name)
-    # Check for either compression level or archive name dialog
-    local screen
-    screen=$(capture_screen "$CURRENT_SESSION")
-    if echo "$screen" | grep -qF "Compression Level" || echo "$screen" | grep -qF "Archive Name"; then
-        echo -e "${GREEN}✓${NC} Next dialog appears after format selection"
-        TESTS_RUN=$((TESTS_RUN + 1))
-        TESTS_PASSED=$((TESTS_PASSED + 1))
-    else
-        echo -e "${RED}✗${NC} Expected next dialog after format selection"
-        TESTS_RUN=$((TESTS_RUN + 1))
-        TESTS_FAILED=$((TESTS_FAILED + 1))
-    fi
+    # tar.gz always opens the compression level dialog next
+    assert_contains "$CURRENT_SESSION" "Compression Level" \
+        "Compression level dialog appears after format selection"
 
     # Cancel
     send_keys "$CURRENT_SESSION" "Escape"
@@ -158,12 +151,17 @@ test_compression_level_dialog() {
     sleep 0.3
 
     # Open context menu and select Compress
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "2. tar.gz" \
+        "Format dialog shows numbered tar.gz option"
 
     # Select tar.gz format (should have compression level)
     send_keys "$CURRENT_SESSION" "2"  # tar.gz
@@ -218,12 +216,17 @@ test_archive_name_dialog() {
     sleep 0.3
 
     # Open context menu and select Compress
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "1. tar" \
+        "Format dialog shows numbered tar option"
 
     # Select tar format (no compression level dialog)
     send_keys "$CURRENT_SESSION" "1"  # tar
@@ -271,7 +274,7 @@ test_archive_conflict_dialog() {
     send_keys "$CURRENT_SESSION" "Escape"
     sleep 0.2
 
-    # Sync right pane
+    # Sync right pane (inactive pane's destination)
     send_keys "$CURRENT_SESSION" "="
     sleep 0.3
 
@@ -294,12 +297,17 @@ test_archive_conflict_dialog() {
     sleep 0.3
 
     # Open context menu and select Compress
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "1. tar" \
+        "Format dialog shows numbered tar option"
 
     # Select tar format
     send_keys "$CURRENT_SESSION" "1"
@@ -309,7 +317,7 @@ test_archive_conflict_dialog() {
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
 
-    # Should show conflict dialog
+    # Should show conflict dialog (the destination already held this exact archive)
     assert_contains "$CURRENT_SESSION" "already exists" \
         "Archive conflict dialog appears"
 
@@ -353,11 +361,13 @@ test_compress_cancel_workflow() {
     sleep 0.3
 
     # --- Test cancel at format selection ---
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
 
     assert_contains "$CURRENT_SESSION" "Select Archive Format" \
@@ -370,12 +380,18 @@ test_compress_cancel_workflow() {
         "Format dialog closes on Escape"
 
     # --- Test cancel at compression level ---
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "2. tar.gz" \
+        "Format dialog shows numbered tar.gz option"
+
     send_keys "$CURRENT_SESSION" "2"  # tar.gz
     sleep 0.5
 
@@ -389,12 +405,18 @@ test_compress_cancel_workflow() {
         "Compression level dialog closes on Escape"
 
     # --- Test cancel at archive name ---
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "1. tar" \
+        "Format dialog shows numbered tar option"
+
     send_keys "$CURRENT_SESSION" "1"  # tar
     sleep 0.5
 
@@ -424,23 +446,34 @@ test_compress_complete_workflow() {
 
     start_duofm "$CURRENT_SESSION"
 
-    # Navigate to user_owned and file
+    # Navigate to user_owned
     send_keys "$CURRENT_SESSION" "/" "u" "s" "e" "r" "_" "o" "w" "n" "Enter"
     sleep 0.3
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.3
     send_keys "$CURRENT_SESSION" "Escape"
     sleep 0.2
+
+    # Point the inactive (right) pane at the destination before the operation
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.3
+
+    # Navigate to the source file
     send_keys "$CURRENT_SESSION" "/" "c" "o" "m" "p" "r" "e" "s" "s" "_" "t" "e" "s" "t" "." "t" "x" "t" "Enter"
     sleep 0.3
 
     # Open context menu and select Compress
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "8. Compress" \
+        "Context menu shows numbered Compress option"
+
+    send_keys "$CURRENT_SESSION" "8"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "2. tar.gz" \
+        "Format dialog shows numbered tar.gz option"
 
     # Select tar.gz format
     send_keys "$CURRENT_SESSION" "2"
@@ -454,7 +487,7 @@ test_compress_complete_workflow() {
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 1.5
 
-    # Verify archive was created
+    # Verify archive was created at the destination (inactive pane's directory)
     if [ -f "/testdata/user_owned/compress_test.tar.gz" ]; then
         echo -e "${GREEN}✓${NC} Archive was created successfully"
         TESTS_RUN=$((TESTS_RUN + 1))
@@ -510,7 +543,7 @@ test_extract_complete_workflow() {
     send_keys "$CURRENT_SESSION" "Escape"
     sleep 0.2
 
-    # Sync right pane and navigate to extract_dest
+    # Sync right pane and navigate to extract_dest (the destination)
     send_keys "$CURRENT_SESSION" "="
     sleep 0.3
     send_keys "$CURRENT_SESSION" "l"
@@ -531,14 +564,16 @@ test_extract_complete_workflow() {
     sleep 0.3
 
     # Open context menu and select Extract
-    send_keys "$CURRENT_SESSION" "o"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
-    send_keys "$CURRENT_SESSION" "/" "E" "x" "t" "r" "a" "c" "t" "Enter"
-    sleep 0.3
-    send_keys "$CURRENT_SESSION" "Enter"
+
+    assert_contains "$CURRENT_SESSION" "9. Extract archive" \
+        "Context menu shows numbered Extract archive option"
+
+    send_keys "$CURRENT_SESSION" "9"
     sleep 1.5
 
-    # Verify file was extracted
+    # Verify file was extracted at the destination (inactive pane's directory)
     if [ -f "/testdata/user_owned/extract_dest/extract_test.txt" ]; then
         echo -e "${GREEN}✓${NC} File was extracted successfully"
         TESTS_RUN=$((TESTS_RUN + 1))
@@ -575,7 +610,7 @@ test_multifile_compress() {
     rm -f /testdata/user_owned/multi1.txt 2>/dev/null || true
     rm -f /testdata/user_owned/multi2.txt 2>/dev/null || true
     rm -f /testdata/user_owned/multi3.txt 2>/dev/null || true
-    rm -f /testdata/user_owned/*.zip 2>/dev/null || true
+    rm -f /testdata/user_owned/user_owned.tar.gz 2>/dev/null || true
 
     # Create multiple test files
     echo "multi file 1" > /testdata/user_owned/multi1.txt
@@ -591,6 +626,10 @@ test_multifile_compress() {
     sleep 0.3
     send_keys "$CURRENT_SESSION" "Escape"
     sleep 0.2
+
+    # Point the inactive (right) pane at the destination before the operation
+    send_keys "$CURRENT_SESSION" "="
+    sleep 0.3
 
     # Mark multiple files
     send_keys "$CURRENT_SESSION" "/" "m" "u" "l" "t" "i" "1" "Enter"
@@ -608,61 +647,60 @@ test_multifile_compress() {
     send_keys "$CURRENT_SESSION" "m"  # Mark third file
     sleep 0.2
 
-    # Open context menu - should show "Compress 3 files"
-    send_keys "$CURRENT_SESSION" "o"
+    # Open context menu - should show numbered "Compress 3 files"
+    send_keys "$CURRENT_SESSION" "@"
     sleep 0.5
 
-    assert_contains "$CURRENT_SESSION" "Compress 3 files" \
-        "Context menu shows Compress 3 files option"
+    assert_contains "$CURRENT_SESSION" "8. Compress 3 files" \
+        "Context menu shows numbered Compress 3 files option"
 
-    # Select Compress
-    send_keys "$CURRENT_SESSION" "/" "C" "o" "m" "p" "r" "e" "s" "s" "Enter"
-    sleep 0.3
+    # Select Compress by its number
+    send_keys "$CURRENT_SESSION" "8"
+    sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "2. tar.gz" \
+        "Format dialog shows numbered tar.gz option"
+
+    # Select tar.gz format
+    send_keys "$CURRENT_SESSION" "2"
+    sleep 0.5
+
+    # Select compression level (use default)
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
 
-    # Select zip format (if available)
-    send_keys "$CURRENT_SESSION" "5"  # zip
-    sleep 0.5
-
-    # Select compression level
-    send_keys "$CURRENT_SESSION" "Enter"
-    sleep 0.5
-
-    # Accept default archive name
+    # Accept default archive name (parent directory name: user_owned)
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 1.5
 
-    # Check if zip was created (might fail if zip not available)
-    local zipfile
-    zipfile=$(ls /testdata/user_owned/*.zip 2>/dev/null | head -1 || true)
-    if [ -n "$zipfile" ]; then
+    # Verify archive was created at the destination, named after the parent directory
+    if [ -f "/testdata/user_owned/user_owned.tar.gz" ]; then
         echo -e "${GREEN}✓${NC} Multi-file archive was created"
         TESTS_RUN=$((TESTS_RUN + 1))
         TESTS_PASSED=$((TESTS_PASSED + 1))
-
-        # Verify archive contains all files
-        local filecount
-        filecount=$(unzip -l "$zipfile" 2>/dev/null | grep -c "multi.*\.txt" || true)
-        if [ "$filecount" -ge 3 ]; then
-            echo -e "${GREEN}✓${NC} Archive contains all 3 files"
-            TESTS_RUN=$((TESTS_RUN + 1))
-            TESTS_PASSED=$((TESTS_PASSED + 1))
-        else
-            echo -e "${RED}✗${NC} Archive does not contain all files"
-            TESTS_RUN=$((TESTS_RUN + 1))
-            TESTS_FAILED=$((TESTS_FAILED + 1))
-        fi
     else
-        echo -e "${YELLOW}⚠${NC} Multi-file archive test skipped (zip may not be available)"
+        echo -e "${RED}✗${NC} Multi-file archive was not created"
         TESTS_RUN=$((TESTS_RUN + 1))
-        # Not counting as fail since zip might not be installed
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    # Verify archive contains all 3 marked files
+    local filecount
+    filecount=$(tar -tzf /testdata/user_owned/user_owned.tar.gz 2>/dev/null | grep -c "multi.*\.txt" || true)
+    if [ "$filecount" -ge 3 ]; then
+        echo -e "${GREEN}✓${NC} Archive contains all 3 files"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Archive does not contain all files"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
     fi
 
     rm -f /testdata/user_owned/multi1.txt
     rm -f /testdata/user_owned/multi2.txt
     rm -f /testdata/user_owned/multi3.txt
-    rm -f /testdata/user_owned/*.zip
+    rm -f /testdata/user_owned/user_owned.tar.gz
 
     stop_duofm "$CURRENT_SESSION"
 }
