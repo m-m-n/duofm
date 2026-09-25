@@ -154,9 +154,9 @@ tasks:
     - NFR1
     - NFR2
     - NFR3
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/fix-e2e-failures/task0001
   task0002:
     title: Archive tests follow current context menu and verify outputs in user_owned
     plan: tasks/task0002.md
@@ -173,9 +173,9 @@ tasks:
     - NFR1
     - NFR3
     - NFR4
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/fix-e2e-failures/task0002
   task0003:
     title: Rename and batch-delete tests follow current dialogs
     plan: tasks/task0003.md
@@ -194,9 +194,9 @@ tasks:
     - NFR1
     - NFR3
     - NFR4
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/fix-e2e-failures/task0003
   task0004:
     title: Sort dialog q tests assert q does not close the dialog
     plan: tasks/task0004.md
@@ -211,9 +211,9 @@ tasks:
     - FR9
     - NFR1
     - NFR3
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/fix-e2e-failures/task0004
   task0005:
     title: Help shell entry, bookmark hint, history forward-cleared tests
     plan: tasks/task0005.md
@@ -232,9 +232,9 @@ tasks:
     - FR9
     - NFR1
     - NFR3
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/fix-e2e-failures/task0005
 review:
   status: pending
   rounds_completed: 0
