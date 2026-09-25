@@ -109,7 +109,8 @@ workflow:
   completed_at_commit: 0797e8a2632b19523b6c2731b5b435ce475224d2
   summary: 'build pass / go test ./... pass (TS-1..TS-8) / gofmt no diff / E2E 187 of 217 pass, mouse tests (TS-9) all pass; the 29 failing assertions are the pre-existing set identical to the base branch em-workflow/mouse-support/integration (187/217) and tracked by feature fix-e2e-failures, not a regression / manual checks M-1..M-4 not run (unattended batch)'
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: e6c16d3afd73b765597645c6282d51edd9b7a8af
 tasks:
   task0001:
     title: Keep pane header line 1 on one row and share the header row count with the hit test
