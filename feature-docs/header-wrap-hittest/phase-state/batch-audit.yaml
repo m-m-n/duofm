@@ -1,0 +1,22 @@
+schema_version: 1
+feature: header-wrap-hittest
+records:
+- question_id: requirement.header-wrap.approach
+  packet_id: create-spec-q0002
+  answered_at: '2026-09-25T20:53:14+09:00'
+  source: batch-codex-consultation
+  answer_mode: single_select
+  selected_option_ids:
+  - truncate_header
+  freeform: null
+  normalized_answer: 'Always keep header line 1 on one line: truncate the path with
+    an ellipsis even outside git (including branch-only overflow at narrow width);
+    header row count is one definition shared by renderer and hit testing. [recorded
+    as assumption]'
+  resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+    record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+    Opus escalation: no; chosen truncate_header; not chosen [''follow_rendered_rows''];
+    codex reason: 既存の描画と表示件数の計算はヘッダ3行前提で、ブランチありの分岐は既に末尾省略しているため全分岐に適用するのが変更範囲が小さい。follow_rendered_rows
+    は通常・bg分割・dimmed の表示件数とスクロール計算まで変更が要る; codex risks: 長いパスの末尾が見えない / ブランチ単独分岐も省略対象にしないと再発
+    / truncateStringWithEllipsis は負の幅で panic するので幅を0以上に補正; orchestrator mapping judgement:
+    agrees (matches worker tentative position)'
