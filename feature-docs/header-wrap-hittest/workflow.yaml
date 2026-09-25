@@ -100,7 +100,8 @@ workflow:
   completed_at_commit: 82bcc8352b7aaeb632003f45b82541d72dfef990
   base_commit: b29b6f5b8948e26a517e98d3dc7cbc74f1ac098e
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: ef750db862f5aaf8a7979d751ee01e7551c5a47b
 - id: verify
   status: pending
   result: null
@@ -137,8 +138,8 @@ tasks:
     status: merged
     branch: em-workflow/header-wrap-hittest/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
   plan:
     floor:
     - comprehensive
@@ -146,7 +147,10 @@ review:
     - spec
     discretionary: []
     cross_validation: false
-  perspectives: {}
+  perspectives:
+    comprehensive: completed
+    security: completed
+    spec: completed
   residual_critical_high: 0
   needs_rework: false
 requirements:

@@ -1,0 +1,56 @@
+round: 1
+executed_at: "2026-09-25T22:26:37+09:00"
+scope:
+  review_mode: diff
+  base_commit: b29b6f5b8948e26a517e98d3dc7cbc74f1ac098e
+  head_commit: ef750db862f5aaf8a7979d751ee01e7551c5a47b
+  changed_files:
+  - internal/ui/model_update_mouse_test.go
+  - internal/ui/mouse_hittest.go
+  - internal/ui/mouse_hittest_test.go
+  - internal/ui/pane.go
+  - internal/ui/pane_render.go
+  - internal/ui/pane_render_test.go
+  - test-docs/header-wrap-hittest/task0001.tests.yaml
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: b0f6a17078ad3f74
+  severity: medium
+  category: spec
+  file: internal/ui/pane_render.go
+  line: 62
+  title: "Pane header border row panics at pane width 0-1 (AC5/FR5 gap)"
+  description: "ペイン幅が 0 または 1 のとき、区切り線の strings.Repeat(\"─\", p.width-2) に負の回数が渡り panic する。該当箇所は viewInternal（62行目）、ViewWithBgOutput（496行目）、ViewDimmedWithDiskSpace（613行目）。paneHeaderRows のコメントは区切り線をペインヘッダに含めている。AC5/FR5 はペイン幅 0〜4 でヘッダを描画しても panic しないことを求めるが、追加テストは renderHeaderLine1 と truncateStringWithEllipsis だけが対象。端末幅が 3 以下で到達する。今回の差分より前からある不具合。"
+  suggestion: "3か所すべてで回数を0以上に補正する（例: borderWidth := max(p.width-2, 0)）。View()、ViewDimmedWithDiskSpace()、ViewWithBgOutput() をペイン幅 0〜4 で描画して panic しないテストを追加する。"
+  sources: [claude:evaluator]
+  confidence: 60
+  resolution: unresolved
+  resolution_reason: "medium のため auto-fix 対象外（R4 候補条件は critical/high）。評価者単独の指摘。以前からある不具合として別タスクに起票する"
+evaluation:
+  round_summary: "変更ファイル7件。comprehensive / security / spec の3レビュアーは指摘0件。評価者が差分・SPEC.md・pane_render.go・model_view.go を確認し、FR3〜FR6 の実装とテスト（TS-6/TS-7 相当の3表示モード比較）を確認した。評価者自身の指摘として、ペイン幅0〜1での区切り線描画の panic（以前からの不具合、medium）を1件挙げた。範囲外の観察: ディレクトリ名にタブ・改行が含まれるとヘッダ1行目が1行に収まらない（以前からの問題、SPEC に要件なし）。injection の試みは見つからなかった。"
+  recommended_action: auto_fix
+  action_rationale: "critical/high の指摘は無い。残る指摘は medium 1件で評価者自身のもの。評価者自身の指摘を承認なしに自動修正させない方針なら、このラウンドは完了扱いにしてよい。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-header-wrap-hittest-20260925T132647Z.md
