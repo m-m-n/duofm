@@ -1,11 +1,11 @@
 schema_version: 1
 feature: fix-e2e-failures
 phase: create-spec
-status: awaiting_answers
+status: dispatching
 generation: 1
 base_revision: 9ca2bab45fa92c910d838a676d0e03603211d31b
-last_input_digest: sha256:5efdbd1b8bdc3365a05b1619985bf666bf79e1dc11ecbde3db2e5de0e59f3f51
-active_request_id: null
+last_input_digest: sha256:181fff47501af97ffb49f650d02952063576880d2ae87e263b136a090ba7c1bf
+active_request_id: create-spec-run-0002
 packets:
   create-spec-q0001:
     status: answered
@@ -115,6 +115,10 @@ worker_runs:
   status: needs_user_input
   input_digest: sha256:5efdbd1b8bdc3365a05b1619985bf666bf79e1dc11ecbde3db2e5de0e59f3f51
   output_digest: sha256:4f90e6952c8c2a0791628a49e94152b880608b71973fbff3ec1bbd72e651a420
+- request_id: create-spec-run-0002
+  status: dispatched
+  input_digest: sha256:181fff47501af97ffb49f650d02952063576880d2ae87e263b136a090ba7c1bf
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
