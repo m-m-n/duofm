@@ -2,35 +2,65 @@ schema_version: 1
 feature: fix-e2e-failures
 created: '2026-09-25'
 base_branch: main
-goal: |
-  既存 E2E テスト 29 件の失敗（アーカイブ・リネーム・ブックマーク等）
+goal: '既存 E2E テスト 29 件の失敗（アーカイブ・リネーム・ブックマーク等）
+
 
   ## 現象 (必須)
+
   E2E テスト全体（`make test-e2e-build && make test-e2e`）で 29 件のアサーションが失敗する。
+
   main（cb86593）で E2E の入口を `run_all_tests.sh` に向けて実行すると、214 件中 184 件成功・29 件失敗。
+
   mouse-support の統合ブランチでも同じ 29 件が失敗する（217 件中 187 件成功）。
+
   失敗しているテスト:
-  - Archive Tests（22 件）: test_compress_format_dialog_opens / test_compress_format_navigation / test_compression_level_dialog / test_archive_name_dialog / test_archive_conflict_dialog / test_compress_cancel_workflow / test_compress_complete_workflow / test_extract_complete_workflow / test_multifile_compress
+
+  - Archive Tests（22 件）: test_compress_format_dialog_opens / test_compress_format_navigation / test_compression_level_dialog
+  / test_archive_name_dialog / test_archive_conflict_dialog / test_compress_cancel_workflow / test_compress_complete_workflow
+  / test_extract_complete_workflow / test_multifile_compress
+
   - File Operation Tests: test_rename_file（Rename dialog appears / New filename appears in listing）
+
   - Mark Tests: test_batch_delete_marked_files（Files were not deleted）
+
   - Sort Tests: test_sort_dialog_q_cancel（Sort dialog closes after q）
+
   - Shell Tests: test_help_shows_shell_command（Help dialog shows shell command key）
+
   - Bookmark Tests: test_bookmark_dialog_opens（Bookmark dialog shows D:Delete hint）
+
   - History Navigation Tests: test_history_forward_cleared（Forward history cleared after new navigation）
+
   ## 再現手順 (必須)
+
   1. `test/e2e/Dockerfile` の CMD が `/e2e/scripts/run_all_tests.sh` を指す状態にする（mouse-support の PR で修正済み）
+
   2. `make test-e2e-build && make test-e2e` を実行する
+
   3. Test Summary で Failed: 29 になる
+
   ## 期待する挙動 (必須)
+
   E2E テストが全件成功する。
+
   ## 完了の定義 (必須)
+
   - [ ] 再現手順で現象が起きない
+
   - [ ] 再発を検出するテストがある
+
   ## 該当箇所 (任意)
-  `test/e2e/scripts/tests/archive_tests.sh` / `file_operation_tests.sh` / `mark_tests.sh` / `sort_tests.sh` / `shell_tests.sh` / `bookmark_tests.sh` / `history_tests.sh`
+
+  `test/e2e/scripts/tests/archive_tests.sh` / `file_operation_tests.sh` / `mark_tests.sh` / `sort_tests.sh`
+  / `shell_tests.sh` / `bookmark_tests.sh` / `history_tests.sh`
+
   ## 実害・発生条件 (任意)
+
   これまでは E2E の入口（Dockerfile の CMD が存在しない `run_tests.sh` を指していた）が壊れていて、失敗が表に出ていなかった。
+
   テスト側の期待値が古いのか、アプリ側の不具合なのかは未調査。
+
+  '
 parent_branch: em-workflow/fix-e2e-failures/integration
 tier: full
 tier_decision:
@@ -62,9 +92,19 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -78,13 +118,15 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: E2E test scripts and runner only; no UI change (analyst recommendation accepted via create-spec.design-step decide_autonomously, batch)
+  skipped_reason: E2E test scripts and runner only; no UI change (analyst recommendation accepted via
+    create-spec.design-step decide_autonomously, batch)
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: 7cda1f356991280fdae0b1bc98a56bf7c498f672
 - id: implement
   status: pending
   base_commit: 4d6eeb594515cc21041c20ac1f4a5a759992e406
@@ -96,7 +138,103 @@ workflow:
   failed_items: []
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: 'E2E runner: corrected run list and coverage guards'
+    plan: tasks/task0001.md
+    files:
+    - test/e2e/scripts/run_all_tests.sh
+    skills:
+    - infra-impl
+    domains:
+    - config-infra
+    complexity: medium
+    requirements:
+    - FR8
+    - NFR1
+    - NFR2
+    - NFR3
+    status: pending
+    notes: null
+    branch: null
+  task0002:
+    title: Archive tests follow current context menu and verify outputs in user_owned
+    plan: tasks/task0002.md
+    files:
+    - test/e2e/scripts/tests/archive_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    - external-io
+    complexity: medium
+    requirements:
+    - FR1
+    - FR9
+    - NFR1
+    - NFR3
+    - NFR4
+    status: pending
+    notes: null
+    branch: null
+  task0003:
+    title: Rename and batch-delete tests follow current dialogs
+    plan: tasks/task0003.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    - test/e2e/scripts/tests/mark_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    - external-io
+    complexity: medium
+    requirements:
+    - FR2
+    - FR3
+    - FR9
+    - NFR1
+    - NFR3
+    - NFR4
+    status: pending
+    notes: null
+    branch: null
+  task0004:
+    title: Sort dialog q tests assert q does not close the dialog
+    plan: tasks/task0004.md
+    files:
+    - test/e2e/scripts/tests/sort_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR4
+    - FR9
+    - NFR1
+    - NFR3
+    status: pending
+    notes: null
+    branch: null
+  task0005:
+    title: Help shell entry, bookmark hint, history forward-cleared tests
+    plan: tasks/task0005.md
+    files:
+    - test/e2e/scripts/tests/shell_tests.sh
+    - test/e2e/scripts/tests/bookmark_tests.sh
+    - test/e2e/scripts/tests/history_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR5
+    - FR6
+    - FR7
+    - FR9
+    - NFR1
+    - NFR3
+    status: pending
+    notes: null
+    branch: null
 review:
   status: pending
   rounds_completed: 0
@@ -108,92 +246,150 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0002
+    tests:
+    - TS1
+    - TS5
+    - TS7
+    - TS10
   FR2:
     title: Rename tests follow the extension-preserving dialog
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0003
+    tests:
+    - TS1
+    - TS5
+    - TS7
+    - TS10
   FR3:
     title: Batch delete confirms with 'y'
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0003
+    tests:
+    - TS1
+    - TS7
+    - TS10
+    - TS11
   FR4:
     title: Sort dialog ignores q
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0004
+    tests:
+    - TS1
+    - TS4
+    - TS7
   FR5:
     title: Help shell-command entry check
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0005
+    tests:
+    - TS1
+    - TS7
   FR6:
     title: Bookmark hint text
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0005
+    tests:
+    - TS1
+    - TS7
   FR7:
     title: History forward-cleared path
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0005
+    tests:
+    - TS1
+    - TS7
   FR8:
     title: Runner run list and coverage guards
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS2
+    - TS3
+    - TS7
+    - TS8
   FR9:
     title: Assertion and cleanup hardening in edited tests
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0002
+    - task0003
+    - task0004
+    - task0005
+    tests:
+    - TS5
+    - TS12
   NFR1:
     title: No Go source changes
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    - task0004
+    - task0005
+    tests:
+    - TS9
   NFR2:
     title: Dockerfile and run_tests.sh untouched
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS9
   NFR3:
     title: Unit tests keep passing
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    - task0004
+    - task0005
+    tests:
+    - TS6
   NFR4:
     title: Test isolation
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0002
+    - task0003
+    tests:
+    - TS5
+    - TS10
+    - TS11
 batch:
   review_rework_count: 0
   verify_rework:
