@@ -135,9 +135,19 @@ workflow:
   status: completed
   completed_at_commit: 61925fe164ab579dcd56fedca7a661deff27b79f
 - id: verify
-  status: in_progress
-  result: null
-  failed_items: []
+  status: failed
+  result: fail
+  failed_items:
+  - id: TS1
+    category: spec
+    note: 'Full E2E run: Total 259 / Passed 255 / Failed 4. All 4 failures are in Archive Tests test_multifile_compress
+      (context menu "8. Compress 3 files" not shown, format dialog not shown, archive not created, archive contents).
+      The test marks files with "m" (KeyMove) instead of Space (KeyMark, internal/ui/keys.go), so the move/other flow
+      starts and multi1.txt ends up open in the editor (screen shows "multi file 1" with vim tildes).'
+  - id: TS10
+    category: spec
+    note: 'Category run "archive" alone in a fresh container: Failed 4 (same test_multifile_compress assertions as TS1).
+      file-ops, mark, sort, shell, bookmark, history each pass alone with Failed 0.'
 - id: retrospect
   status: pending
 tasks:
@@ -404,8 +414,10 @@ requirements:
 batch:
   review_rework_count: 0
   verify_rework:
-    rounds: 0
-    failed_id_counts: {}
+    rounds: 1
+    failed_id_counts:
+      TS1: 1
+      TS10: 1
   infra_resume:
     rounds: 0
     cap: 2
