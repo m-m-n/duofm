@@ -124,3 +124,23 @@ records:
     unrelated archive/rename/bookmark/sort/help/history fixes; C keeps the failure
     honest and consistent with the cap path to PR. Opus escalation: no; orchestrator
     judgement: agrees.'
+- question_id: verify.ts19-judgment
+  packet_id: null
+  answered_at: '2026-09-25T09:50:00+09:00'
+  source: batch-codex-consultation
+  answer_mode: single_select
+  selected_option_ids:
+  - A
+  freeform: null
+  normalized_answer: Record TS-19 as a verify failed_item again (literal reading of the
+    expected result); lineage cap reached, verify stays failed, run proceeds to retrospect.
+  resolution_note: 'fail-closed-route resolution during verify round 2 (no gate_id). Options:
+    A record TS-19 failed again (lineage cap reached, follow-up for pre-existing E2E failures,
+    PR notes verify failed) / B judge TS-19 pass by intent (failure set identical to base
+    cb86593), verify completed -> chose A (not chosen B). Codex consulted: yes (1 turn,
+    harness codex, readonly). Key points: TS-19 / AC6 / NFR1 state that every existing test
+    passes, and 29 remaining failures do not meet it; matching the base only shows no regression,
+    it does not change the pass condition; file a separate task for the pre-existing failures
+    and state the failure and base comparison in the PR. Flip condition: an explicitly approved
+    criteria change that judges only new regressions. Opus escalation: no; orchestrator judgement:
+    agrees.'

@@ -110,31 +110,24 @@ workflow:
   status: completed
   completed_at_commit: d8dd599cadc9c6585cbfbe6a6d8df17aaf65ce07
 - id: verify
-  status: in_progress
+  status: failed
   result: fail
   failed_items:
-  - id: CQ-FORMAT
-    category: unknown
-    note: 'Code Quality Verification: format_command (gofmt -w .) produced a diff in
-      internal/ui/pane_test.go (struct field alignment in TestRestoreScrollOffset, 5
-      lines). The file is untouched since base cb86593 (pre-existing on main); all Go
-      files changed by the feature are gofmt-clean. Not mapped to a requirement, so
-      category is the sentinel. Rework scope: gofmt that one file only.'
   - id: TS-19
     category: comprehensive
-    note: 'Regression: go test ./... passes, but full E2E has 29 failing assertions
-      (217 total / 187 pass). A baseline E2E run on base cb86593 (Dockerfile CMD pointed
-      to run_all_tests.sh) has the identical 29 failures (214 / 184), so no regression
-      from this feature: archive dialog tests x22, test_rename_file x2, test_batch_delete_marked_files,
-      test_sort_dialog_q_cancel, test_help_shows_shell_command, test_bookmark_dialog_opens,
-      test_history_forward_cleared. TS-20/21/22 (Mouse Tests) pass. Rework scope: none
-      (pre-existing, out of scope; follow-up task instead).'
+    note: 'Regression (round 2): go test ./... passes, but full E2E has 29 failing assertions
+      (217 total / 187 pass), the identical 29 failures recorded on base cb86593 in round 1
+      (archive dialog tests x22, rename x2, batch delete marked files, sort dialog q cancel,
+      help shows shell command, bookmark dialog, history forward cleared). No regression
+      from this feature, but the expected result (every pre-existing E2E test passes) is
+      not met. Codex consulted (option A: record as failed; option B pass-by-intent not
+      chosen). Second occurrence of TS-19 -> batch lineage cap reached; no further rework.'
   passed_items:
-  - Build (after build_command amendment with scoped safe.directory)
-  - Unit tests TS-1..TS-18 (go test ./... all ok)
-  - E2E TS-20, TS-21, TS-22
-  - 'NFR5: cmd/duofm/main.go unchanged since base; NFR2: no change under internal/fs,
-    mouse code only in internal/ui'
+  - Build (build_command, round 2)
+  - Unit tests TS-1..TS-18 (go test ./... all ok, round 2)
+  - 'CQ-FORMAT: format_command (gofmt -w .) produced no diff (fixed by task0003)'
+  - E2E TS-20, TS-21, TS-22 (Mouse Tests all pass, round 2)
+  - 'NFR5: cmd/duofm/main.go unchanged since base cb86593; NFR2: no change under internal/fs'
   not_performed:
   - 'Manual Testing in a real terminal emulator (headless batch run): click, pane
     activation, drag marking, double-click on directory/file, A->B->A, wheel/right/middle,
@@ -377,10 +370,10 @@ requirements:
 batch:
   review_rework_count: 0
   verify_rework:
-    rounds: 1
+    rounds: 2
     failed_id_counts:
       CQ-FORMAT: 1
-      TS-19: 1
+      TS-19: 2
   infra_resume:
     rounds: 0
     cap: 2
