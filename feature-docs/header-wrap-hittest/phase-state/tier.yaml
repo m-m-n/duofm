@@ -1,0 +1,35 @@
+schema_version: 1
+feature: header-wrap-hittest
+tier: full
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.0
+    '1': 0.76
+    '2': 0.24
+    '3': 0.0
+  observed_at: '2026-09-25T20:46:07+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.0
+    '1': 0.01
+    '2': 0.95
+    '3': 0.04
+  observed_at: '2026-09-25T20:46:07+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/pane_render.go
+  - internal/ui/pane.go
+  - internal/ui/mouse_hittest.go
+  - internal/ui/pane_render_test.go
+  - internal/ui/mouse_hittest_test.go
+  - internal/ui/model_update_mouse_test.go
+  changed_lines_approx: 250
+  new_functions_needed: 4
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  evidence: gitBranchが空ならパスを省略せず返し、クリックとドラッグは先頭行を4に固定しているよ。pane.goの表示行数も固定ヘッダーを前提にしているよ。描画と位置判定で高さを共有し、実際の表示行を使う回帰テストを追加する想定で見積もったよ。既存テストには長い非Gitパスの描画と操作を照合するケースがないよ。ファイル変更とテスト実行はしていないよ
+decided_at: '2026-09-25T20:46:07+09:00'
