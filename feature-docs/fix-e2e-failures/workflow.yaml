@@ -261,7 +261,7 @@ tasks:
     - FR1
     - NFR1
     - NFR4
-    status: in_progress
+    status: merged
     notes: null
     branch: em-workflow/fix-e2e-failures/task0006
     provenance:
