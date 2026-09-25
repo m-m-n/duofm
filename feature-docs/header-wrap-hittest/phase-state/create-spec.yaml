@@ -1,0 +1,51 @@
+schema_version: 1
+feature: header-wrap-hittest
+phase: create-spec
+status: dispatching
+generation: 1
+base_revision: ac1297ad3274bad8c253dd514b92d858b9639d97
+last_input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache:
+  design_system_candidates:
+    generation_digest: sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    resolved_at_generation: 1
+    paths: []
+    digests: {}
+    truncated: false
+  reference_scan_targets:
+    generation_digest: sha256:e03f30b6ccc2c5ac874196f8822c111c16a35d84be53887387d47939174f980e
+    resolved_at_generation: 1
+    paths:
+    - internal/ui/mouse_hittest.go
+    - internal/ui/mouse_hittest_test.go
+    - internal/ui/pane_render.go
+    - internal/ui/pane_render_test.go
+    - internal/ui/pane.go
+    - internal/ui/model_update_mouse.go
+    - internal/ui/model_update_mouse_test.go
+    - internal/ui/mouse_doubleclick.go
+    - internal/ui/model.go
+    digests:
+      internal/ui/mouse_hittest.go: sha256:a0e81cc886ed6074bf3c0fa00f8ed7483ce221d3907acb5d9379110562816c8a
+      internal/ui/mouse_hittest_test.go: sha256:5e45184c4579016fa138fbde5a37aaa74dfa52398616d608660554b0440f26df
+      internal/ui/pane_render.go: sha256:0746e82c1d273051db1987023cfba53b63c7117cbd547b8daccb809426afba90
+      internal/ui/pane_render_test.go: sha256:b318c8344bf0d9908f6d53fe369997cbd679b0f5cfc6dfb8d546dd0b79efb45e
+      internal/ui/pane.go: sha256:55b3e51bf793269e3d99b5ab4d111f1a0fc688bde1946bc86d0807b544d057ad
+      internal/ui/model_update_mouse.go: sha256:23e743f4604f94713fba2c6e6788740b675e1e8ebf723d70a80a5a51f8a46807
+      internal/ui/model_update_mouse_test.go: sha256:5f48d9702a4f6b92d93c5d9e061398c9ce56a3e2da345fe1473bb86d0136a9a5
+      internal/ui/mouse_doubleclick.go: sha256:a5de00189d5c9e17ce7b21ffe00749bffb6a7e5e221fd20468b1ed7a64459a98
+      internal/ui/model.go: sha256:6bfb4039d9f94bf277b3cde9a15e5b1c96b58d2f7fcc8d6f7cc4ad2581170fd2
+    truncated: false
+last_error: null
