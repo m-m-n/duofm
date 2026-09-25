@@ -151,9 +151,54 @@ test_help_shows_shell_command() {
     send_keys "$CURRENT_SESSION" "?"
     sleep 0.3
 
-    # Help should show shell command entry
-    assert_contains "$CURRENT_SESSION" "!" \
-        "Help dialog shows shell command key"
+    local screen
+    screen=$(capture_screen "$CURRENT_SESSION")
+
+    # Help dialog should be open, shown by its first-page indicator (e.g. "[1/5]")
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if echo "$screen" | grep -qE '\[1/[0-9]+\]'; then
+        echo -e "${GREEN}✓${NC} Help dialog is open (page indicator shown)"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Help dialog is open (page indicator shown)"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
+    # Read the reported total page count so paging below cannot loop forever
+    local total_pages
+    total_pages=$(echo "$screen" | grep -oE '\[[0-9]+/[0-9]+\]' | head -1 | sed -E 's#.*/([0-9]+)\]#\1#')
+    if [ -z "$total_pages" ]; then
+        total_pages=1
+    fi
+
+    # Page forward with Space until the shell-command entry is visible.
+    # Never press Space more times than the dialog itself reports having pages.
+    local found=0
+    local presses
+    for ((presses = 0; presses < total_pages; presses++)); do
+        screen=$(capture_screen "$CURRENT_SESSION")
+        if echo "$screen" | grep -qF "execute shell command"; then
+            found=1
+            break
+        fi
+        send_keys "$CURRENT_SESSION" "Space"
+        sleep 0.3
+    done
+    if [ "$found" -eq 0 ]; then
+        screen=$(capture_screen "$CURRENT_SESSION")
+        if echo "$screen" | grep -qF "execute shell command"; then
+            found=1
+        fi
+    fi
+
+    TESTS_RUN=$((TESTS_RUN + 1))
+    if [ "$found" -eq 1 ]; then
+        echo -e "${GREEN}✓${NC} Help dialog shows shell command entry (execute shell command)"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Help dialog shows shell command entry (execute shell command)"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
 
     # Close help
     send_keys "$CURRENT_SESSION" "Escape"

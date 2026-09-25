@@ -24,8 +24,8 @@ test_bookmark_dialog_opens() {
     assert_contains "$CURRENT_SESSION" "Enter:Jump" \
         "Bookmark dialog shows Enter:Jump hint"
 
-    assert_contains "$CURRENT_SESSION" "D:Delete" \
-        "Bookmark dialog shows D:Delete hint"
+    assert_contains "$CURRENT_SESSION" "d:Delete" \
+        "Bookmark dialog shows d:Delete hint"
 
     assert_contains "$CURRENT_SESSION" "Esc:Close" \
         "Bookmark dialog shows Esc:Close hint"
