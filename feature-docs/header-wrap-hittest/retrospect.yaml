@@ -1,0 +1,44 @@
+feature: header-wrap-hittest
+collected_at: "2026-09-25T22:44:24+09:00"
+session_ids: [01a0d8ce-64c1-7035-867d-24d0548bea6b]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: "description_only は tier 1 寄り (0.76)、description_plus_code は tier 2 寄り (0.95) で読みが割れたため、評価器の不一致解決規則で何も引かない full を採用"
+    bases:
+      - basis: description_only
+        probabilities: {'0': 0.0, '1': 0.76, '2': 0.24, '3': 0.0}
+        observed_at: '2026-09-25T20:46:07+09:00'
+        expectation_clear: 0.81
+      - basis: description_plus_code
+        probabilities: {'0': 0.0, '1': 0.01, '2': 0.95, '3': 0.04}
+        observed_at: '2026-09-25T20:46:07+09:00'
+        expectation_clear: 0.78
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/pane_render.go
+        - internal/ui/pane.go
+        - internal/ui/mouse_hittest.go
+        - internal/ui/pane_render_test.go
+        - internal/ui/mouse_hittest_test.go
+        - internal/ui/model_update_mouse_test.go
+      changed_lines_approx: 250
+      new_functions_needed: 4
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: false
+      spillover_modules: []
+      work_still_required: true
+      evidence: gitBranchが空ならパスを省略せず返し、クリックとドラッグは先頭行を4に固定しているよ。pane.goの表示行数も固定ヘッダーを前提にしているよ。描画と位置判定で高さを共有し、実際の表示行を使う回帰テストを追加する想定で見積もったよ。既存テストには長い非Gitパスの描画と操作を照合するケースがないよ。ファイル変更とテスト実行はしていないよ
+follow_up_drafts: []
+lessons_candidates:
+  - "review round1 の medium 指摘 b0f6a17078ad3f74（ペイン幅 0〜1 で区切り線の strings.Repeat が負の回数で panic、以前からの不具合）が unresolved のまま。triage はタスク一覧取得失敗で report 分岐に落ち、起票されていない"
+  - "E2E は 217 中 187 pass。失敗 29 件は base ブランチと同一の既存失敗（fix-e2e-failures で追跡）"
+  - "手動確認 M-1〜M-4 は無人実行のため未実施"
+  - "create-spec の初回 worker 実行が design-step ゲートの選択肢欠落（decide_autonomously）で invalid_input になり再実行した"
