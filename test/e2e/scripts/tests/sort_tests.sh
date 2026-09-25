@@ -64,9 +64,11 @@ test_sort_dialog_dropdown_expansion() {
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.2
 
-    # Should show dropdown options (Name, Size, Date)
-    assert_contains "$CURRENT_SESSION" "Name" \
-        "Dropdown shows Name option"
+    # Should show dropdown options (Name, Size, Date). "Size" appears only
+    # while the dropdown is expanded; "Name" is already visible in the pane
+    # header before expansion (default sort), so it cannot prove expansion.
+    assert_contains "$CURRENT_SESSION" "Size" \
+        "Dropdown shows Size option"
 
     # Press Escape to close dropdown
     send_keys "$CURRENT_SESSION" "Escape"
@@ -143,7 +145,7 @@ test_sort_dialog_cancel() {
     stop_duofm "$CURRENT_SESSION"
 }
 
-# Test: Sort dialog q key cancels
+# Test: Sort dialog q key does not close the dialog (q is not a dialog key)
 test_sort_dialog_q_cancel() {
     start_duofm "$CURRENT_SESSION"
 
@@ -151,18 +153,26 @@ test_sort_dialog_q_cancel() {
     send_keys "$CURRENT_SESSION" "s"
     sleep 0.3
 
-    # Cancel with q
+    # Dialog should be shown before q
+    assert_contains "$CURRENT_SESSION" "Sort by" \
+        "Sort dialog shown before q"
+
+    # Press q (not a dialog key; does nothing)
     send_keys "$CURRENT_SESSION" "q"
     sleep 0.3
 
-    # Dialog should close
-    assert_not_contains "$CURRENT_SESSION" "Sort by" \
-        "Sort dialog closes after q"
+    # Dialog should stay open after q
+    assert_contains "$CURRENT_SESSION" "Sort by" \
+        "Sort dialog stays open after q"
+
+    # Close dialog with Escape
+    send_keys "$CURRENT_SESSION" "Escape"
+    sleep 0.3
 
     stop_duofm "$CURRENT_SESSION"
 }
 
-# Test: Sort dialog q cancels even when dropdown is expanded
+# Test: Sort dialog q does not close the dialog even when dropdown is expanded
 test_sort_dialog_q_cancel_with_dropdown() {
     start_duofm "$CURRENT_SESSION"
 
@@ -170,17 +180,32 @@ test_sort_dialog_q_cancel_with_dropdown() {
     send_keys "$CURRENT_SESSION" "s"
     sleep 0.3
 
+    # Dialog should be shown before expanding the dropdown
+    assert_contains "$CURRENT_SESSION" "Sort by" \
+        "Sort dialog shown before expanding dropdown"
+
     # Expand dropdown
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.2
 
-    # Cancel with q (should close entire dialog, not just dropdown)
+    # Dropdown should be expanded before q. "Size" is shown only while the
+    # dropdown is expanded (it is not part of the closed dropdown label).
+    assert_contains "$CURRENT_SESSION" "Size" \
+        "Dropdown is expanded before q"
+
+    # Press q (not a dialog key and not a dropdown key; does nothing)
     send_keys "$CURRENT_SESSION" "q"
     sleep 0.3
 
-    # Dialog should close
-    assert_not_contains "$CURRENT_SESSION" "Sort by" \
-        "Sort dialog closes after q even with dropdown expanded"
+    # Dialog should stay open after q, even with dropdown expanded
+    assert_contains "$CURRENT_SESSION" "Sort by" \
+        "Sort dialog stays open after q even with dropdown expanded"
+
+    # Close dropdown, then dialog, with Escape
+    send_keys "$CURRENT_SESSION" "Escape"
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "Escape"
+    sleep 0.3
 
     stop_duofm "$CURRENT_SESSION"
 }
