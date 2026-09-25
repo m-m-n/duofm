@@ -1,0 +1,84 @@
+task_id: task0001
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests:
+      - TestRenderHeaderLine1_NoBranch_BoundedWidthNoWrapEllipsis
+    red_confirmed: true
+    red_reason: >-
+      Pre-fix renderHeaderLine1 returned the unbounded path for the
+      no-branch case. All three subtests failed: display width 85/96/70
+      (want <= 36) and the result did not end with "...".
+  AC-2:
+    tests:
+      - TestRenderHeaderLine1_BranchOnly_BoundedWidthNoLineBreak
+    red_confirmed: true
+    red_reason: >-
+      Confirmed by temporarily reverting the branch-only clamp path
+      (maxPathWidth < 4) to the pre-fix `return branchDisplay` and
+      re-running: display width = 51, want <= 11
+      ("[feature/a-very-long-branch-name-that-does-not-fit]" returned
+      unbounded instead of truncated).
+  AC-3:
+    tests:
+      - TestRenderHeaderLine1_NarrowWidths_NoPanicZeroWidth
+      - TestTruncateStringWithEllipsis_ZeroAndNegativeWidths_NoPanic
+    red_confirmed: true
+    red_reason: >-
+      Pre-fix truncateStringWithEllipsis panicked on negative maxWidth
+      (e.g. "..."[:-1]) for non-empty and empty input alike ("index out
+      of range" from the slice on maxWidth<=3). Confirmed by running
+      TestTruncateStringWithEllipsis_ZeroAndNegativeWidths_NoPanic against
+      the pre-fix function.
+  AC-4:
+    tests:
+      - TestMouseFirstEntryRow_EqualsTitleRowPlusSharedHeaderRows
+      - TestVisibleLinesAndBgSplitHeight_UnchangedAtGivenHeights
+      - TestViewDimmed_LineCount_MatchesSharedHeaderRowsPlusEntryRows
+    red_confirmed: true
+    red_reason: >-
+      Pre-fix, the shared `paneHeaderRows` definition did not exist at
+      all (mouse_hittest.go held its own `mousePaneHeaderRows` literal,
+      and pane.go/pane_render.go repeated the literal 4); the test file
+      referencing `paneHeaderRows` failed to compile until the shared
+      constant was added in pane.go and wired into bgSplitHeights(),
+      getVisibleLines(), mouseFirstEntryRow and the dimmed view. The
+      "internal/ui/mouse_hittest.go contains no header row literal of its
+      own" clause of this AC is a structural property verified by code
+      inspection (the literal `mousePaneHeaderRows = 3` was deleted, not
+      renamed) rather than by a runtime assertion.
+  AC-5:
+    tests:
+      - TestRenderAndHitTest_LongPathNoBranch_AllViewsAlign
+    red_confirmed: true
+    red_reason: >-
+      Confirmed by temporarily reverting only the no-branch return in
+      renderHeaderLine1 to the pre-fix `return displayPath` and re-running:
+      all three subviews failed, with entries found 21 output lines lower
+      than expected (line 25 vs want 4) because the unbounded path wrapped
+      across many extra screen rows, and the corresponding hitTest calls
+      returned hitNone / the wrong index instead of the expected entry.
+  AC-6:
+    tests:
+      - TestHandleMouse_LongPathNoBranch_ClickMovesCursor
+      - TestHandleMouse_LongPathNoBranch_DragMarksRangeExcludingParent
+      - TestHandleMouse_LongPathNoBranch_DoubleClickOnSubdir_StartsLoading
+    red_confirmed: true
+    red_reason: >-
+      Confirmed with the same temporary pre-fix revert as AC-5: the click
+      test moved the cursor to 0 instead of 2, the drag test marked
+      nothing instead of {subdir, alpha-file, bravo-file}, and the
+      double-click test's second press returned a nil cmd instead of
+      triggering Enter on the subdirectory -- all because the rows found
+      in the wrapped, pre-fix render no longer matched where handleMouse's
+      hit test (unchanged, fixed geometry) expected entries to be.
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Regression-only criterion, not new behavior to red/green: the full
+      `internal/ui` suite and `go test ./...` were green before this task
+      (recorded as the empty baseline in 4a) and remain green after the
+      change, including every existing header line 1 / hit-test / mouse /
+      drag test, none of which was edited.

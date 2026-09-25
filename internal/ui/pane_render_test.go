@@ -1,9 +1,147 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/mattn/go-runewidth"
 )
+
+// --- AC-1, AC-2, AC-3: header line 1 stays on one screen row ---
+
+func TestRenderHeaderLine1_NoBranch_BoundedWidthNoWrapEllipsis(t *testing.T) {
+	const width = 40
+	const wantMaxWidth = 36 // width - 4
+
+	longASCIIPath := "/home/user/very/long/path/to/some/deeply/nested/directory/that/is/wider/than/the/pane"
+	longFullWidthPath := "/home/ユーザー/とても/長い/パス/を/持つ/深く/ネストされた/ディレクトリ"
+
+	tests := []struct {
+		name  string
+		setup func() *Pane
+	}{
+		{
+			name: "ASCII path wider than the pane",
+			setup: func() *Pane {
+				return &Pane{path: longASCIIPath, width: width, theme: DefaultTheme()}
+			},
+		},
+		{
+			name: "same path with hidden-files and filter indicators",
+			setup: func() *Pane {
+				return &Pane{
+					path:          longASCIIPath,
+					width:         width,
+					theme:         DefaultTheme(),
+					showHidden:    true,
+					filterPattern: "abc",
+					filterMode:    SearchModeIncremental,
+				}
+			},
+		},
+		{
+			name: "path with full-width characters wider than the pane",
+			setup: func() *Pane {
+				return &Pane{path: longFullWidthPath, width: width, theme: DefaultTheme()}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pane := tt.setup()
+			result := pane.renderHeaderLine1()
+
+			if w := runewidth.StringWidth(result); w > wantMaxWidth {
+				t.Errorf("display width = %d, want <= %d (result: %q)", w, wantMaxWidth, result)
+			}
+			if strings.ContainsAny(result, "\n\r") {
+				t.Errorf("result contains a line break: %q", result)
+			}
+			if !strings.HasSuffix(result, "...") {
+				t.Errorf("result does not end with \"...\": %q", result)
+			}
+		})
+	}
+}
+
+func TestRenderHeaderLine1_BranchOnly_BoundedWidthNoLineBreak(t *testing.T) {
+	pane := &Pane{
+		path:      "/home/user/project",
+		gitBranch: "feature/a-very-long-branch-name-that-does-not-fit",
+		width:     15,
+		theme:     DefaultTheme(),
+	}
+	result := pane.renderHeaderLine1()
+
+	const wantMaxWidth = 11 // width - 4
+	if w := runewidth.StringWidth(result); w > wantMaxWidth {
+		t.Errorf("display width = %d, want <= %d (result: %q)", w, wantMaxWidth, result)
+	}
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+}
+
+func TestRenderHeaderLine1_NarrowWidths_NoPanicZeroWidth(t *testing.T) {
+	for width := 0; width <= 4; width++ {
+		for _, branch := range []string{"", "main"} {
+			t.Run(fmt.Sprintf("width=%d/branch=%q", width, branch), func(t *testing.T) {
+				pane := &Pane{
+					path:      "/home/user/some/long/path",
+					gitBranch: branch,
+					width:     width,
+					theme:     DefaultTheme(),
+				}
+
+				var result string
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							t.Fatalf("renderHeaderLine1 panicked: %v", r)
+						}
+					}()
+					result = pane.renderHeaderLine1()
+				}()
+
+				if w := runewidth.StringWidth(result); w != 0 {
+					t.Errorf("display width = %d, want 0 (result: %q)", w, result)
+				}
+			})
+		}
+	}
+}
+
+func TestTruncateStringWithEllipsis_ZeroAndNegativeWidths_NoPanic(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		maxWidth int
+	}{
+		{"zero width, non-empty input", "hello", 0},
+		{"negative width, non-empty input", "hello", -1},
+		{"very negative width", "hello", -100},
+		{"empty input, zero width", "", 0},
+		{"empty input, negative width", "", -5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result string
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						t.Fatalf("truncateStringWithEllipsis panicked: %v", r)
+					}
+				}()
+				result = truncateStringWithEllipsis(tt.input, tt.maxWidth)
+			}()
+			if w := runewidth.StringWidth(result); w != 0 {
+				t.Errorf("display width = %d, want 0 (result: %q)", w, result)
+			}
+		})
+	}
+}
 
 func TestRenderHeaderLine1(t *testing.T) {
 	tests := []struct {
