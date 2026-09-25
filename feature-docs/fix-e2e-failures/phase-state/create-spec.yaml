@@ -5,7 +5,7 @@ status: dispatching
 generation: 1
 base_revision: 9ca2bab45fa92c910d838a676d0e03603211d31b
 last_input_digest: sha256:0309a7ef7a3f168f80bb6cd1e8218a692692c2428b12ca3071178b3466a77d41
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -120,10 +120,16 @@ worker_runs:
   input_digest: sha256:181fff47501af97ffb49f650d02952063576880d2ae87e263b136a090ba7c1bf
   output_digest: sha256:17972f1f70cddf4f6be9a6aeab054e598f48527822665282744ae7d0ab621497
 - request_id: create-spec-run-0003
-  status: dispatched
+  status: completed
   input_digest: sha256:0309a7ef7a3f168f80bb6cd1e8218a692692c2428b12ca3071178b3466a77d41
-  output_digest: null
-artifacts: []
+  output_digest: sha256:543e6a086ff781579ed533ce3f3f31db2d142b5dc424f95172c490a18348fde1
+artifacts:
+- path: feature-docs/fix-e2e-failures/REQUIREMENTS.md
+  sha256: sha256:47ce5868f6d09f693517737679293e73e11f107a3e6f711f3e8dab885f419274
+  produced_by: create-spec-run-0003
+- path: feature-docs/fix-e2e-failures/SPEC.md
+  sha256: sha256:dbc49f7631241c5eecff2e38a3ba1ef7476ac0f8604fe46c8dc9cdf4034342c3
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
