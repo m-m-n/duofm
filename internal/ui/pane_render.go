@@ -140,16 +140,19 @@ func (p *Pane) renderHeaderLine1() string {
 		displayPath = filterIndicator + " " + displayPath
 	}
 
-	// ブランチ表示がない場合はパスのみ返す
+	// 利用可能な幅を計算（パディング分を除く）。マイナスにはしない（FR5）。
+	availableWidth := p.width - 4 // 左右パディング(1+1) + 余白
+	if availableWidth < 0 {
+		availableWidth = 0
+	}
+
+	// ブランチ表示がない場合はパスのみ返す（収まらない場合は切り詰める）
 	if p.gitBranch == "" {
-		return displayPath
+		return truncateStringWithEllipsis(displayPath, availableWidth)
 	}
 
 	// ブランチ表示を構築 [branch]
 	branchDisplay := "[" + p.gitBranch + "]"
-
-	// 利用可能な幅を計算（パディング分を除く）
-	availableWidth := p.width - 4 // 左右パディング(1+1) + 余白
 
 	pathWidth := runewidth.StringWidth(displayPath)
 	branchWidth := runewidth.StringWidth(branchDisplay)
@@ -167,8 +170,8 @@ func (p *Pane) renderHeaderLine1() string {
 	// 最小限必要: ブランチ幅 + 1スペース + 切り詰め記号(...)分
 	maxPathWidth := availableWidth - branchWidth - 1
 	if maxPathWidth < 4 {
-		// パス表示スペースが極端に狭い場合はブランチのみ
-		return branchDisplay
+		// パス表示スペースが極端に狭い場合はブランチのみ（収まらない場合は切り詰める）
+		return truncateStringWithEllipsis(branchDisplay, availableWidth)
 	}
 
 	// パスを切り詰め
@@ -184,7 +187,12 @@ func (p *Pane) renderHeaderLine1() string {
 
 // truncateStringWithEllipsis は文字列を指定幅に切り詰め、省略記号(...)を追加する
 // 文字列が指定幅に収まる場合は切り詰めずにそのまま返す
+// maxWidthが負の場合は0として扱う（第二の防御線、FR5）
 func truncateStringWithEllipsis(s string, maxWidth int) string {
+	if maxWidth < 0 {
+		maxWidth = 0
+	}
+
 	// 文字列の実際の表示幅を計算
 	stringWidth := runewidth.StringWidth(s)
 
@@ -611,7 +619,7 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	b.WriteString("\n")
 
 	// ファイルリスト
-	visibleLines := p.height - 4 // ヘッダー2行 + ボーダー1行 = 3行
+	visibleLines := p.height - paneHeaderRows - 1 // header rows + 1 trailing row
 	endIdx := p.scrollOffset + visibleLines
 	if endIdx > len(p.entries) {
 		endIdx = len(p.entries)

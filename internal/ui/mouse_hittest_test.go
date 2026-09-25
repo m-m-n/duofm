@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -249,4 +250,138 @@ func TestModelAdapters_AbsentPane_NoPanicNoIndex(t *testing.T) {
 	if _, ok := m.mouseDragIndexAt(LeftPane, 5); ok {
 		t.Error("mouseDragIndexAt with absent pane: got ok=true, want false")
 	}
+}
+
+// --- AC-4: the shared pane header row count ---
+
+func TestMouseFirstEntryRow_EqualsTitleRowPlusSharedHeaderRows(t *testing.T) {
+	if paneHeaderRows != 3 {
+		t.Fatalf("paneHeaderRows = %d, want 3", paneHeaderRows)
+	}
+	if mouseFirstEntryRow != mouseTitleRow+1+paneHeaderRows {
+		t.Errorf("mouseFirstEntryRow = %d, want %d", mouseFirstEntryRow, mouseTitleRow+1+paneHeaderRows)
+	}
+}
+
+func TestVisibleLinesAndBgSplitHeight_UnchangedAtGivenHeights(t *testing.T) {
+	// Pinned values from before this change: getVisibleLines() and the bg
+	// split file-list height must stay identical now that both derive from
+	// the shared paneHeaderRows definition instead of a repeated literal.
+	cases := []struct {
+		height               int
+		wantVisible          int
+		wantBgFileListHeight int
+	}{
+		{22, 18, 11},
+		{26, 22, 14},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("height=%d", c.height), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 30, 40, c.height, true)
+
+			if got := pane.getVisibleLines(); got != c.wantVisible {
+				t.Errorf("getVisibleLines() = %d, want %d", got, c.wantVisible)
+			}
+
+			pane.SetBgOutputActive(true)
+			fileListHeight, _ := pane.bgSplitHeights()
+			if fileListHeight != c.wantBgFileListHeight {
+				t.Errorf("bgSplitHeights() fileListHeight = %d, want %d", fileListHeight, c.wantBgFileListHeight)
+			}
+		})
+	}
+}
+
+func TestViewDimmed_LineCount_MatchesSharedHeaderRowsPlusEntryRows(t *testing.T) {
+	const height = 22
+	pane := newFilesPane(t, LeftPane, 30, 40, height, true)
+
+	rendered := pane.ViewDimmedWithDiskSpace(0)
+	lines := strings.Split(rendered, "\n")
+	// The rendered output ends with a trailing "\n", which Split turns into
+	// an empty trailing element; drop it before counting.
+	if len(lines) > 0 && lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+
+	want := paneHeaderRows + (height - paneHeaderRows - 1)
+	if len(lines) != want {
+		t.Errorf("dimmed view line count = %d, want %d", len(lines), want)
+	}
+}
+
+// --- AC-5: render / hit-test row alignment across all three views, for a
+// long, no-branch path that would wrap header line 1 before the fix ---
+
+func TestRenderAndHitTest_LongPathNoBranch_AllViewsAlign(t *testing.T) {
+	const paneWidth, paneHeight = 40, 22
+	const modelWidth, modelHeight = paneWidth * 2, paneHeight + 2
+
+	dir := t.TempDir()
+	nested := dir
+	for i := 0; i < 20; i++ {
+		nested = filepath.Join(nested, fmt.Sprintf("nested-directory-segment-%02d", i))
+	}
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	names := []string{"alpha-file", "bravo-file", "charlie-file"}
+	for _, name := range names {
+		if err := os.WriteFile(filepath.Join(nested, name), nil, 0644); err != nil {
+			t.Fatalf("write file %s: %v", name, err)
+		}
+	}
+
+	pane, err := NewPane(LeftPane, nested, paneWidth, paneHeight, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane: %v", err)
+	}
+	pane.gitBranch = "" // do not depend on whether the temp root is inside a git repo
+	other := paneHitLayout{}
+
+	findLine := func(t *testing.T, rendered, name string) int {
+		t.Helper()
+		lines := strings.Split(stripANSI(rendered), "\n")
+		for i, line := range lines {
+			if strings.Contains(line, name) {
+				return i
+			}
+		}
+		t.Fatalf("entry %q not found in rendered output:\n%s", name, rendered)
+		return -1
+	}
+
+	checkView := func(t *testing.T, rendered string, layout paneHitLayout) {
+		t.Helper()
+		for _, name := range names {
+			idx := pane.findEntryIndex(name) // ".." occupies index0, so this is not the names slice position
+			if idx < 0 {
+				t.Fatalf("entry %q not found in pane.entries", name)
+			}
+			line := findLine(t, rendered, name)
+			if line != paneHeaderRows+idx {
+				t.Errorf("entry %q: line = %d, want %d (paneHeaderRows + %d)", name, line, paneHeaderRows+idx, idx)
+			}
+			screenRow := mouseTitleRow + 1 + line
+			hit := hitTest(5, screenRow, modelWidth, modelHeight, layout, other)
+			if hit.kind != hitEntry || hit.index != idx {
+				t.Errorf("entry %q: hitTest at row %d = %+v, want hitEntry index=%d", name, screenRow, hit, idx)
+			}
+		}
+	}
+
+	t.Run("normal view", func(t *testing.T) {
+		checkView(t, pane.View(), pane.hitLayout())
+	})
+
+	t.Run("dimmed view", func(t *testing.T) {
+		checkView(t, pane.ViewDimmedWithDiskSpace(0), pane.hitLayout())
+	})
+
+	t.Run("bg output split view", func(t *testing.T) {
+		pane.SetBgOutputActive(true)
+		defer pane.SetBgOutputActive(false)
+		buf := NewOutputBuffer(100)
+		checkView(t, pane.ViewWithBgOutput(0, buf, "echo hi", false), pane.hitLayout())
+	})
 }

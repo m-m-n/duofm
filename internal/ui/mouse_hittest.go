@@ -2,15 +2,15 @@ package ui
 
 // Layout constants shared by the hit test and the drag-row mapping. These
 // mirror the renderer's layout (title row, pane header rows, first entry
-// row) without refactoring the rendering files themselves.
+// row) without refactoring the rendering files themselves. The pane header
+// row count itself is not repeated here — it comes from paneHeaderRows
+// (pane.go), the single shared definition also used by the renderer's
+// visible-line and bg-split height computations.
 const (
 	// mouseTitleRow is the screen row occupied by the title bar.
 	mouseTitleRow = 0
-	// mousePaneHeaderRows is the number of pane header rows (path header,
-	// info header, border) directly below the title row.
-	mousePaneHeaderRows = 3
 	// mouseFirstEntryRow is the first screen row an entry can occupy.
-	mouseFirstEntryRow = mouseTitleRow + 1 + mousePaneHeaderRows
+	mouseFirstEntryRow = mouseTitleRow + 1 + paneHeaderRows
 )
 
 // hitKind classifies what a screen coordinate hits.
