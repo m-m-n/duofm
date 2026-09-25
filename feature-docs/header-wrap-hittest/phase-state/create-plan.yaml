@@ -1,0 +1,21 @@
+schema_version: 1
+feature: header-wrap-hittest
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: c5d6b1343a441a0417882dcde2252e4b8f44e096
+last_input_digest: sha256:f72a85c4884852a0565cacb68bb0077e4433b399c181e220d4bb4bed496b3a8f
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:f72a85c4884852a0565cacb68bb0077e4433b399c181e220d4bb4bed496b3a8f
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
