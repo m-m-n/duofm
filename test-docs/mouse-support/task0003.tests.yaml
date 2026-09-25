@@ -1,0 +1,24 @@
+task_id: task0003
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: true
+    red_reason: "gofmt -l internal/ui/pane_test.go printed 'internal/ui/pane_test.go' before the change (misaligned struct fields in TestRestoreScrollOffset's table); after gofmt -w it printed nothing."
+  AC-2:
+    tests: []
+    red_confirmed: true
+    red_reason: "gofmt -l . from the repository root printed 'internal/ui/pane_test.go' before the change; after gofmt -w it printed nothing."
+  AC-3:
+    tests: []
+    red_confirmed: false
+    red_reason: "No applicable pre-change red state: before the change there was no diff at all, so 'git diff -w' was trivially empty either way. Verified instead by construction — gofmt -w internal/ui/pane_test.go only realigns struct-field whitespace — and confirmed post-change: 'git diff -w -- internal/ui/pane_test.go' is empty."
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: "No applicable pre-change red state: before the change 'git status --porcelain' showed no changed files, which does not exercise the criterion. Confirmed post-change: 'git status --porcelain' shows only internal/ui/pane_test.go as modified."
+  AC-5:
+    tests: [TestRestoreScrollOffset]
+    red_confirmed: false
+    red_reason: "TestRestoreScrollOffset and the full 'go test ./...' suite were already green in the baseline (recorded before touching any file); this is a whitespace-only formatting change with no behavior difference, so there is no red state to observe. Re-run after gofmt -w confirms the package still compiles and the full suite (including TestRestoreScrollOffset) still passes."

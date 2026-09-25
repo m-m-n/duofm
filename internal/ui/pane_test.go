@@ -3051,11 +3051,11 @@ func TestHistoryNavigationUpdatesPreviousPath(t *testing.T) {
 // height=10 → visibleLines = 10 - 4 = 6
 func TestRestoreScrollOffset(t *testing.T) {
 	tests := []struct {
-		name               string
-		numFiles           int // files to create (+ ".." entry)
-		height             int
-		cursor             int
-		savedOffset        int
+		name           string
+		numFiles       int // files to create (+ ".." entry)
+		height         int
+		cursor         int
+		savedOffset    int
 		expectedOffset int
 	}{
 		{
