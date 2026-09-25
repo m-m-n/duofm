@@ -1,7 +1,7 @@
 schema_version: 1
 feature: header-wrap-hittest
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: ac1297ad3274bad8c253dd514b92d858b9639d97
 last_input_digest: sha256:e8c3f766abd3e86bdcd9c8c140edc87a62577dc70d364974981aa97c3adf823c
