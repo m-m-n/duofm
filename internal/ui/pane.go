@@ -210,11 +210,19 @@ func (p *Pane) GotoBottom() {
 	p.adjustScroll()
 }
 
+// paneHeaderRows is the single definition of how many screen rows a pane
+// header occupies: header line 1, header line 2, and the border row. It is
+// shared by the renderer's visible-line / bg-split height computations
+// (below) and the mouse hit test's first entry row (mouse_hittest.go). Its
+// truth depends on every header row rendering as exactly one screen row —
+// see renderHeaderLine1 in pane_render.go for header line 1's bound.
+const paneHeaderRows = 3
+
 // bgSplitHeights calculates the file list and output area heights for the
 // background output split view. This is the single source of truth used by
 // both getVisibleLines() and ViewWithBgOutput().
 func (p *Pane) bgSplitHeights() (fileListHeight, outputHeight int) {
-	totalContent := p.height - 4 // header(2) + border(1) + trailing(1)
+	totalContent := p.height - paneHeaderRows - 1 // header rows + 1 trailing row
 	if totalContent < 3 {
 		totalContent = 3
 	}
@@ -238,7 +246,7 @@ func (p *Pane) getVisibleLines() int {
 		return fileListHeight
 	}
 
-	visibleLines := p.height - 4 // header(2) + border(1) + status(1) = 4
+	visibleLines := p.height - paneHeaderRows - 1 // header rows + 1 trailing row
 	if visibleLines < 1 {
 		return 1 // Minimum 1 line
 	}

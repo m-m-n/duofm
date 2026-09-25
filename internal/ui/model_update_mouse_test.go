@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -688,6 +689,138 @@ func TestHandleMouse_DoubleClick_OnInactiveRightPane_Activates(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Fatal("cmd = nil, want non-nil (Enter on directory)")
+	}
+}
+
+// --- AC-6: click, drag and double-click align with the renderer for a
+// long, no-branch path that would wrap header line 1 before the fix ---
+
+// newLongPathNoBranchModel builds a Model whose left pane shows a deeply
+// nested, git-branch-less directory containing "subdir" (index1), and
+// "alpha-file"/"bravo-file"/"charlie-file" (indices2-4), with ".." at
+// index0 (SortEntries' parent-then-dirs-then-files ordering). The displayed
+// path is wider than the pane at width 40 regardless of the temp root.
+func newLongPathNoBranchModel(t *testing.T, clock *fakeClock) Model {
+	t.Helper()
+	const width, height = 80, 24
+	paneWidth, paneHeight := width/2, height-2
+
+	dir := t.TempDir()
+	nested := dir
+	for i := 0; i < 20; i++ {
+		nested = filepath.Join(nested, fmt.Sprintf("nested-directory-segment-%02d", i))
+	}
+	if err := os.MkdirAll(nested, 0755); err != nil {
+		t.Fatalf("MkdirAll: %v", err)
+	}
+	if err := os.Mkdir(filepath.Join(nested, "subdir"), 0755); err != nil {
+		t.Fatalf("mkdir subdir: %v", err)
+	}
+	for _, name := range []string{"alpha-file", "bravo-file", "charlie-file"} {
+		if err := os.WriteFile(filepath.Join(nested, name), nil, 0644); err != nil {
+			t.Fatalf("write file %s: %v", name, err)
+		}
+	}
+
+	left, err := NewPane(LeftPane, nested, paneWidth, paneHeight, true, nil)
+	if err != nil {
+		t.Fatalf("NewPane left: %v", err)
+	}
+	left.gitBranch = "" // do not depend on whether the temp root is inside a git repo
+	right := newFilesPane(t, RightPane, 5, paneWidth, paneHeight, false)
+
+	return Model{
+		leftPane:   left,
+		rightPane:  right,
+		activePane: LeftPane,
+		width:      width,
+		height:     height,
+		detector:   newDoubleClickDetector(clock.now),
+	}
+}
+
+// rowOfEntry finds the screen row of the entry containing name by reading
+// the pane's own rendered output (offset by the title row), not the
+// hit-test constant. This is what makes these tests detect a
+// renderer / hit-test mismatch instead of hiding it behind a shared value.
+func rowOfEntry(t *testing.T, p *Pane, name string) int {
+	t.Helper()
+	lines := strings.Split(stripANSI(p.View()), "\n")
+	for i, line := range lines {
+		if strings.Contains(line, name) {
+			return mouseTitleRow + 1 + i
+		}
+	}
+	t.Fatalf("entry %q not found in rendered pane view:\n%s", name, strings.Join(lines, "\n"))
+	return -1
+}
+
+func TestHandleMouse_LongPathNoBranch_ClickMovesCursor(t *testing.T) {
+	clock := newFakeClock()
+	model := newLongPathNoBranchModel(t, clock)
+	row := rowOfEntry(t, model.leftPane, "alpha-file")
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, row, tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, row, tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	if model.leftPane.cursor != 2 { // entries: ".." "subdir" "alpha-file" "bravo-file" "charlie-file"
+		t.Errorf("cursor = %d, want 2", model.leftPane.cursor)
+	}
+}
+
+func TestHandleMouse_LongPathNoBranch_DragMarksRangeExcludingParent(t *testing.T) {
+	clock := newFakeClock()
+	model := newLongPathNoBranchModel(t, clock)
+
+	// The parent-dir row is not located by searching for "..": the
+	// truncated header ends with "...", which also contains "..". It is
+	// derived instead from "subdir"'s row, which is rendered directly below
+	// it with no gap.
+	subdirRow := rowOfEntry(t, model.leftPane, "subdir")
+	parentRow := subdirRow - 1
+	bravoRow := rowOfEntry(t, model.leftPane, "bravo-file")
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, parentRow, tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, bravoRow, tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, bravoRow, tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	assertMarks(t, model.leftPane,
+		model.leftPane.entries[1].Name, model.leftPane.entries[2].Name, model.leftPane.entries[3].Name,
+	)
+	if model.leftPane.IsMarked("..") {
+		t.Error("\"..\" must never be marked")
+	}
+}
+
+func TestHandleMouse_LongPathNoBranch_DoubleClickOnSubdir_StartsLoading(t *testing.T) {
+	clock := newFakeClock()
+	model := newLongPathNoBranchModel(t, clock)
+	wantPath := filepath.Join(model.leftPane.Path(), "subdir")
+	row := rowOfEntry(t, model.leftPane, "subdir")
+
+	updated, cmd1 := model.Update(mouseMsg(mouseTestLeftX, row, tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	if cmd1 != nil {
+		t.Errorf("first press cmd = %v, want nil", cmd1)
+	}
+
+	clock.advance(200 * time.Millisecond)
+	updated, cmd2 := model.Update(mouseMsg(mouseTestLeftX, row, tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+
+	if cmd2 == nil {
+		t.Fatal("second press cmd = nil, want non-nil (Enter on directory)")
+	}
+	if model.leftPane.Path() != wantPath {
+		t.Errorf("pane path = %q, want %q", model.leftPane.Path(), wantPath)
+	}
+	if !model.leftPane.IsLoading() {
+		t.Error("pane should be loading the new directory")
 	}
 }
 
