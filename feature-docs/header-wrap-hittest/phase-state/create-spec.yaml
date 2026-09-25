@@ -5,19 +5,61 @@ status: dispatching
 generation: 1
 base_revision: ac1297ad3274bad8c253dd514b92d858b9639d97
 last_input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
-active_request_id: create-spec-run-0002
+active_request_id: create-spec-run-0003
 packets:
   create-spec-q0001:
     status: obsolete
     issued_at: '2026-09-25T20:52:11+09:00'
     questions: []
-answers: {}
+  create-spec-q0002:
+    status: answered
+    issued_at: '2026-09-25T20:53:14+09:00'
+    questions:
+    - question_id: requirement.header-wrap.approach
+      status: answered
+    - question_id: design-step.header-wrap
+      status: answered
+answers:
+  requirement.header-wrap.approach:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-25T20:53:14+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - truncate_header
+    freeform: null
+    normalized_answer: 'Always keep header line 1 on one line: truncate the path with
+      an ellipsis even outside git (including branch-only overflow at narrow width);
+      header row count is one definition shared by renderer and hit testing. [recorded
+      as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen truncate_header; not chosen [''follow_rendered_rows''];
+      codex reason: 既存の描画と表示件数の計算はヘッダ3行前提で、ブランチありの分岐は既に末尾省略しているため全分岐に適用するのが変更範囲が小さい。follow_rendered_rows
+      は通常・bg分割・dimmed の表示件数とスクロール計算まで変更が要る; codex risks: 長いパスの末尾が見えない / ブランチ単独分岐も省略対象にしないと再発
+      / truncateStringWithEllipsis は負の幅で panic するので幅を0以上に補正; orchestrator mapping
+      judgement: agrees (matches worker tentative position)'
+  design-step.header-wrap:
+    packet_id: create-spec-q0002
+    answered_at: '2026-09-25T20:53:14+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: 'Accept analyst recommendation: design step skipped (bug fix
+      to existing header rendering and hit testing; no new visual elements).'
+    resolution_note: gate create-spec.design-step; batch-policies select decide_autonomously
 worker_runs:
 - request_id: create-spec-run-0001
   status: invalid_input
   input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
   output_digest: validation-error:gate_id create-spec.design-step missing option decide_autonomously
 - request_id: create-spec-run-0002
+  status: needs_user_input
+  input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
+  output_digest: packet:create-spec-q0002
+- request_id: create-spec-run-0003
   status: dispatched
   input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
   output_digest: null
