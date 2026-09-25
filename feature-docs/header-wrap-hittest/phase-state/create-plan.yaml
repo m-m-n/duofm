@@ -1,11 +1,11 @@
 schema_version: 1
 feature: header-wrap-hittest
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: c5d6b1343a441a0417882dcde2252e4b8f44e096
 last_input_digest: sha256:f72a85c4884852a0565cacb68bb0077e4433b399c181e220d4bb4bed496b3a8f
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -25,7 +25,7 @@ artifacts:
   produced_by: create-plan-run-0001
 patches:
 - patch_id: header-wrap-hittest-plan-p0001
-  status: validated
+  status: applied
   base_input_digest: sha256:f72a85c4884852a0565cacb68bb0077e4433b399c181e220d4bb4bed496b3a8f
   base_workflow_blob: 8f03cb0d53257e3d6ad5cb1aaca56b021e036824
 progress_fingerprint: null
