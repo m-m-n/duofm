@@ -634,17 +634,17 @@ test_multifile_compress() {
     # Mark multiple files
     send_keys "$CURRENT_SESSION" "/" "m" "u" "l" "t" "i" "1" "Enter"
     sleep 0.3
-    send_keys "$CURRENT_SESSION" "m"  # Mark first file
+    send_keys "$CURRENT_SESSION" "Space"  # Mark first file
     sleep 0.2
 
     send_keys "$CURRENT_SESSION" "/" "m" "u" "l" "t" "i" "2" "Enter"
     sleep 0.3
-    send_keys "$CURRENT_SESSION" "m"  # Mark second file
+    send_keys "$CURRENT_SESSION" "Space"  # Mark second file
     sleep 0.2
 
     send_keys "$CURRENT_SESSION" "/" "m" "u" "l" "t" "i" "3" "Enter"
     sleep 0.3
-    send_keys "$CURRENT_SESSION" "m"  # Mark third file
+    send_keys "$CURRENT_SESSION" "Space"  # Mark third file
     sleep 0.2
 
     # Open context menu - should show numbered "Compress 3 files"
