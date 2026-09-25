@@ -128,26 +128,27 @@ workflow:
   status: completed
   completed_at_commit: 7cda1f356991280fdae0b1bc98a56bf7c498f672
 - id: implement
-  status: completed
+  status: pending
   completed_at_commit: e0074661cc9ed5425e23fecbe572fc130cb2fddc
   base_commit: 4d6eeb594515cc21041c20ac1f4a5a759992e406
 - id: review
   status: completed
   completed_at_commit: 61925fe164ab579dcd56fedca7a661deff27b79f
 - id: verify
-  status: failed
+  status: pending
   result: fail
   failed_items:
   - id: TS1
     category: spec
     note: 'Full E2E run: Total 259 / Passed 255 / Failed 4. All 4 failures are in Archive Tests test_multifile_compress
-      (context menu "8. Compress 3 files" not shown, format dialog not shown, archive not created, archive contents).
-      The test marks files with "m" (KeyMove) instead of Space (KeyMark, internal/ui/keys.go), so the move/other flow
-      starts and multi1.txt ends up open in the editor (screen shows "multi file 1" with vim tildes).'
+      (context menu "8. Compress 3 files" not shown, format dialog not shown, archive not created, archive
+      contents). The test marks files with "m" (KeyMove) instead of Space (KeyMark, internal/ui/keys.go),
+      so the move/other flow starts and multi1.txt ends up open in the editor (screen shows "multi file
+      1" with vim tildes).'
   - id: TS10
     category: spec
-    note: 'Category run "archive" alone in a fresh container: Failed 4 (same test_multifile_compress assertions as TS1).
-      file-ops, mark, sort, shell, bookmark, history each pass alone with Failed 0.'
+    note: 'Category run "archive" alone in a fresh container: Failed 4 (same test_multifile_compress assertions
+      as TS1). file-ops, mark, sort, shell, bookmark, history each pass alone with Failed 0.'
 - id: retrospect
   status: pending
 tasks:
@@ -247,6 +248,27 @@ tasks:
     status: merged
     notes: null
     branch: em-workflow/fix-e2e-failures/task0005
+  task0006:
+    title: Multi-file compress test marks files with the mark key
+    plan: tasks/task0006.md
+    files:
+    - test/e2e/scripts/tests/archive_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR1
+    - NFR1
+    - NFR4
+    status: pending
+    notes: null
+    provenance:
+      source: verify
+      source_ids:
+      - TS1
+      - TS10
+      review_round: null
 review:
   status: completed
   plan:
@@ -258,7 +280,11 @@ review:
     discretionary: []
     cross_validation: false
   rounds_completed: 1
-  perspectives: [comprehensive, security, performance, spec]
+  perspectives:
+  - comprehensive
+  - security
+  - performance
+  - spec
   residual_critical_high: 0
   needs_rework: false
 requirements:
@@ -269,6 +295,7 @@ requirements:
     excluded_reason: null
     tasks:
     - task0002
+    - task0006
     tests:
     - TS1
     - TS5
@@ -375,6 +402,7 @@ requirements:
     - task0003
     - task0004
     - task0005
+    - task0006
     tests:
     - TS9
   NFR2:
@@ -407,6 +435,7 @@ requirements:
     tasks:
     - task0002
     - task0003
+    - task0006
     tests:
     - TS5
     - TS10
