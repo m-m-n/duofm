@@ -5,11 +5,19 @@ status: dispatching
 generation: 1
 base_revision: ac1297ad3274bad8c253dd514b92d858b9639d97
 last_input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
-active_request_id: create-spec-run-0001
-packets: {}
+active_request_id: create-spec-run-0002
+packets:
+  create-spec-q0001:
+    status: obsolete
+    issued_at: '2026-09-25T20:52:11+09:00'
+    questions: []
 answers: {}
 worker_runs:
 - request_id: create-spec-run-0001
+  status: invalid_input
+  input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
+  output_digest: validation-error:gate_id create-spec.design-step missing option decide_autonomously
+- request_id: create-spec-run-0002
   status: dispatched
   input_digest: sha256:fc504fcc7458bf11375653f6c0491d145c83cd0572c8f986d243098025c28040
   output_digest: null
