@@ -1,18 +1,34 @@
 schema_version: 1
 feature: fix-e2e-failures
 phase: create-spec
-status: dispatching
+status: awaiting_answers
 generation: 1
-base_revision: 99a0520ce26acf5e7625fe4bedd9fb9037cfe826
+base_revision: 9ca2bab45fa92c910d838a676d0e03603211d31b
 last_input_digest: sha256:5efdbd1b8bdc3365a05b1619985bf666bf79e1dc11ecbde3db2e5de0e59f3f51
-active_request_id: create-spec-run-0001
-packets: {}
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: issued
+    issued_at: '2026-09-25T20:57:00+09:00'
+    questions:
+    - question_id: requirement.fix-direction
+      status: issued
+    - question_id: requirement.sort-q-cancel
+      status: issued
+    - question_id: requirement.runner-coverage
+      status: issued
+    - question_id: requirement.entrypoint
+      status: issued
+    - question_id: requirement.assertion-scope
+      status: issued
+    - question_id: design-step.decision
+      status: issued
 answers: {}
 worker_runs:
 - request_id: create-spec-run-0001
-  status: dispatched
+  status: needs_user_input
   input_digest: sha256:5efdbd1b8bdc3365a05b1619985bf666bf79e1dc11ecbde3db2e5de0e59f3f51
-  output_digest: null
+  output_digest: sha256:4f90e6952c8c2a0791628a49e94152b880608b71973fbff3ec1bbd72e651a420
 artifacts: []
 patches: []
 progress_fingerprint: null
