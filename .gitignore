@@ -81,3 +81,6 @@ tmp/
 
 # Debian package build artifacts
 build/
+
+# Claude Code worktrees
+.claude/worktrees/
