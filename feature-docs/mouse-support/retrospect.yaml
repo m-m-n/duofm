@@ -1,0 +1,55 @@
+feature: mouse-support
+collected_at: "2026-09-25T10:05:00+09:00"
+session_ids: [01a0d5ff-b58d-765a-85d8-db1724829220]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures:
+    - id: TS-19
+      category: comprehensive
+      note: 'Regression (round 2): go test ./... passes, but full E2E has 29 failing assertions
+        (217 total / 187 pass), the identical 29 failures recorded on base cb86593 in round 1
+        (archive dialog tests x22, rename x2, batch delete marked files, sort dialog q cancel,
+        help shows shell command, bookmark dialog, history forward cleared). No regression
+        from this feature, but the expected result (every pre-existing E2E test passes) is
+        not met. Codex consulted (option A: record as failed; option B pass-by-intent not
+        chosen). Second occurrence of TS-19 -> batch lineage cap reached; no further rework.'
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full;
+      both readings: P(0)=0.0)'
+    bases:
+      - basis: description_only
+        probabilities: {'0': 0.0, '1': 0.21, '2': 0.79, '3': 0.0}
+        expectation_clear: 0.42
+        observed_at: '2026-09-24T23:03:50+09:00'
+      - basis: description_plus_code
+        probabilities: {'0': 0.0, '1': 0.02, '2': 0.98, '3': 0.0}
+        expectation_clear: 0.44
+        observed_at: '2026-09-24T23:03:55+09:00'
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/model.go
+        - internal/ui/model_update.go
+        - internal/ui/model_update_mouse.go
+        - internal/ui/pane_marks.go
+        - internal/ui/model_update_mouse_test.go
+        - internal/ui/pane_mark_test.go
+      changed_lines_approx: 400
+      new_functions_needed: 5
+      new_files_needed: 2
+      new_dependencies_needed: []
+      covering_tests_exist: true
+      spillover_modules: []
+      work_still_required: true
+follow_up_drafts:
+  - origin_kind: verify
+    origin_id: TS-19
+    title: "既存 E2E テスト 29 件が base (cb86593) の時点で失敗している"
+    body: "make test-e2e-build && make test-e2e を実行すると 217 件中 29 件が失敗する（archive dialog x22、rename x2、batch delete marked files、sort dialog q cancel、help shows shell command、bookmark dialog、history forward cleared）。mouse-support 適用前の base cb86593 でも同じ 29 件が失敗しており、この feature による退行ではない。"
+lessons_candidates:
+  - "verify の TS-19（既存 E2E 全件 pass）は base 時点で既に満たされていなかった。計画時に base の E2E 結果を取っておけば期待値を調整できた"
+  - "review round1 の medium 3 件（52107dd60886982b / 8437fbef4aeea580 / d46955efcda21c99）は unresolved のまま"
