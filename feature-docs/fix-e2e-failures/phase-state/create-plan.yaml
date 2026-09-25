@@ -1,11 +1,11 @@
 schema_version: 1
 feature: fix-e2e-failures
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
-base_revision: 91a59fc946860baefe0b689af4e333c43e2c43f4
+base_revision: 7cda1f356991280fdae0b1bc98a56bf7c498f672
 last_input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -37,7 +37,7 @@ artifacts:
   produced_by: create-plan-run-0001
 patches:
 - patch_id: fix-e2e-failures-create-plan-p0001
-  status: validated
+  status: applied
   base_input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
   base_workflow_blob: d2fa5e3fcdf06820df42892177d55f0ff23f9ee3
 progress_fingerprint: null
