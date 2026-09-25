@@ -194,7 +194,7 @@ tasks:
     - NFR1
     - NFR3
     - NFR4
-    status: in_progress
+    status: merged
     notes: null
     branch: em-workflow/fix-e2e-failures/task0003
   task0004:
