@@ -149,7 +149,8 @@ workflow:
   - 'Format: gofmt reformats internal/ui/pane_test.go, which is unformatted on main and untouched by this feature; reverted per NFR1 and filed as out-of-scope'
   - 'Codex consulted on pass/fail: recommended pass; test_batch_cancel_cursor flake and pane_test.go gofmt drift are pre-existing and out of scope'
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: 4db83e6e87140cd578e842a374aba468ecd883b3
 tasks:
   task0001:
     title: 'E2E runner: corrected run list and coverage guards'
