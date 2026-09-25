@@ -9,6 +9,7 @@ bases:
     '2': 0.24
     '3': 0.0
   observed_at: '2026-09-25T20:46:07+09:00'
+  expectation_clear: 0.81
 - basis: description_plus_code
   probabilities:
     '0': 0.0
@@ -16,6 +17,7 @@ bases:
     '2': 0.95
     '3': 0.04
   observed_at: '2026-09-25T20:46:07+09:00'
+  expectation_clear: 0.78
 pre_survey_estimate:
   files_expected:
   - internal/ui/pane_render.go
