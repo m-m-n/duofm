@@ -1,7 +1,7 @@
 schema_version: 1
 feature: fix-e2e-failures
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: 9ca2bab45fa92c910d838a676d0e03603211d31b
 last_input_digest: sha256:0309a7ef7a3f168f80bb6cd1e8218a692692c2428b12ca3071178b3466a77d41
