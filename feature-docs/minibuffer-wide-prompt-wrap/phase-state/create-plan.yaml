@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-wide-prompt-wrap
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 30ba4197bcaea422e15e8eeeadb190cdee32bc25
+last_input_digest: sha256:9060d1c211f95d3ff6ce5b9ac814d24b4bc8e2530335458aaac581d4e63cffa1
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:9060d1c211f95d3ff6ce5b9ac814d24b4bc8e2530335458aaac581d4e63cffa1
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
