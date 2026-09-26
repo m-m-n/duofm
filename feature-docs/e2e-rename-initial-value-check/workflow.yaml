@@ -141,7 +141,8 @@ tasks:
     - FR3
     - NFR1
     - NFR2
-    status: pending
+    status: in_progress
+    branch: em-workflow/e2e-rename-initial-value-check/task0001
 review:
   status: pending
   rounds_completed: 0
