@@ -1,7 +1,7 @@
 schema_version: 1
 feature: drag-dir-load-stale-marks
 phase: create-spec
-status: in_progress
+status: completed
 generation: 1
 base_revision: 6b0c620a3597e96e41e3a4200e6ef1227a883538
 last_input_digest: sha256:59492f3f8b082f1dab068966ddeb8c6f483fb3525cc4de2cb856aba54c95b390
