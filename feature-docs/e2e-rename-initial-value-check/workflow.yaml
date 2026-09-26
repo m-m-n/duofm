@@ -17,14 +17,12 @@ goal: '# E2E リネームテストの初期値チェックが常に通る
 
   ## 背景・なぜ (必須)
 
-  `file_operation_tests.sh` の `assert_contains "before_rename"`（195 行目）と `assert_contains
-  "navren_before"`（439 行目）は、ダイアログ背後のファイル一覧に同名ファイルが表示されている限り、入力欄の初期値に関係なく通る。
+  `file_operation_tests.sh` の `assert_contains "before_rename"`（195 行目）と `assert_contains "navren_before"`（439
+  行目）は、ダイアログ背後のファイル一覧に同名ファイルが表示されている限り、入力欄の初期値に関係なく通る。
 
-  `history_tests.sh` 167 行目の `assert_contains "testdata"` もパス表示により常に通る（直後の `assert_not_contains`
-  が実際の判定を担っている）。
+  `history_tests.sh` 167 行目の `assert_contains "testdata"` もパス表示により常に通る（直後の `assert_not_contains` が実際の判定を担っている）。
 
-  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4
-  ）
+  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4 ）
 
   レビュー指摘 537ddc2b5d008e78
 
@@ -70,24 +68,19 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
-        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
-        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
-        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
-        -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
         docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
-        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
-        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
-        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
-        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
-        ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD"
-        -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
-        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
-        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
-        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w
-        .
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -101,8 +94,8 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: The feature changes only E2E test shell scripts; it has no user
-    interface or visual change.
+  skipped_reason: The feature changes only E2E test shell scripts; it has no user interface or visual
+    change.
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -111,32 +104,31 @@ workflow:
   status: completed
   completed_at_commit: dd2b43559ae3b21f87d6788817d1e177728314f8
 - id: implement
-  status: completed
+  status: pending
   completed_at_commit: a545d467e447091566c46f7472cecdfbde2e55cd
   base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
 - id: review
-  status: completed
+  status: pending
   completed_at_commit: 55c3638af1605e33339af2fed7d6035756394ced
 - id: verify
-  status: failed
+  status: pending
   result: fail
   failed_items:
   - id: AC-2
     category: spec
-    note: assert_input_field_value の照合式がベース名の前後に空白以外の任意の 1 文字を許すため、初期値が before_rename.
-      / xbefore_rename / before_renamex（navren_before も同様）でも合格する。AC-2（初期値が期待値と異なるとき両検査が失敗する）を満たさない。review
-      の medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と同根
-  summary: 'build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
-    --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3)
-    / TS-2 mutation (C-u, full-name variant) each fail exactly the 2 initial-value
-    checks / TS-4 no *.go or helpers.sh diff / AC-2 fails: one extra leading or trailing
-    character is accepted. Excluded requirements: none'
+    note: assert_input_field_value の照合式がベース名の前後に空白以外の任意の 1 文字を許すため、初期値が before_rename. / xbefore_rename
+      / before_renamex（navren_before も同様）でも合格する。AC-2（初期値が期待値と異なるとき両検査が失敗する）を満たさない。review の medium 指摘 bafbaecc072f4a07
+      / d4573a9aef53ae65 と同根
+  summary: 'build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh --check-list OK
+    (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) / TS-2 mutation (C-u, full-name variant)
+    each fail exactly the 2 initial-value checks / TS-4 no *.go or helpers.sh diff / AC-2 fails: one extra
+    leading or trailing character is accepted. Excluded requirements: none'
 - id: retrospect
   status: pending
 tasks:
   task0001:
-    title: Input-line-only initial-value checks for the rename E2E tests, and removal
-      of the always-passing history check
+    title: Input-line-only initial-value checks for the rename E2E tests, and removal of the always-passing
+      history check
     plan: tasks/task0001.md
     files:
     - test/e2e/scripts/tests/file_operation_tests.sh
@@ -153,6 +145,26 @@ tasks:
     - NFR2
     status: merged
     branch: em-workflow/e2e-rename-initial-value-check/task0001
+  task0002:
+    title: Strict initial-value match in the rename dialog's input-field assertion
+    plan: tasks/task0002.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - NFR1
+    - NFR2
+    status: pending
+    provenance:
+      source: verify
+      source_ids:
+      - AC-2
+      review_round: null
 review:
   status: completed
   plan:
@@ -171,25 +183,26 @@ review:
   needs_rework: false
 requirements:
   FR1:
-    title: Restrict the initial-value check in test_rename_file to the input field,
-      with strict matching
+    title: Restrict the initial-value check in test_rename_file to the input field, with strict matching
     status: ok
     tbd_reason: null
     excluded_reason: null
     tasks:
     - task0001
+    - task0002
     tests:
     - TS-1
     - TS-2
     - TS-5
   FR2:
-    title: Restrict the initial-value check in test_navigation_after_rename to the
-      input field, with strict matching
+    title: Restrict the initial-value check in test_navigation_after_rename to the input field, with strict
+      matching
     status: ok
     tbd_reason: null
     excluded_reason: null
     tasks:
     - task0001
+    - task0002
     tests:
     - TS-1
     - TS-2
@@ -210,16 +223,17 @@ requirements:
     excluded_reason: null
     tasks:
     - task0001
+    - task0002
     tests:
     - TS-4
   NFR2:
-    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh
-      is not changed.
+    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh is not changed.
     status: ok
     tbd_reason: null
     excluded_reason: null
     tasks:
     - task0001
+    - task0002
     tests:
     - TS-4
 batch:
