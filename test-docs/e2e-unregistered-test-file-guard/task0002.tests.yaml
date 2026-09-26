@@ -1,0 +1,22 @@
+---
+task_id: task0002
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: true
+    red_reason: "checked by building the image from the pre-implementation Dockerfile (CMD [\"/e2e/scripts/run_all_tests.sh\"]) and running it with a stand-in self-test (prints SELFTEST_MARKER, exits 0) mounted read-only over /e2e/scripts/runner_self_test.sh and a stand-in runner (records its args, prints RUNNER_MARKER) over /e2e/scripts/run_all_tests.sh: SELFTEST_MARKER never appeared in the output, since the old CMD invokes the runner directly and never references the self-test path at all, so 'the self-test runs before the runner' did not hold. Tried with the stand-in runner exiting both 0 and 7; in both cases the container's exit status already matched the runner's status even pre-implementation (the old CMD execs the runner directly), so that half of the criterion was not separately red -- the missing half (self-test-first, exactly-once, no-arguments sequencing) is what red_confirmed covers here."
+  AC-2:
+    tests: []
+    red_confirmed: true
+    red_reason: "checked by building the image from the pre-implementation Dockerfile and running it with a stand-in self-test that prints SELFTEST_MARKER and exits 1, mounted over /e2e/scripts/runner_self_test.sh, plus the stand-in runner over run_all_tests.sh: RUNNER_MARKER was printed and the container exited 0, i.e. the runner ran unconditionally regardless of the (unused) self-test's exit status. This is the direct pre-implementation failure of 'the runner never runs when the self-test fails'."
+  AC-3:
+    tests: []
+    red_confirmed: false
+    red_reason: "this criterion pins a Docker semantic (no ENTRYPOINT is set, so an explicit command given to `docker run` replaces CMD entirely) that already held before this task's change and continues to hold after it; the pre-implementation image had no self-test wiring in CMD at all, so 'the self-test does not run under an explicit command' was vacuously true beforehand and there was no failing state to observe. Verified post-implementation instead: mounted a stand-in self-test (prints SELFTEST_MARKER) and ran the built image with the explicit command `/e2e/scripts/run_all_tests.sh --help`; only the real --help output appeared, SELFTEST_MARKER did not, confirming the new CMD's self-test wiring is not reachable through an explicit command."
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: "this criterion is an invariant-preservation check (existing user/workdir behavior, and diff scope), not new behavior with a failing pre-state -- the pre-implementation image already ran as testuser with WORKDIR /testdata, unchanged by this task. Verified post-implementation: `docker inspect` on the built image reports Config.User=testuser and Config.WorkingDir=/testdata, and `git diff -- test/e2e/Dockerfile` shows the change is limited to the default-command comment and the CMD line."
+notes: "No in-repository automated test exists for Dockerfile behavior (per task plan Test Notes); all checks are docker build/run executions. For AC-1 and AC-2 the pre-implementation Dockerfile was reconstructed via `git checkout -- test/e2e/Dockerfile` (restoring the committed HEAD version), built and exercised with stand-in scripts to observe the actual pre-implementation failure, then the implemented Dockerfile was restored from a saved copy, rebuilt, and re-verified green -- this is the 'red' evidence for those two criteria. This worktree does not contain test/e2e/scripts/runner_self_test.sh (task0001, running in parallel, creates it); the AC-2 'self-test cannot be executed' branch was exercised via this real absence rather than a synthetic stand-in."
