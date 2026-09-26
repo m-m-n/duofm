@@ -1,7 +1,7 @@
 schema_version: 1
 feature: narrow-pane-render-panic
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: fdc9ae40802d980ac5e3adea1bf41f38145d5ef9
 last_input_digest: sha256:9b1fda2540b06ca4b1223c0e364c95369068db83889a62fd47a36e05d7bed280
