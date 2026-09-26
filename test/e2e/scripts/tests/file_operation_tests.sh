@@ -17,12 +17,13 @@ source "${SCRIPT_DIR}/../helpers.sh"
 # search-filter display (e.g. "/before_ren"), so it passes even when the
 # input field itself is empty or holds the wrong value. This helper instead
 # requires the match to occur on a single captured row, in this order: a
-# vertical border character, only whitespace (plus at most one cursor
-# glyph immediately before the base name), the base name, at most one
-# cursor glyph then only whitespace, another vertical border character,
-# whitespace, and the fixed extension. That structure is unique to the
-# input field's own row and cannot be produced by the file-list row, the
-# title row, or the search-filter display.
+# vertical border character, only whitespace, the base name, only
+# whitespace, another vertical border character, whitespace, and the fixed
+# extension. No non-whitespace character next to the base name is
+# tolerated, including a single one on either side: the cursor is drawn by
+# reverse video only, and the capture drops attributes. That structure is
+# unique to the input field's own row and cannot be produced by the
+# file-list row, the title row, or the search-filter display.
 #
 # Usage: assert_input_field_value <session_name> <expected_base_name> <extension> <description>
 # ===========================================
@@ -47,14 +48,14 @@ assert_input_field_value() {
     # │ = U+2502 BOX DRAWINGS LIGHT VERTICAL: the border character drawn by
     # lipgloss.RoundedBorder() around the input field.
     local border='│'
-    local pattern="${border}[[:space:]]*[^[:space:]]?${escaped_base}[^[:space:]]?[[:space:]]*${border}[[:space:]]*${escaped_ext}"
+    local pattern="${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}"
 
     # Force a UTF-8 locale for this match only (independent of the E2E
-    # container's ambient locale, which is POSIX/C): a cursor glyph may be
-    # a multi-byte character, and it must count as exactly one character,
-    # not one byte per element of its UTF-8 encoding. grep without -z
-    # already evaluates each line independently, so a match never spans
-    # two captured rows.
+    # container's ambient locale, which is POSIX/C): the border character
+    # is multi-byte and is matched as literal text here, with no "any
+    # single character" element in the pattern. grep without -z already
+    # evaluates each line independently, so a match never spans two
+    # captured rows.
     if echo "$screen" | LC_ALL=C.utf8 grep -qE -- "$pattern"; then
         echo -e "${GREEN}✓${NC} $description"
         TESTS_PASSED=$((TESTS_PASSED + 1))

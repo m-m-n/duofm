@@ -1,0 +1,28 @@
+task_id: task0002
+baseline_failures: []          # go test ./... (project_commands.test), run before any edit
+final_failures: "not re-run; baseline inherited: only test/e2e/scripts/tests/file_operation_tests.sh (a bash script) changed; `go test ./...` does not read or execute this file (no go:embed, no *.go reference to test/e2e/**). Correctness of the actual change was instead verified through the mutation-testing runs recorded per acceptance criterion below, plus a full unmutated `make test-e2e` run (264/264 passed, 0 failed)."
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: false
+    red_reason: "AC-1 is a source-inspection criterion per the task plan (no test/build/lint check is named for it). Searched test/e2e/scripts for existing coverage of the assertion's pattern shape by both the file's relative path and its basename, and by the function name assert_input_field_value: no test other than the two call sites (test_rename_file, test_navigation_after_rename) references it, and neither performs a static/source check of the regex shape. Verified by direct review of the diff: both `[^[:space:]]?` elements (the cursor-glyph allowance) were removed from the pattern, leaving only `[[:space:]]*` around the base name; the call sites and their arguments (before_rename/.txt, navren_before/.txt) are unchanged. The criterion's substance (no arbitrary-character allowance) is exercised behaviorally by AC-2's mutation runs below, which fail after this change and would incorrectly pass if the allowance remained."
+  AC-2:
+    tests: [test_rename_file, test_navigation_after_rename]
+    red_confirmed: true
+    red_reason: "Mutation variant (a) (send End then \".\" immediately before each initial-value check) was run against the current merged (pre-fix) assertion first: both test_rename_file's and test_navigation_after_rename's \"Rename dialog is pre-filled with the base name\" check incorrectly PASSED (file-ops category: 30/30 passed, 0 failed), confirming the defect (AC-2 unmet). The identical mutation was re-run after the fix: both checks FAILED as required. Variants (b) (Home, x) and (c) (End, x) were run against the fixed assertion only and both checks failed correctly in both test functions for each; per the task's Test Notes, one variant's red-then-green pair is sufficient red evidence for this criterion, with the remaining variants confirmed as green (i.e. correctly failing) runs."
+  AC-3:
+    tests: [test_rename_file, test_navigation_after_rename]
+    red_confirmed: false
+    red_reason: "Both variants ((a) C-u; (b) End . t x t) were run against the current merged (pre-fix) assertion and against the fixed assertion. In every case both initial-value checks already failed correctly under the OLD code too (before_rename/navren_before is a literal, non-optional element of the pattern in both the old and new regex, so clearing the field or filling it with the full name plus extension never matched even before this task's change). This criterion's behavior pre-existed and is unaffected by the fix; no red state was observed for either variant."
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: "Verifiable outcome is a full `make test-e2e` run (no test-code check named). Without any mutation, the full suite already passed before this task's change (the defect in AC-2 only manifests under the specific mutations, not in ordinary use), so no red state applies to this criterion. Confirmed green after the fix: `docker run --rm duofm-e2e-test` (built from test/e2e/Dockerfile per the Makefile's test-e2e target) ran the full run list -- 264 total, 264 passed, 0 failed, container exit code 0 -- including both initial-value checks and every other category."
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: "Structural diff-scope check, not a test/build/lint outcome. Before any edit the diff was empty, which trivially (vacuously) satisfies \"touches only file_operation_tests.sh\", so no meaningful red state exists for this criterion. Verified directly: `git status --short` / `git diff --stat` show exactly one changed file, test/e2e/scripts/tests/file_operation_tests.sh; no *.go file and no change to test/e2e/scripts/helpers.sh."
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: "Verifiable outcomes are `bash -n` and `run_all_tests.sh --check-list`, both build/lint-style checks. This task's change does not add, remove, or rename any test_ function and introduces no syntax error, so no red state was ever produced by the change -- it was already true before this edit and confirmed still true after. Ran on the host: `bash -n test/e2e/scripts/tests/file_operation_tests.sh` exits 0; `bash test/e2e/scripts/run_all_tests.sh --check-list` prints \"OK: run list matches defined tests (123 entries)\"."
