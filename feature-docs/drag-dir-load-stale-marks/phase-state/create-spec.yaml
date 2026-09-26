@@ -5,7 +5,7 @@ status: in_progress
 generation: 1
 base_revision: 6b0c620a3597e96e41e3a4200e6ef1227a883538
 last_input_digest: sha256:59492f3f8b082f1dab068966ddeb8c6f483fb3525cc4de2cb856aba54c95b390
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -90,10 +90,13 @@ worker_runs:
   input_digest: sha256:59492f3f8b082f1dab068966ddeb8c6f483fb3525cc4de2cb856aba54c95b390
   output_digest: null
 - request_id: create-spec-run-0003
-  status: dispatched
+  status: completed
   input_digest: null
   output_digest: null
-artifacts: []
+artifacts:
+- path: feature-docs/drag-dir-load-stale-marks/SPEC.md
+  sha256: sha256:a201c5c1899258bf0e399b5ec166b41047c3154c5e9a18a89f1e4bcababfbb4e
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
