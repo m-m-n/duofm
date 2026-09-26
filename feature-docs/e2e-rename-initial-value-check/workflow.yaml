@@ -111,7 +111,7 @@ workflow:
   status: completed
   completed_at_commit: bd1a654aaff2f59fb7974bcb6bf73d7a0a0ad981
 - id: verify
-  status: pending
+  status: in_progress
   result: fail
   failed_items:
   - id: AC-2
