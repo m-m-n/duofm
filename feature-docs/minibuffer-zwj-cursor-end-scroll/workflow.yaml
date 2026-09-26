@@ -90,7 +90,8 @@ workflow:
   base_commit: 612c55aa55739526f9f4ddf59e144f203b5ed462
   completed_at_commit: fcbb186177a6e17a357ed537782ba2971f6c58bb
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 2d89bb3f8e01d2688b0e5b14d59c7546b504c32e
 - id: verify
   status: pending
   result: null
@@ -119,8 +120,14 @@ tasks:
     status: merged
     branch: em-workflow/minibuffer-zwj-cursor-end-scroll/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor:
     - comprehensive
