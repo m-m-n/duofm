@@ -2,60 +2,35 @@ schema_version: 1
 feature: drag-dir-load-stale-marks
 created: '2026-09-26'
 base_branch: main
-goal: '# ドラッグ中にディレクトリ読み込みが完了すると古い一覧の範囲でマークされる
-
+goal: |
+  # ドラッグ中にディレクトリ読み込みが完了すると古い一覧の範囲でマークされる
 
   種別: バグ
-
   Notion タスク: https://www.notion.so/3e63509ec8ee81fea450ca1bcf2efda4
 
-
   ## 現象 (必須)
-
   ディレクトリ読み込み中にドラッグを開始し、ドラッグ中に読み込みが完了すると、古い一覧の anchor と baseline が新しい一覧に適用され、意図しないファイルがマークされる。
-
   `handleDirectoryLoadComplete` は entries / cursor / scrollOffset を置き換えるだけで mouseDrag を解除しない。
-
   レビュー指摘 stable_id: d46955efcda21c99（medium、mouse-support の review round1 で未解決）
-
   ## 再現手順 (必須)
-
   1. 読み込みに時間のかかるディレクトリを開く
-
   2. 読み込み完了前にドラッグを開始する
-
   3. 読み込み完了後に別の行へポインタを動かす
-
   4. 意図しないファイルがマークされる
-
   ## 期待する挙動 (必須)
-
   一覧が入れ替わった後に、古い一覧の範囲でマークされない。
-
   ## 完了の定義 (必須)
-
   - [ ] 再現手順で現象が起きない
-
   - [ ] 再発を検出するテストがある
-
   ## 該当箇所 (任意)
-
   `internal/ui/model_update_mouse.go:177`
-
   ## 実害・発生条件 (任意)
-
   \<誰が何に困るか / 特定バージョン・データのときだけ 等\>
 
-
   ## 追加指示
-
   Once the implementation is finished, push the integration branch to the remote and create a Pull Request against base_branch with gh pr create. Keep the integration branch both locally and on the remote (do not auto-merge it into base_branch).
-
   Consult Codex on any unclear points and adopt the option judged to be comparatively better.
-
   Record the content of that discussion in Notion.
-
-  '
 parent_branch: em-workflow/drag-dir-load-stale-marks/integration
 tier: reduced
 tier_decision:
