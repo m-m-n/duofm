@@ -1,6 +1,9 @@
 package ui
 
-import "path/filepath"
+import (
+	"path/filepath"
+	"sort"
+)
 
 // ToggleMark toggles the mark on the currently selected file
 // Returns false if the current entry is a parent directory
@@ -28,19 +31,39 @@ func (p *Pane) IsMarked(filename string) bool {
 	return p.markedFiles[filename]
 }
 
-// GetMarkedFiles returns list of marked filenames
+// GetMarkedFiles returns the marked filenames in the pane's display order.
+// Marked names that are not present in the current display list (e.g.
+// hidden by an active filter) are appended afterward, sorted ascending by
+// name. The result always has exactly one entry per marked name.
 func (p *Pane) GetMarkedFiles() []string {
 	result := make([]string, 0, len(p.markedFiles))
-	for name := range p.markedFiles {
-		result = append(result, name)
+	emitted := make(map[string]bool, len(p.markedFiles))
+
+	for _, entry := range p.entries {
+		if p.markedFiles[entry.Name] && !emitted[entry.Name] {
+			result = append(result, entry.Name)
+			emitted[entry.Name] = true
+		}
 	}
-	return result
+
+	remaining := make([]string, 0, len(p.markedFiles)-len(emitted))
+	for name := range p.markedFiles {
+		if !emitted[name] {
+			remaining = append(remaining, name)
+		}
+	}
+	sort.Strings(remaining)
+
+	return append(result, remaining...)
 }
 
-// GetMarkedFilePaths returns list of full paths for marked files
+// GetMarkedFilePaths returns the full paths of the marked files. The order
+// and length always match GetMarkedFiles, since the paths are derived from
+// it rather than computed independently.
 func (p *Pane) GetMarkedFilePaths() []string {
-	result := make([]string, 0, len(p.markedFiles))
-	for name := range p.markedFiles {
+	names := p.GetMarkedFiles()
+	result := make([]string, 0, len(names))
+	for _, name := range names {
 		result = append(result, filepath.Join(p.path, name))
 	}
 	return result
