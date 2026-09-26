@@ -1,0 +1,251 @@
+schema_version: 1
+feature: minibuffer-wide-prompt-wrap
+created: '2026-09-26'
+base_branch: main
+goal: |
+  # 狭い幅のミニバッファで全角文字を含むプロンプトが 2 行に折り返す
+
+  Notion タスク: https://app.notion.com/p/3e73509ec8ee81789f56f9ce08edbe79 （種別: バグ）
+
+  ## 現象 (必須)
+  ミニバッファの入力表示幅が 0 以下になる狭い幅で、プロンプトを「文字数（rune 数）」で切り詰めているため、全角文字を含むプロンプトが表示幅を超えて 2 行に折り返す。ミニバッファは 1 行ぶんしか確保されていないので、ペイン全体の行数も 1 行ずれる。
+  レビュー指摘 stable_id: 39b88945803ca2e1（medium、narrow-pane-render-panic の review round1 で未解決）
+
+  ## 再現手順 (必須)
+  1. ミニバッファ幅が 26〜32 程度になる端末幅で duofm を起動する
+  2. 履歴検索（reverse-i-search）を開き、全角文字（例: 日本語）でパターンを入力する
+  3. プロンプト `(reverse-i-search)'日本語': ` が 22 rune に切られても表示幅は 25 桁あり、22 桁の表示領域を超えて 2 行になる
+
+  ## 期待する挙動 (必須)
+  全角文字を含むプロンプトでも、ミニバッファは 1 行で描画される。
+
+  ## 完了の定義 (必須)
+  - [ ] 再現手順で現象が起きない
+  - [ ] 再発を検出するテストがある
+
+  ## 該当箇所 (任意)
+  `internal/ui/minibuffer.go:243`（availableWidth <= 0 の分岐でのプロンプト切り詰め）/ `internal/ui/model_update_keyboard.go:543`（履歴検索プロンプトの組み立て）/ `internal/ui/pane_render.go`（viewInternal のミニバッファ 1 行ぶんの確保）
+
+  ## 実害・発生条件 (任意)
+  ミニバッファ幅がおよそ 26〜32 で、プロンプトに全角文字が含まれるとき。availableWidth >= 1 の既存経路にも同じ rune 単位の切り詰めがあるが、こちらは narrow-pane-render-panic より前からある挙動。
+
+  ## 追加指示（起動時）
+  - 実装完了後、integration ブランチを remote に push し、gh pr create で base_branch への PR を作成する。integration ブランチはローカル・リモートともに残す（base_branch へ自動マージしない）
+  - 不明点は Codex に相談し、比較して良いと判断した選択肢を採用する
+  - その議論内容を Notion に記録する
+parent_branch: em-workflow/minibuffer-wide-prompt-wrap/integration
+tier: full
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.23
+      '1': 0.64
+      '2': 0.13
+      '3': 0.0
+    expectation_clear: 0.86
+    observed_at: '2026-09-26T17:45:34+09:00'
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.22
+      '1': 0.67
+      '2': 0.11
+      '3': 0.0
+    expectation_clear: 0.85
+    observed_at: '2026-09-26T17:45:34+09:00'
+  at: '2026-09-26T17:45:45+09:00'
+  reductions: []
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - REQUIREMENTS.md
+  - SPEC.md
+  status: completed
+  completed_at_commit: 18d3e96d1901351468ffedeb3145fbb601d68cef
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: 既存のミニバッファ描画の幅計算の不具合修正で、新しい UI 要素や見た目の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: completed
+  completed_at_commit: 665d45a312e8a1e0a65b1f75ab040981ad9c3adb
+- id: implement
+  status: completed
+  base_commit: e0569216ea0692e67efba5928b030254c66efc7a
+  completed_at_commit: f6af37e06987eba3cef287ac36dcd85daa9db9a3
+- id: review
+  status: completed
+  completed_at_commit: a441b2a1c4bf53356fda8729f46f94d2cd63a7c9
+- id: verify
+  status: completed
+  result: pass
+  failed_items: []
+  summary: |
+    build / go test ./... / gofmt（差分なし）が通過。TS-1〜TS-8 の該当テストは全て通過し、既存テストの変更なし。
+    既存 E2E スイート（make test-e2e-build && make test-e2e）265/265 通過。
+    Manual Testing 2 項目は tmux 上の実機描画で確認: 端末幅 56〜76 で reverse-i-search に「日本語」を入力してもミニバッファは 1 行でペイン行数がずれない。端末幅 76/80 で全角を含む入力のカーソルを末尾・先頭・途中へ動かしても 1 行のまま。
+  completed_at_commit: f86228203baf692c63670def12f7b6fc827f0369
+- id: retrospect
+  status: completed
+  completed_at_commit: 50bca111322de9f20fab4701b68b651a36731d12
+tasks:
+  task0001:
+    title: ミニバッファ描画を表示幅基準にして 1 行を保証する
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/minibuffer.go
+    - internal/ui/minibuffer_test.go
+    - internal/ui/pane_render_test.go
+    - go.mod
+    - go.sum
+    skills:
+    - frontend-impl
+    domains:
+    - ui
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - FR6
+    - FR7
+    - FR8
+    - NFR1
+    status: merged
+    branch: em-workflow/minibuffer-wide-prompt-wrap/task0001
+review:
+  status: completed
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
+requirements:
+  FR1:
+    title: 表示幅の基準
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
+  FR2:
+    title: 1 行の保証
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
+  FR3:
+    title: プロンプトだけで内容幅を使い切るとき
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+  FR4:
+    title: 入力部分の表示範囲
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-7
+  FR5:
+    title: 全角文字が境界にかかるとき
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+  FR6:
+    title: 幅 0〜4 の既存の挙動を維持
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-4
+  FR7:
+    title: ペインの行数
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-3
+  FR8:
+    title: 収まる内容はそのまま表示
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-4
+    - TS-6
+  NFR1:
+    title: 変更範囲
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-8
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 0
+    failed_id_counts: {}
+  infra_resume:
+    rounds: 0
+    cap: 2

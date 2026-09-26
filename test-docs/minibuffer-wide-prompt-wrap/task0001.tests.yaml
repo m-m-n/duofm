@@ -1,0 +1,118 @@
+task_id: task0001
+baseline_failures:              # go test ./... before any change (Step 4a); unrelated to this task
+  - TestUpdate_NavigationJK
+  - TestUpdate_NavigationNumeric/key_1
+  - TestUpdate_NavigationNumeric/key_2
+  - TestUpdate_Enter
+  - TestUpdate_NumericKey_ActionID/key_1
+  - TestUpdate_NumericKey_ActionID/key_2
+  - TestUpdate_ArrowKeys
+final_failures:                 # go test ./... after implementation; identical to baseline_failures
+  - TestUpdate_NavigationJK
+  - TestUpdate_NavigationNumeric/key_1
+  - TestUpdate_NavigationNumeric/key_2
+  - TestUpdate_Enter
+  - TestUpdate_NumericKey_ActionID/key_1
+  - TestUpdate_NumericKey_ActionID/key_2
+  - TestUpdate_ArrowKeys
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferView_WidthInputCursorTable_BoundedSingleLine]
+    red_confirmed: true
+    red_reason: >-
+      Before the fix, at widths 26-32 (prompt "(reverse-i-search)'日本語': ",
+      any input/cursor combination) Minibuffer.View wrapped into two lines,
+      e.g. width=26: " (reverse-i-            \n search)'日本語         ".
+      This is because the old code measured the prompt's available width
+      using len(m.prompt) (bytes), so a prompt containing 3-byte UTF-8
+      runes was treated as far shorter than its actual display width.
+  AC-2:
+    tests: [TestMinibufferView_WidthInputCursorTable_BoundedSingleLine]
+    red_confirmed: true
+    red_reason: >-
+      Same test as AC-1 (TS-1 covers both AC-1's widths 24-32 and AC-2's
+      widths 36-37 in one table). Independently observed red at width=37
+      specifically: width=37/input="echo 日本語"/cursor=end failed with
+      "result contains a line break: \" (reverse-i-search)'日本語':
+      \n 日本語  \"". The old code computed the prompt's available width
+      from len(m.prompt) (bytes) while comparing the assembled line's
+      content budget in display columns, so a 3-byte-per-rune prompt with
+      full-width characters plus a full-width input tail overflowed the
+      style's content width and wrapped.
+  AC-3:
+    tests: [TestMinibufferView_BoundaryWidths_TruncationAndBound]
+    red_confirmed: true
+    red_reason: >-
+      Before the fix, width=25 and width=26 both produced a wrapped
+      (two-line) result: width=25 gave " (reverse-i-           \n
+      search)'日本          " and width=26 gave " (reverse-i-            \n
+      search)'日本語         ", so the "no line break" assertion failed
+      before the "contains"/"not contains" content assertions could even be
+      meaningful.
+  AC-4:
+    tests: [TestMinibufferView_ScrolledInput_CursorCharacterVisible]
+    red_confirmed: true
+    red_reason: >-
+      Before the fix, TestMinibufferView_ScrolledInput_CursorCharacterVisible
+      failed at cursor_rune_index_7 through cursor_rune_index_10 and at
+      cursor_at_end: the old rune-count-based scrolling window did not
+      account for the full-width runes ("日本語花鳥") occupying two display
+      columns each, so it computed a window (in rune counts) far wider than
+      the actual remaining display width, causing the assembled line to
+      exceed the style's width and wrap instead of showing the cursor's
+      character.
+  AC-5:
+    tests: [TestMinibufferView_GraphemeClusters_BoundedSingleLine]
+    red_confirmed: false
+    red_reason: >-
+      This table (combining-character prompt "éclair: ", ZWJ-joined
+      emoji input "👨‍👩‍👧‍👦ls", widths 24-37, every cursor rune position)
+      passed even before the fix: neither string is long enough in bytes or
+      display width to exceed the old byte-length-based budget at these
+      widths, so the old rune-count/byte-count arithmetic happened to stay
+      within bounds here. The behavior this criterion targets (grapheme
+      clusters never causing overflow) genuinely pre-existed for these
+      specific fixtures; AC-1/AC-2/AC-3/AC-4 already demonstrate the
+      underlying bug (byte/rune-count width confusion) with a red state, and
+      this table is the regression guard for the grapheme-cluster edge case
+      once the fix is in place.
+  AC-6:
+    tests: [TestPaneViews_ViewWithMinibuffer_WidePromptRowCountMatchesSimplePrompt]
+    red_confirmed: true
+    red_reason: >-
+      Before the fix, both width=26 and width=37 produced "row count = 24,
+      want 23": the wide-prompt minibuffer wrapped into 2 rows while the
+      simple-prompt baseline stayed at 1 row, so ViewWithMinibuffer's output
+      had one extra row overall.
+  AC-7:
+    tests:
+      - TestMinibufferView_Width40_PromptAndInputFitUntruncated
+      - TestMinibufferView_NarrowWidths_NoPanicNoLineBreak
+      - TestMinibufferView_ReverseISearchPrompt_NarrowWidth_NoPanicNoLineBreak
+      - TestMinibufferView
+      - TestMinibufferHandleKeyCharacterInput
+      - TestMinibufferHandleKeyBackspace
+      - TestMinibufferHandleKeyDelete
+      - TestMinibufferHandleKeyCursorMovement
+      - TestMinibufferHandleKeyCtrlA
+      - TestMinibufferHandleKeyCtrlE
+      - TestMinibufferHandleKeyCtrlK
+      - TestMinibufferHandleKeyCtrlU
+      - TestMinibufferHandleKeyInsertAtMiddle
+      - TestMinibufferHandleKeySpace
+      - TestMinibufferHandleKeySpaceAtMiddle
+    red_confirmed: false
+    red_reason: >-
+      This criterion is a regression/non-regression check (TS-4, TS-6,
+      TS-8): the width-40 untruncated case and all of the listed pre-existing
+      tests (narrow-width panic/line-break checks, HandleKey and cursor
+      editing behavior) already passed before this task's change and are
+      required to keep passing after it, per the task plan's explicit
+      instruction to leave HandleKey and cursorPos-editing behavior
+      unchanged. There is no expected red state for "existing behavior must
+      keep working."
+notes: >-
+  go test ./... was re-run after implementation (internal/ui package
+  1.976s). final_failures is identical to baseline_failures (the
+  context_menu_dialog_test.go failures are pre-existing and unrelated to
+  minibuffer.go/minibuffer_test.go/pane_render_test.go).
