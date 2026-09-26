@@ -213,8 +213,39 @@ func (m *Minibuffer) View() string {
 	// Calculate visible portion if input is too long
 	cursorDisplayPos := m.cursorPos
 	startPos := 0
+	promptToRender := m.prompt
 
-	if len(runes) > availableWidth {
+	if availableWidth <= 0 {
+		// Input display width is zero or negative: the window computation
+		// below produces reversed or out-of-range bounds here, so it is not
+		// computed from the input. Show an empty input portion with no
+		// cursor block; only the prompt is rendered (SPEC A6 does not
+		// specify this content). Suppressing the cursor block too matters
+		// even here: appending it would add one glyph beyond the prompt,
+		// which can still overflow the style's Width and wrap when the
+		// prompt alone exactly fills it.
+		displayInput = ""
+		cursorDisplayPos = -1
+
+		// availableWidth<=0 means the prompt alone is already at least as
+		// long as the style's content width (m.width-4). At minibuffer
+		// widths > 4 that content width is positive and the styling
+		// library hard-wraps into multiple lines when content exceeds it
+		// (at widths <= 4 the style's Width, m.width-2, is <= 2, which the
+		// library never wraps regardless of content length, so the prompt
+		// is left untouched there). Truncate the rendered prompt so the
+		// no-line-break postcondition holds even for a prompt this long.
+		if m.width > 4 {
+			contentWidth := m.width - 4
+			if contentWidth < 0 {
+				contentWidth = 0
+			}
+			promptRunes := []rune(m.prompt)
+			if len(promptRunes) > contentWidth {
+				promptToRender = string(promptRunes[:contentWidth])
+			}
+		}
+	} else if len(runes) > availableWidth {
 		// Ensure cursor is visible
 		if m.cursorPos > availableWidth-1 {
 			startPos = m.cursorPos - availableWidth + 1
@@ -247,5 +278,5 @@ func (m *Minibuffer) View() string {
 		Foreground(lipgloss.Color("15")).
 		Background(lipgloss.Color("236"))
 
-	return style.Render(m.prompt + result.String())
+	return style.Render(promptToRender + result.String())
 }
