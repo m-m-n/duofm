@@ -1,0 +1,31 @@
+feature: e2e-unregistered-test-file-guard
+collected_at: "2026-09-27T02:20:00+09:00"
+session_ids: [01a0deb7-9952-7576-8e25-cbbb9509c156]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: "description_plus_code の最終読み（score 1.39, confidence 0.61）を評価器の閾値に照らして full を決定"
+    bases:
+      - basis: description_only
+        score: {type: score, score: 1.05, confidence: 0.95}
+        observed_at: "2026-09-27T01:00:52+09:00"
+      - basis: description_plus_code
+        score: {type: score, score: 1.39, confidence: 0.61}
+        observed_at: "2026-09-27T01:04:29+09:00"
+    pre_survey_estimate:
+      changed_lines_approx: 110
+      new_functions_needed: true
+      new_files_needed: true
+      new_dependencies_needed: false
+      change_containment: single_module
+      changes_external_contract: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review round 1 で litellm (muse-spark-contributor) の 3 観点が rate_limited で skip し codex へフォールバックした"
+  - "medium の spec 指摘 78ba4f8a81887623（runner_self_test.sh の mktemp が SELF_TMPDIR 外に作る）が unresolved のまま残った"
