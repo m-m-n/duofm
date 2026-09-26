@@ -113,7 +113,7 @@ tasks:
     - NFR1
     - NFR2
     - NFR3
-    status: in_progress
+    status: merged
     branch: em-workflow/drag-dir-load-stale-marks/task0001
 review:
   status: pending
