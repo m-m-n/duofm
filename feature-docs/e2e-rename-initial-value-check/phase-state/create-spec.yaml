@@ -5,7 +5,7 @@ status: dispatching
 generation: 2
 base_revision: 2c52fb742d3156ad2cf41b7967707a55fc84af45
 last_input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
-active_request_id: create-spec-run-0004
+active_request_id: create-spec-run-0005
 packets: {}
 answers: {}
 worker_runs:
@@ -22,6 +22,10 @@ worker_runs:
   input_digest: sha256:eab6b9e07b1e4df3fef24836832042fe0f3a057b3fde20862da2d901a0d39559
   output_digest: sha256:faad88a1e55abc36c05c91aef1e4e39bcf98908719e1a888d997fdb5300bb84a
 - request_id: create-spec-run-0004
+  status: blocked
+  input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
+  output_digest: null
+- request_id: create-spec-run-0005
   status: dispatched
   input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
   output_digest: null
@@ -33,4 +37,5 @@ patches: []
 progress_fingerprint: sha256:531c56d43d9fe8c9f15b3093747bc6ca1d9083a4ac63cda183052d319ebdf235
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: null
+last_error: 'run-0004 blocked: spec-writer has no hashing tool; orchestrator pre-verifies
+  target digests and computes written_artifacts digests on re-dispatch'
