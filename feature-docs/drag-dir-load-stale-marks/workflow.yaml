@@ -2,35 +2,60 @@ schema_version: 1
 feature: drag-dir-load-stale-marks
 created: '2026-09-26'
 base_branch: main
-goal: |
-  # ドラッグ中にディレクトリ読み込みが完了すると古い一覧の範囲でマークされる
+goal: '# ドラッグ中にディレクトリ読み込みが完了すると古い一覧の範囲でマークされる
+
 
   種別: バグ
+
   Notion タスク: https://www.notion.so/3e63509ec8ee81fea450ca1bcf2efda4
 
+
   ## 現象 (必須)
+
   ディレクトリ読み込み中にドラッグを開始し、ドラッグ中に読み込みが完了すると、古い一覧の anchor と baseline が新しい一覧に適用され、意図しないファイルがマークされる。
+
   `handleDirectoryLoadComplete` は entries / cursor / scrollOffset を置き換えるだけで mouseDrag を解除しない。
+
   レビュー指摘 stable_id: d46955efcda21c99（medium、mouse-support の review round1 で未解決）
+
   ## 再現手順 (必須)
+
   1. 読み込みに時間のかかるディレクトリを開く
+
   2. 読み込み完了前にドラッグを開始する
+
   3. 読み込み完了後に別の行へポインタを動かす
+
   4. 意図しないファイルがマークされる
+
   ## 期待する挙動 (必須)
+
   一覧が入れ替わった後に、古い一覧の範囲でマークされない。
+
   ## 完了の定義 (必須)
+
   - [ ] 再現手順で現象が起きない
+
   - [ ] 再発を検出するテストがある
+
   ## 該当箇所 (任意)
+
   `internal/ui/model_update_mouse.go:177`
+
   ## 実害・発生条件 (任意)
+
   \<誰が何に困るか / 特定バージョン・データのときだけ 等\>
 
+
   ## 追加指示
+
   Once the implementation is finished, push the integration branch to the remote and create a Pull Request against base_branch with gh pr create. Keep the integration branch both locally and on the remote (do not auto-merge it into base_branch).
+
   Consult Codex on any unclear points and adopt the option judged to be comparatively better.
+
   Record the content of that discussion in Notion.
+
+  '
 parent_branch: em-workflow/drag-dir-load-stale-marks/integration
 tier: reduced
 tier_decision:
@@ -80,7 +105,8 @@ workflow:
   artifacts:
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: 03b1412dcacfb01de94408a7dd93e7345e7c82e3
 - id: implement
   status: pending
 - id: review
@@ -89,7 +115,29 @@ workflow:
   status: pending
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Cancel the drag session on a successful directory load of the drag pane
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/model_update.go
+    - internal/ui/model_update_mouse_test.go
+    - internal/ui/model_update_mouse.go
+    skills:
+    - frontend-impl
+    domains:
+    - ui
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - NFR1
+    - NFR2
+    - NFR3
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -102,57 +150,77 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   FR2:
     title: Only the drag pane's load cancels
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-3
   FR3:
     title: Only a successful load cancels
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
+    - TS-5
   FR4:
     title: Marks applied before completion are kept
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-2
   FR5:
     title: Regression test
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   NFR1:
     title: Drag without intervening load unchanged
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
   NFR2:
     title: Load completion otherwise unchanged
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
   NFR3:
     title: Existing tests and toolchain clean
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
+    - TS-7
 batch:
   review_rework_count: 0
   verify_rework:
