@@ -94,7 +94,8 @@ workflow:
   base_commit: 57f2c92e63bf9654be8d4c2adabbd866e4d9e645
   completed_at_commit: a9028ff4543527ef1c5b093fa66d39ddb5e2b622
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 725c4ad4053f484db74f2c4e94c2f0f6dd5136cb
 - id: verify
   status: pending
   result: null
@@ -146,8 +147,11 @@ tasks:
     status: merged
     branch: em-workflow/e2e-unregistered-test-file-guard/task0002
 review:
-  status: pending
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
+  perspectives: [comprehensive, security, performance, architecture, spec]
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor:
     - comprehensive
