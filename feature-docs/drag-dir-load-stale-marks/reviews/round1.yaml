@@ -63,8 +63,8 @@ auto_fix:
 residual_critical_high: 0
 rework_required: false
 triage_filing:
-  executed: true
-  branch: ntd
+  executed: false
+  branch: null
   filed: []
   appended: []
   duplicates_suppressed: []
