@@ -1,0 +1,65 @@
+schema_version: 2
+feature: e2e-unregistered-test-file-guard
+tier: full
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.05
+    confidence: 0.95
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread across a few files
+        together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency, or a change to the
+        architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  observed_at: '2026-09-27T01:00:52+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.39
+    confidence: 0.61
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread across a few files
+        together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency, or a change to the
+        architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.62
+      '2': 0.36
+      '3': 0.02
+  observed_at: '2026-09-27T01:04:29+09:00'
+pre_survey_estimate:
+  files_expected:
+  - test/e2e/scripts/run_all_tests.sh
+  - test/e2e/run_all_tests_test.go
+  changed_lines_approx: 110
+  new_functions_needed: true
+  new_files_needed: true
+  new_dependencies_needed: false
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 3
+  body_change_kind: new_logic
+  change_containment: single_module
+  caller_and_dependency_count: 5
+  changes_external_contract: true
+  changes_behavior: true
+  evidence: HEAD ca6e3be で不具合が残っているよ。run_all_tests.sh:351 は TEST_FILES だけを読み込み、:269 の定義走査と :368 の実行判定は
+    tests/*.sh の静的な名前集合を使っているよ。helpers.sh:205 は呼出し失敗を集計せず、:186 は Failed が0なら成功を返すよ。ファイル変更なしでメモリ上の登録から
+    mouse を除外すると、ガードは通過し、未定義関数の呼出し後も Total=0、Failed=0、終了コード0になったよ。現在は15ファイルすべて登録済みで、--check-list は123件で成功したよ。test-docs/fix-e2e-failures/task0001.tests.yaml:5
+    に一時コピーでの確認記録はあるけれど、実行可能なガードの自己テストは見つからなかったよ。見積もりは run_all の実行条件に declare -F を追加し、既存の report_undefined_entry（:316）で失敗集計する案に基づくよ。新規Goテストファイルで未登録・未定義・正常の3条件を確認する想定で、新規関数はテスト用だよ。直接の関数関係は
+    main（:421）と呼出先4関数の計5件で、読み込む15ファイルと外部コマンドは別に数えているよ。Makefile:55 はビルド後に Docker を起動し、test/e2e/Dockerfile:75
+    が対象スクリプトを実行するよ。新規Goテストは Makefile:18 の go test ./... に含まれるよ。この案では引数と集計書式は維持し、問題発生時の Total・Failed と終了コードが変わるよ。Dockerでの全体実行は行っていないよ
+decided_at: '2026-09-27T01:04:49+09:00'
