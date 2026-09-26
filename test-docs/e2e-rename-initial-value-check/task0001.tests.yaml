@@ -1,0 +1,116 @@
+task_id: task0001
+baseline_failures: []          # go test ./... : all packages ok, no failures (4a)
+final_failures: []             # go test ./... re-run after implementation: all packages ok
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Structural check (grep), not a named test. On the parent branch,
+      `grep -n 'assert_contains "\$CURRENT_SESSION" "before_rename"\|assert_contains
+      "\$CURRENT_SESSION" "navren_before"' test/e2e/scripts/tests/file_operation_tests.sh`
+      found both bare-substring checks at lines 195 and 439 (observed both via
+      Read and via `git show <parent-branch>:...`). After the fix, the same
+      grep against HEAD's file finds zero matches: both call sites now use
+      assert_input_field_value instead.
+  AC-2:
+    tests: [file_operation_tests.sh::test_rename_file, file_operation_tests.sh::test_navigation_after_rename]
+    red_confirmed: true
+    red_reason: >-
+      With a temporary uncommitted change sending "C-u" immediately before
+      each assert_input_field_value call, ran `run_all_tests.sh file-ops`
+      inside the E2E container (docker build from test/e2e/Dockerfile on the
+      task worktree, then `docker run ... /e2e/scripts/run_all_tests.sh
+      file-ops`). Both "Rename dialog is pre-filled with the base name"
+      checks failed (2 failed / 30 run), while the failure output's screen
+      dump still showed "before_rename.txt" / "navren_before.txt" in the
+      file list behind the dialog, and the on-disk rename checks right after
+      still passed. Change reverted via `git checkout --
+      test/e2e/scripts/tests/file_operation_tests.sh` (already committed
+      clean state).
+  AC-3:
+    tests: [file_operation_tests.sh::test_rename_file, file_operation_tests.sh::test_navigation_after_rename]
+    red_confirmed: true
+    red_reason: >-
+      With a temporary uncommitted change clearing the input ("C-u") and
+      typing the full name with extension ("before_rename.txt" /
+      "navren_before.txt") immediately before each assert_input_field_value
+      call, ran `run_all_tests.sh file-ops` inside the E2E container. Both
+      initial-value checks failed (2 failed / 30 run); the failure output's
+      screen dump showed the input field row itself containing
+      "before_rename.txt" / "navren_before.txt" directly followed by ".txt"
+      before the right border, which is more than the "at most one"
+      character the pass condition allows there. Change reverted via `git
+      checkout -- test/e2e/scripts/tests/file_operation_tests.sh`.
+  AC-4:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Structural check, not a named test. `git show <parent-branch>:test/e2e
+      /scripts/tests/history_tests.sh` shows `assert_contains
+      "$CURRENT_SESSION" "testdata"` ("[ key navigates back toward
+      /testdata") present in test_history_forward_cleared, immediately
+      before the kept `assert_not_contains "/testdata/dir1"`. After the fix,
+      the same region in HEAD's file no longer contains that assert_contains
+      call; assert_not_contains "/testdata/dir1" remains directly after the
+      "[" key press and its wait.
+  AC-5:
+    tests: [run_all_tests.sh file-ops, run_all_tests.sh history]
+    red_confirmed: false
+    red_reason: >-
+      No observable red exists for this criterion in isolation: the checks
+      being replaced/removed were bugs that always PASSED (never failed),
+      so the unmodified pre-fix suite was already green under
+      `run_all_tests.sh file-ops` and `run_all_tests.sh history` before this
+      task started, exactly as it is after the fix. The criterion's actual
+      contribution is a non-regression confirmation, verified by running
+      both categories after the fix inside the E2E container: file-ops
+      30/30 passed, history 12/12 passed. A full `docker run
+      duofm-e2e-task0001:latest` (equivalent to `make test-e2e`, all
+      categories) also ran clean: 264/264 passed. The criteria that do carry
+      an observed red are AC-1/AC-2/AC-3/AC-4.
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      No observable red is possible for this criterion before any change
+      exists: prior to editing, `git diff --name-only <parent-branch>...HEAD`
+      is empty, which vacuously satisfies "no *.go file, no helpers.sh
+      change" without exercising anything. Confirmed green after
+      implementation: `git diff --name-only
+      em-workflow/e2e-rename-initial-value-check/integration...HEAD` lists
+      exactly test/e2e/scripts/tests/file_operation_tests.sh and
+      test/e2e/scripts/tests/history_tests.sh — no *.go file, no
+      helpers.sh.
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      run_all_tests.sh --check-list was never observed failing during this
+      task: it reported "OK: run list matches defined tests (123 entries)"
+      both before any edit and after (same 123 entries, unchanged), because
+      the new helper (assert_input_field_value) does not start with test_
+      and no test_ function was added, removed, or renamed. There is no red
+      state to observe for a naming constraint that was satisfied by
+      construction from the first edit.
+notes: >-
+  Layout confirmation (SPEC.md A-2) was performed by building the E2E image
+  from this worktree's test/e2e/Dockerfile and capturing the rename dialog's
+  screen with tmux capture-pane -p inside the container (docker build -t
+  duofm-e2e-task0001 -f test/e2e/Dockerfile ., then running duofm under tmux
+  and driving it through the same key sequence as test_rename_file). The
+  input field's middle row matched SPEC.md A-1 exactly: input-field left
+  border (U+2502 "│"), one padding space, the base name, whitespace fill
+  (the cursor renders as a plain appended space in plain-text capture, since
+  tmux capture-pane -p drops the reverse-video attribute and this
+  implementation always positions the cursor at the end of the value),
+  input-field right border, one separating space, then the fixed extension
+  (".txt"). No deviation from the plan's assumed layout was needed.
+  assert_input_field_value forces LC_ALL=C.utf8 for its own grep -E call
+  only (verified against the container's actual default locale, which is
+  POSIX/C per `locale -a`: C, C.utf8, POSIX) so that a multi-byte cursor
+  glyph, if one ever appears in a differently-rendered dialog, counts as one
+  character rather than one byte per UTF-8 code unit; this does not affect
+  the ambient locale of the rest of the test run. Temporary E2E docker
+  images built for verification (duofm-e2e-task0001[:latest],
+  -mutation, -mutation2) were removed after use; none were committed.
