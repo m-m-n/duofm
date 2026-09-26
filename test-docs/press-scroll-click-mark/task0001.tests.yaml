@@ -1,0 +1,48 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was clean before any change
+final_failures: []             # go test ./... re-run after implementation, still clean
+acceptance_tests:
+  AC-1:
+    tests:
+      - TestHandleMouse_BgSplitActivation_SameRowClick_KeepsPrePressOffsetAndMarks/running
+      - TestHandleMouse_BgSplitActivation_SameRowClick_KeepsPrePressOffsetAndMarks/closing
+    red_confirmed: true
+    red_reason: "both subtests failed pre-fix: cursor = 12 (want 7), scrollOffset = 5 (want 0), marks = map[f06:true f07:true f08:true f09:true f10:true f11:true] (want empty)"
+  AC-2:
+    tests:
+      - TestHandleMouse_BgSplitActivation_PressReleaseAcrossOffsetPositions_NoMarks/above_shifted_window
+      - TestHandleMouse_BgSplitActivation_PressReleaseAcrossOffsetPositions_NoMarks/inside_kept_range
+      - TestHandleMouse_BgSplitActivation_PressReleaseAcrossOffsetPositions_NoMarks/below_shifted_window_on_pre-press_visible_row
+    red_confirmed: true
+    red_reason: "case (a) failed pre-fix: cursor = 6 (want 3), scrollOffset = 3 (want 0); case (b) failed pre-fix: cursor = 12 (want 7), scrollOffset = 5 (want 0). Case (c) already passed pre-fix (the drag-row clamp coincidentally maps the release back to the anchor), matching the task plan's note that only (a) and (b) fail on the unmodified handler; it is kept in the same table as a non-regression check."
+  AC-3:
+    tests:
+      - TestHandleMouse_BgSplitActivation_PressBelowRestoredWindow_ScrollsToBottomRow
+    red_confirmed: true
+    red_reason: "failed pre-fix: cursor = 15 (want 13), scrollOffset = 5 (want 3)"
+  AC-4:
+    tests:
+      - TestHandleMouse_BgSplitActivation_SameRowClick_PreservesExistingMarks
+    red_confirmed: true
+    red_reason: "failed pre-fix: marks = map[f01:true f06:true f07:true f08:true f09:true f10:true f11:true] (want map[f01:true f08:true]), i.e. the press added the unmodified handler's 7..12 range on top of the pre-existing marks"
+  AC-5:
+    tests:
+      - TestHandleMouse_BgSplitActivation_ParentDirRow_NoMarksCursorOnParent
+    red_confirmed: false
+    red_reason: "passed pre-fix already: pressing index 0 never triggers the ensure-visible branch (index 0 is never outside a restored offset of 0), so this criterion has no observable red under this task's change. Kept as a non-regression check."
+  AC-6:
+    tests:
+      - TestHandleMouse_BgSplitActivation_Drag_UsesPrePressOffsetThroughout/extends_to_index_9
+      - TestHandleMouse_BgSplitActivation_Drag_UsesPrePressOffsetThroughout/returns_to_anchor_before_release
+    red_confirmed: true
+    red_reason: "both cases failed pre-fix: first case marks = map[f06..f13] (want map[f06:true f07:true f08:true], i.e. entries 7,8,9), second case marks = map[f06..f11] (want map[f06:true], i.e. entry 7 only) -- the unmodified handler's shifted offset (5) turned the motion/release rows into a drag past the anchor instead of a same-row click"
+  AC-7:
+    tests:
+      - TestHandleMouse_BgSplitActivation_DoubleClickOnDirectory_StartsLoading
+    red_confirmed: true
+    red_reason: "failed pre-fix: second press cmd = nil, want non-nil -- the unmodified handler's shifted offset (5) made the second press hit-test a different entry than the first, so the double-click detector's key never matched"
+  AC-8:
+    tests:
+      - TestHandleMoveRight_BgSplitActivation_KeepsCurrentScrollBehavior
+    red_confirmed: false
+    red_reason: "this criterion pins pre-existing, unmodified keyboard pane-switch scroll behavior (NFR1/NFR2: Pane.adjustScroll, Pane.SetBgOutputActive, Model.syncPaneBgOutputState and Model.switchToPane are untouched); the test passes identically before and after this task's change, so there is no observable red for it. The remaining parts of AC-8 (no changes to internal/ui/model.go or internal/ui/pane.go; the whole suite passing; gofmt reporting no files) were verified directly: git diff --stat against the parent branch shows only internal/ui/model_update_mouse.go and internal/ui/model_update_mouse_test.go changed, the full `go test ./...` run is clean (see final_failures), and project_commands.format (gofmt -w .) left git status unchanged. No standalone `go vet` command exists in project_commands; go test's built-in vet subset ran clean as part of the same green run, but a full `go vet ./...` was not separately executed."
