@@ -1,0 +1,17 @@
+schema_version: 1
+feature: minibuffer-wide-prompt-wrap
+phase: create-spec
+status: initialized
+generation: 1
+base_revision: f18eefd12f1e13caad980aac5bab503ff69feed4
+last_input_digest: null
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
