@@ -122,7 +122,8 @@ tasks:
     - FR7
     - FR8
     - NFR1
-    status: pending
+    status: in_progress
+    branch: em-workflow/minibuffer-wide-prompt-wrap/task0001
 review:
   status: pending
   rounds_completed: 0
