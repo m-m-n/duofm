@@ -196,67 +196,146 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 	return false
 }
 
+// runeDisplayWidths returns, for each rune in runes, that rune's own display
+// width as measured by lipgloss (the single basis for width in this file;
+// see Conventions/D1 in feature-docs/minibuffer-wide-prompt-wrap). A
+// zero-width combining rune contributes 0; measuring rune-by-rune (rather
+// than by grapheme cluster) is deliberately conservative: joining runes into
+// a cluster can only keep or shrink the rendered width relative to the sum
+// of their individual widths, never grow it, so a window chosen to fit this
+// per-rune budget also fits the cluster-aware rendered width (D2).
+func runeDisplayWidths(runes []rune) []int {
+	widths := make([]int, len(runes))
+	for i, r := range runes {
+		widths[i] = lipgloss.Width(string(r))
+	}
+	return widths
+}
+
+// widthPrefixSums returns cumulative sums of widths, with a leading 0, so
+// that prefix[i] is the display width of the first i runes.
+func widthPrefixSums(widths []int) []int {
+	prefix := make([]int, len(widths)+1)
+	for i, w := range widths {
+		prefix[i+1] = prefix[i] + w
+	}
+	return prefix
+}
+
+// maxRunesWithinWidth returns the largest n such that the first n runes
+// (per prefix, a widthPrefixSums result) fit within budget. A rune that
+// would straddle the boundary (its addition would push the cumulative width
+// past budget) is excluded entirely, never partially rendered (D3).
+func maxRunesWithinWidth(prefix []int, budget int) int {
+	n := 0
+	for n < len(prefix)-1 && prefix[n+1] <= budget {
+		n++
+	}
+	return n
+}
+
+// minStartWithinWidth returns the smallest start such that the runes in
+// [start, end) fit within budget, given prefix (a widthPrefixSums result).
+// Like maxRunesWithinWidth, a straddling rune at the left edge is excluded
+// entirely (D3).
+func minStartWithinWidth(prefix []int, end, budget int) int {
+	target := prefix[end] - budget
+	start := 0
+	for start < end && prefix[start] < target {
+		start++
+	}
+	return start
+}
+
 // View renders the minibuffer
 func (m *Minibuffer) View() string {
 	if !m.visible {
 		return ""
 	}
 
-	// Calculate available width for input
-	promptLen := len(m.prompt)
-	availableWidth := m.width - promptLen - 2 // -2 for padding
+	// contentWidth is the content width of the minibuffer style below
+	// (style Width m.width-2, minus 1 column of padding on each side).
+	// Widths 0-4 collapse it to <= 0: only "no panic, no line break" is
+	// guaranteed there (D4), so no prompt or input content is rendered.
+	contentWidth := m.width - 4
 
-	// Build the display string
 	runes := []rune(m.input)
-	displayInput := m.input
+	runeWidths := runeDisplayWidths(runes)
+	prefix := widthPrefixSums(runeWidths)
 
-	// Calculate visible portion if input is too long
-	cursorDisplayPos := m.cursorPos
-	startPos := 0
-	promptToRender := m.prompt
+	promptRunes := []rune(m.prompt)
+	promptWidth := lipgloss.Width(m.prompt)
 
-	if availableWidth <= 0 {
-		// Input display width is zero or negative: the window computation
-		// below produces reversed or out-of-range bounds here, so it is not
-		// computed from the input. Show an empty input portion with no
-		// cursor block; only the prompt is rendered (SPEC A6 does not
-		// specify this content). Suppressing the cursor block too matters
-		// even here: appending it would add one glyph beyond the prompt,
-		// which can still overflow the style's Width and wrap when the
-		// prompt alone exactly fills it.
-		displayInput = ""
-		cursorDisplayPos = -1
+	var promptToRender string
+	var displayStart, displayEnd int // rune range into `runes`
+	cursorDisplayPos := -1           // rune-relative index into runes[displayStart:displayEnd]; -1 = no highlight
 
-		// availableWidth<=0 means the prompt alone is already at least as
-		// long as the style's content width (m.width-4). At minibuffer
-		// widths > 4 that content width is positive and the styling
-		// library hard-wraps into multiple lines when content exceeds it
-		// (at widths <= 4 the style's Width, m.width-2, is <= 2, which the
-		// library never wraps regardless of content length, so the prompt
-		// is left untouched there). Truncate the rendered prompt so the
-		// no-line-break postcondition holds even for a prompt this long.
-		if m.width > 4 {
-			contentWidth := m.width - 4
-			if contentWidth < 0 {
-				contentWidth = 0
-			}
-			promptRunes := []rune(m.prompt)
-			if len(promptRunes) > contentWidth {
-				promptToRender = string(promptRunes[:contentWidth])
-			}
+	switch {
+	case contentWidth <= 0:
+		// D4: nothing meaningful to show; only avoid panic/line-break.
+		promptToRender = ""
+		displayStart, displayEnd = 0, 0
+
+	case promptWidth >= contentWidth:
+		// FR3: remaining width <= 0. Truncate the prompt to the content
+		// width, dropping any straddling character (D3); input and the
+		// cursor block are not rendered.
+		promptRuneWidths := runeDisplayWidths(promptRunes)
+		promptPrefix := widthPrefixSums(promptRuneWidths)
+		end := maxRunesWithinWidth(promptPrefix, contentWidth)
+		promptToRender = string(promptRunes[:end])
+		displayStart, displayEnd = 0, 0
+
+	default:
+		// FR4: remaining width >= 1.
+		promptToRender = m.prompt
+		remaining := contentWidth - promptWidth
+
+		cursorAtEnd := m.cursorPos >= len(runes)
+		totalWidth := prefix[len(runes)]
+		totalWithCursor := totalWidth
+		if cursorAtEnd {
+			totalWithCursor++
 		}
-	} else if len(runes) > availableWidth {
-		// Ensure cursor is visible
-		if m.cursorPos > availableWidth-1 {
-			startPos = m.cursorPos - availableWidth + 1
+
+		switch {
+		case totalWithCursor <= remaining:
+			// FR8: input and cursor block both fit; show untruncated.
+			displayStart, displayEnd = 0, len(runes)
+			cursorDisplayPos = m.cursorPos
+
+		case cursorAtEnd:
+			// Scroll so the cursor block (1 column) sits at the right
+			// edge of the window.
+			start := minStartWithinWidth(prefix, len(runes), remaining-1)
+			displayStart, displayEnd = start, len(runes)
+			cursorDisplayPos = len(runes) - start
+
+		case runeWidths[m.cursorPos] > remaining:
+			// D3: the cursor's own character does not fit within the
+			// remaining width even alone (e.g. remaining=1, a full-width
+			// character at the cursor); do not render it.
+			displayStart, displayEnd = m.cursorPos, m.cursorPos
+
+		case prefix[m.cursorPos+1] <= remaining:
+			// Cursor fits in the window starting from position 0; show
+			// the maximal prefix that fits (may extend past the cursor).
+			end := maxRunesWithinWidth(prefix, remaining)
+			displayStart, displayEnd = 0, end
+			cursorDisplayPos = m.cursorPos
+
+		default:
+			// Scroll so the cursor's character sits at the right edge of
+			// the window.
+			start := minStartWithinWidth(prefix, m.cursorPos+1, remaining)
+			displayStart, displayEnd = start, m.cursorPos+1
+			cursorDisplayPos = m.cursorPos - start
 		}
-		endPos := min(startPos+availableWidth, len(runes))
-		displayInput = string(runes[startPos:endPos])
-		cursorDisplayPos = m.cursorPos - startPos
 	}
 
+	displayRunes := runes[displayStart:displayEnd]
+
 	// Build cursor display
-	displayRunes := []rune(displayInput)
 	var result strings.Builder
 	for i, r := range displayRunes {
 		if i == cursorDisplayPos {
@@ -267,8 +346,28 @@ func (m *Minibuffer) View() string {
 		}
 	}
 	// If cursor is at end, show a block cursor
-	if cursorDisplayPos >= len(displayRunes) {
+	if cursorDisplayPos >= 0 && cursorDisplayPos >= len(displayRunes) {
 		result.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
+	}
+
+	contentLine := promptToRender + result.String()
+
+	// D2: guarantee the assembled line fits contentWidth by actual
+	// measurement, not just by the budget arithmetic above. This is a
+	// deliberate belt-and-braces check: reversing a single rune in the
+	// middle of a multi-rune grapheme cluster can, in principle, change
+	// how the assembled string's escape codes interact with grapheme
+	// segmentation. Should that ever push the measured width past budget,
+	// fall back to the plain (unstyled-cursor) rendering of the same rune
+	// range, which by construction fits within contentWidth.
+	if contentWidth > 0 && lipgloss.Width(contentLine) > contentWidth {
+		var plain strings.Builder
+		plain.WriteString(promptToRender)
+		plain.WriteString(string(displayRunes))
+		if cursorDisplayPos >= 0 && cursorDisplayPos >= len(displayRunes) {
+			plain.WriteByte(' ')
+		}
+		contentLine = plain.String()
 	}
 
 	// Style the whole minibuffer line
@@ -278,5 +377,5 @@ func (m *Minibuffer) View() string {
 		Foreground(lipgloss.Color("15")).
 		Background(lipgloss.Color("236"))
 
-	return style.Render(promptToRender + result.String())
+	return style.Render(contentLine)
 }
