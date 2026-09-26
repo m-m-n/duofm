@@ -8,18 +8,75 @@ last_input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd535
 active_request_id: null
 packets:
   create-spec-q0001:
-    status: issued
+    status: answered
     issued_at: '2026-09-26T14:52:00+09:00'
     questions:
     - question_id: requirement.fix-scope
-      status: issued
+      status: answered
     - question_id: requirement.unlisted-marks
-      status: issued
+      status: answered
     - question_id: requirement.e2e-hardening
-      status: issued
+      status: answered
     - question_id: design-step.recommendation
-      status: issued
-answers: {}
+      status: answered
+answers:
+  requirement.fix-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T14:55:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - display_order
+    freeform: null
+    normalized_answer: '表示順に揃える: GetMarkedFiles/GetMarkedFilePaths が、ペインの表示順（現在のソートとディレクトリ優先の設定を反映した entries
+      の順）でマーク済みファイルを返すようにする。バッチの copy/move/delete/圧縮/パーミッションも画面上の上から順に処理される。E2E の前提（01_aaa が先）もそのまま成り立つ
+      [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen display_order;
+      not chosen [''name_order'', ''test_only'']; codex reason: 本体の順序を固定すると原因を解消でき、現在の表示順とも一致するよ。GetMarkedFiles
+      は map を列挙し、一括移動は受け取った順に処理するため、表示順で返す修正が適切だよ（internal/ui/pane_marks.go:34、internal/ui/batch_operation_manager.go:46、internal/ui/batch_operation_manager.go:70）;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.unlisted-marks:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T14:55:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - append_sorted
+    freeform: null
+    normalized_answer: '末尾に名前順で追加: 表示中のマーク済みファイルを表示順で並べ、その後ろに一覧に無いマーク済みファイルを名前の昇順で追加する。返す件数は今と同じ [recorded
+      as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen append_sorted;
+      not chosen [''visible_only'']; codex reason: ApplyFilter は allEntries から entries を作り直すけど、マークは解除しないよ（internal/ui/pane_filter.go:69）。表示外のマークも末尾に追加すれば、現在の操作対象を維持しながら順序を固定できるよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.e2e-hardening:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T14:55:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - strengthen
+    freeform: null
+    normalized_answer: '強化する: キーの 2 を送る前に上書きダイアログが表示されていることを確認する。キャンセル後に src/02_bbb.txt が残っていること、dst/02_bbb.txt
+      の中身が existing のままであることも検証する [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen strengthen;
+      not chosen [''keep'']; codex reason: 現状は固定時間待って「2」を送り、01_aaa の移動先での存在しか確認していないよ（test/e2e/scripts/tests/cursor_preserve_tests.sh:458、同:471）。期限付きで上書き画面の表示を待ち、02_bbb
+      の移動元での残存と移動先の内容保持も確認すると、キャンセルまで検証できるよ; orchestrator mapping judgement: agrees (matches worker tentative
+      position)'
+  design-step.recommendation:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T14:55:00+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: 'Accept recommendation: design step skipped (internal ordering and tests only,
+      no UI change)'
+    resolution_note: batch-policies.yaml create-spec.design-step -> decide_autonomously; analyst recommendation
+      'skip' accepted
 worker_runs:
 - request_id: create-spec-run-0001
   status: failed
