@@ -1,0 +1,21 @@
+schema_version: 1
+feature: e2e-rename-initial-value-check
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 529c59d74dd3c82ea5e7f801cdf997572d4b253e
+last_input_digest: sha256:38898049ddab60a89b88f19e937af550c672b60c2c30995122750bb7ee2555f0
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:38898049ddab60a89b88f19e937af550c672b60c2c30995122750bb7ee2555f0
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
