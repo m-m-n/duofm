@@ -198,6 +198,17 @@ run_test() {
     echo ""
     echo "--- Running: $test_name ---"
 
+    # A name that is not a currently defined shell function (builtin,
+    # alias, external command, or nothing) is never invoked: bash's own
+    # "command not found" diagnostic must never appear. The lookup happens
+    # before any invocation attempt, never inferred from an exit status.
+    if ! declare -f "$test_name" >/dev/null 2>&1; then
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} No test function named '$test_name' is defined"
+        return
+    fi
+
     # Export session name for test function
     export CURRENT_SESSION="$session_name"
 
