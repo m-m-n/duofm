@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func TestNewMinibuffer(t *testing.T) {
@@ -353,6 +354,262 @@ func TestMinibufferView_ReverseISearchPrompt_NarrowWidth_NoPanicNoLineBreak(t *t
 	result := mustNotPanic(t, "Minibuffer.View", mb.View)
 	if strings.ContainsAny(result, "\n\r") {
 		t.Errorf("result contains a line break: %q", result)
+	}
+}
+
+// --- task0001 shared helpers: width-based View() assertions ---
+
+// assertBoundedSingleLine fails the test unless result contains no line
+// break and its display width (measured via lipgloss, the single basis for
+// width per Conventions/D1) is at most width-2, the minibuffer style's
+// content width. width is m.width, not the content width itself.
+func assertBoundedSingleLine(t *testing.T, width int, result string) {
+	t.Helper()
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("width=%d: result contains a line break: %q", width, result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("width=%d: display width = %d, want <= %d (result: %q)", width, w, width-2, result)
+	}
+}
+
+// firstFullWidthRuneIndex returns the rune index of the first rune whose own
+// display width is 2 or more, and whether one was found.
+func firstFullWidthRuneIndex(runes []rune) (int, bool) {
+	for i, r := range runes {
+		if lipgloss.Width(string(r)) >= 2 {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// cursorPositionsForInput returns the cursor positions the task plan's
+// AC-1/AC-2/AC-5 tables require: start, half (rune count / 2), the first
+// full-width rune (if any), and end. An empty input collapses all of these
+// to a single "start" position, per the task plan.
+func cursorPositionsForInput(input string) []struct {
+	label string
+	pos   int
+} {
+	runes := []rune(input)
+	n := len(runes)
+	if n == 0 {
+		return []struct {
+			label string
+			pos   int
+		}{{"start", 0}}
+	}
+	positions := []struct {
+		label string
+		pos   int
+	}{
+		{"start", 0},
+		{"half", n / 2},
+		{"end", n},
+	}
+	if idx, ok := firstFullWidthRuneIndex(runes); ok {
+		positions = append(positions, struct {
+			label string
+			pos   int
+		}{"full-width", idx})
+	}
+	return positions
+}
+
+// --- AC-1, AC-2 (FR1, FR2, FR3, FR4, FR5, TS-1): width x input x cursor
+// table. Whatever the width (24-32: prompt-only truncation range; 36-37:
+// prompt fits and the input window scrolls) and whatever the input/cursor
+// combination, View() must never wrap and must stay within the style's
+// content width.
+
+func TestMinibufferView_WidthInputCursorTable_BoundedSingleLine(t *testing.T) {
+	prompt := "(reverse-i-search)'日本語': "
+	longASCII := strings.Repeat("x", 32) // ASCII, 30+ runes, no full-width rune
+
+	inputs := []string{"", "echo 日本語", longASCII}
+	widths := []int{24, 25, 26, 27, 28, 29, 30, 31, 32, 36, 37}
+
+	for _, width := range widths {
+		for _, input := range inputs {
+			for _, cur := range cursorPositionsForInput(input) {
+				name := fmt.Sprintf("width=%d/input=%q/cursor=%s", width, input, cur.label)
+				t.Run(name, func(t *testing.T) {
+					mb := NewMinibuffer()
+					mb.SetPrompt(prompt)
+					mb.SetWidth(width)
+					mb.SetInput(input)
+					mb.SetCursorPos(cur.pos)
+					mb.Show()
+
+					result := mustNotPanic(t, "Minibuffer.View", mb.View)
+					assertBoundedSingleLine(t, width, result)
+				})
+			}
+		}
+	}
+}
+
+// --- AC-3 (FR3, FR5, TS-2): boundary widths where the prompt's display
+// width sits exactly at, just under, or just over the content width, and
+// widths where a full-width character straddles the truncation boundary.
+
+func TestMinibufferView_BoundaryWidths_TruncationAndBound(t *testing.T) {
+	prompt := "(reverse-i-search)'日本語': "
+
+	tests := []struct {
+		width           int
+		wantContains    string // "" = no content assertion for this width
+		wantNotContains string
+	}{
+		{24, "(reverse-i-search)'", "日"},
+		{25, "", ""},
+		{26, "(reverse-i-search)'日", "本"},
+		{31, "", ""},
+		{32, "", ""},
+		{33, "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("width=%d", tt.width), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(prompt)
+			mb.SetWidth(tt.width)
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, tt.width, result)
+
+			if tt.wantContains != "" && !strings.Contains(result, tt.wantContains) {
+				t.Errorf("expected result to contain %q, got %q", tt.wantContains, result)
+			}
+			if tt.wantNotContains != "" && strings.Contains(result, tt.wantNotContains) {
+				t.Errorf("expected result NOT to contain %q, got %q", tt.wantNotContains, result)
+			}
+		})
+	}
+}
+
+func TestMinibufferView_Width33_FullWidthInputAtStart_BoundedSingleLine(t *testing.T) {
+	mb := NewMinibuffer()
+	mb.SetPrompt("(reverse-i-search)'日本語': ")
+	mb.SetWidth(33)
+	mb.SetInput("日本語")
+	mb.SetCursorPos(0)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 33, result)
+}
+
+// --- AC-4 (FR4, TS-7): once the remaining width is >= 1 but the input does
+// not fit, the character at the cursor position stays visible whenever its
+// own display width allows it (and likewise the input's last rune when the
+// cursor sits at the end).
+
+func TestMinibufferView_ScrolledInput_CursorCharacterVisible(t *testing.T) {
+	// All-distinct characters (ASCII and full-width) so that a rune's
+	// presence in the result unambiguously identifies which part of the
+	// input was kept in view.
+	const input = "a1Bz9Y日本語花鳥"
+	const width = 36 // contentWidth 32, promptWidth 28, remaining 4
+	prompt := "(reverse-i-search)'日本語': "
+	runes := []rune(input)
+
+	if got := lipgloss.Width(prompt); got != 28 {
+		t.Fatalf("test fixture assumption broken: prompt width = %d, want 28", got)
+	}
+	if remaining := (width - 4) - lipgloss.Width(prompt); lipgloss.Width(input)+1 <= remaining {
+		t.Fatalf("test fixture assumption broken: input fits without scrolling (remaining=%d)", remaining)
+	}
+
+	for pos, r := range runes {
+		t.Run(fmt.Sprintf("cursor_rune_index_%d", pos), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(prompt)
+			mb.SetWidth(width)
+			mb.SetInput(input)
+			mb.SetCursorPos(pos)
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, width, result)
+
+			if lipgloss.Width(string(r)) <= 4 {
+				if !strings.Contains(result, string(r)) {
+					t.Errorf("expected result to contain cursor rune %q, got %q", r, result)
+				}
+			}
+		})
+	}
+
+	t.Run("cursor_at_end", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.SetPrompt(prompt)
+		mb.SetWidth(width)
+		mb.SetInput(input)
+		mb.SetCursorPos(len(runes))
+		mb.Show()
+
+		result := mustNotPanic(t, "Minibuffer.View", mb.View)
+		assertBoundedSingleLine(t, width, result)
+
+		last := runes[len(runes)-1]
+		if lipgloss.Width(string(last))+1 <= 4 {
+			if !strings.Contains(result, string(last)) {
+				t.Errorf("expected result to contain last rune %q, got %q", last, result)
+			}
+		}
+	})
+}
+
+// --- AC-5 (FR1, FR2, TS-5): grapheme clusters -- a combining character in
+// the prompt, and a ZWJ-joined emoji sequence in the input -- never cause a
+// line break or a width overflow, for any width in range and any cursor
+// position, including positions inside the middle of a cluster.
+
+func TestMinibufferView_GraphemeClusters_BoundedSingleLine(t *testing.T) {
+	const combiningPrompt = "éclair: " // "e" + combining acute accent
+	const zwjInput = "👨‍👩‍👧‍👦ls"        // ZWJ-joined family emoji, then ASCII
+
+	widths := []int{24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37}
+	runes := []rune(zwjInput)
+
+	for _, width := range widths {
+		for pos := 0; pos <= len(runes); pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(combiningPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(zwjInput)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+			})
+		}
+	}
+}
+
+// --- AC-7 (FR6, FR8, TS-4/TS-6/TS-8): a width wide enough for both prompt
+// and input renders them both without truncation.
+
+func TestMinibufferView_Width40_PromptAndInputFitUntruncated(t *testing.T) {
+	mb := NewMinibuffer()
+	mb.SetPrompt("(reverse-i-search)'日本語': ")
+	mb.SetWidth(40)
+	mb.SetInput("ls")
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 40, result)
+
+	if !strings.Contains(result, "(reverse-i-search)'日本語': ") {
+		t.Errorf("expected result to contain the full prompt, got %q", result)
+	}
+	if !strings.Contains(result, "ls") {
+		t.Errorf("expected result to contain the full input, got %q", result)
 	}
 }
 
