@@ -96,7 +96,14 @@ workflow:
   status: completed
   completed_at_commit: a441b2a1c4bf53356fda8729f46f94d2cd63a7c9
 - id: verify
-  status: in_progress
+  status: completed
+  result: pass
+  failed_items: []
+  summary: |
+    build / go test ./... / gofmt（差分なし）が通過。TS-1〜TS-8 の該当テストは全て通過し、既存テストの変更なし。
+    既存 E2E スイート（make test-e2e-build && make test-e2e）265/265 通過。
+    Manual Testing 2 項目は tmux 上の実機描画で確認: 端末幅 56〜76 で reverse-i-search に「日本語」を入力してもミニバッファは 1 行でペイン行数がずれない。端末幅 76/80 で全角を含む入力のカーソルを末尾・先頭・途中へ動かしても 1 行のまま。
+  completed_at_commit: f86228203baf692c63670def12f7b6fc827f0369
 - id: retrospect
   status: pending
 tasks:
