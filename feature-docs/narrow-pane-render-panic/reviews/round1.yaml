@@ -63,7 +63,7 @@ findings:
   confidence: 85
   resolution: unresolved
   resolution_reason: medium severity is outside the Phase R4 auto-fix candidate gate (critical/high only);
-    filed as a follow-up task
+    filed as a follow-up task (https://app.notion.com/p/2-3e73509ec8ee81789f56f9ce08edbe79 )
 evaluation:
   round_summary: 'Round 1, diff mode, 6 changed files, cross_validation=false. The fix does what the SPEC
     asks: FR1 header separator at all three sites uses headerSeparatorGlyphCount = max(0, width-2); FR6
