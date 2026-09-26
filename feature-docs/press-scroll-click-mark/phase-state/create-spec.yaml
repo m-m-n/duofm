@@ -1,0 +1,69 @@
+schema_version: 1
+feature: press-scroll-click-mark
+phase: create-spec
+status: completed
+generation: 1
+base_revision: b32348205e2d5a2cfac6871dd0d00d7eb80e4537
+last_input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-26T17:33:04+09:00'
+    questions:
+    - question_id: requirement.press-scroll.behavior
+      status: answered
+    - question_id: design-step.press-scroll-click-mark
+      status: answered
+answers:
+  requirement.press-scroll.behavior:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:33:04+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - keep_scroll
+    freeform: null
+    normalized_answer: keep_scroll を採用する。押下でクリックしたペインのスクロール位置が変わる場合、押下前のスクロール位置に戻し、押した項目をポインタの下に残す。押下項目が縮小後の表示範囲に収まらない場合だけ既存の表示範囲調整を行う（このときダブルクリックの
+      2 回目が同じ項目に当たらないことがあるのは許容する）。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: keep_scroll
+      / row_based; chosen: keep_scroll; codex_consulted: true (codex entry, 1 turn);
+      opus_escalation: false; key points: row_based はドラッグ開始判定だけを直すため、押下行に戻るドラッグやダブルクリックの
+      2 回目が別項目を指す問題が残る。keep_scroll は handleEntryPress 内で押下前の scrollOffset を保存・復元し、クリック対象に既存の表示調整を適用するだけで共通のスクロール処理を変えずに済む。例外として、押下項目が縮小後の表示範囲より下にある場合は最下行へ移るため、2
+      回目の押下は項目外になり得る（Codex 指摘、mouse_hittest.go:74/98）。検証は実行中と bgClosing、上下への位置変化、既存マーク、''..''、ドラッグ後の押下行への復帰を含める。'
+  design-step.press-scroll-click-mark:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:33:04+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - skip
+    freeform: null
+    normalized_answer: 設計ステップはスキップする（内部のマウス処理の修正のみで、新しい表示要素・見た目の変更がない）。
+    resolution_note: 'gate: create-spec.design-step; policy decide_autonomously ->
+      analyst recommendation skip adopted'
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:f86deebfa7fb7cb7db78a2bd573e1da6f4f923500b24ecb05b0a0dbd47b1d7a6
+  output_digest: sha256:fc445795c0c0dbe36c736b0fe345a94ff3a5a0880cffa81e08598c96f081f2d5
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
+  output_digest: sha256:ff8405bfd13ab7d8002715584111c27853debfb6e17cf46208a5033b38bd5084
+- request_id: create-spec-run-0003
+  status: completed
+  input_digest: sha256:aae8fced3daeadcdcd4c9248daaf96f66d2c44354a2472107bf03fc478d6af59
+  output_digest: sha256:e9cf64af4e7606188592dadc946e365e13a926c041e6da13142614cdbef4df16
+artifacts:
+- path: feature-docs/press-scroll-click-mark/REQUIREMENTS.md
+  sha256: sha256:911bc2debc55a6a549aac708648899e2d7f5111d40be268c218833086703386b
+  produced_by: create-spec-run-0003
+- path: feature-docs/press-scroll-click-mark/SPEC.md
+  sha256: sha256:df86fd25d696bfc6d5716462504ff616c86755ba206f3b27649412a80703fbb7
+  produced_by: create-spec-run-0003
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null

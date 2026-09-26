@@ -1,0 +1,41 @@
+schema_version: 1
+feature: press-scroll-click-mark
+tier: full
+rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full;
+  description_only P(0)=0.03, description_plus_code P(0)=0.13)'
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.03
+    '1': 0.59
+    '2': 0.38
+    '3': 0.0
+  expectation_clear: 0.87
+  observed_at: '2026-09-26T17:27:47+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.13
+    '1': 0.84
+    '2': 0.03
+    '3': 0.0
+  expectation_clear: 0.87
+  observed_at: '2026-09-26T17:27:47+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/model_update_mouse.go
+  - internal/ui/model_update_mouse_test.go
+  changed_lines_approx: 90
+  new_functions_needed: 1
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  evidence: main を確認したよ。handleEntryPress は切替前の index を anchor に保存する（internal/ui/model_update_mouse.go:100,125,149）。switchToPane
+    は syncPaneBgOutputState → SetBgOutputActive → adjustScroll を通じて実際に scrollOffset
+    を変更できる（internal/ui/model.go:318,375、internal/ui/pane.go:600,257）。EnsureCursorVisible
+    も adjustScroll を呼ぶ（internal/ui/pane.go:269）。静的追跡例では、背景出力の表示で可視行数が18→11になり、旧 cursor=17、offset=0
+    なら切替時に offset=7 になる。index=10 の押下後、同じ Y で解放すると target=17 となる。解放処理が updateDrag を呼び、clampedEntryIndex
+    が現在の offset で変換するため、10〜17 がマークされる（internal/ui/model_update_mouse.go:85,160、internal/ui/mouse_hittest.go:83,139、internal/ui/pane_drag.go:23）。既存の静止クリック検証は押下時のスクロール変更を含まない（internal/ui/model_update_mouse_test.go:257,277）。押下時の
+    Y を保存し、ドラッグ開始前は同じ Y の移動・解放を無視する修正を推奨するよ。新規関数1件は複数条件を検証する回帰テストを想定し、本体の新規関数は不要だよ。ファイル変更・テスト実行はしていないよ
+decided_at: '2026-09-26T17:27:55+09:00'
