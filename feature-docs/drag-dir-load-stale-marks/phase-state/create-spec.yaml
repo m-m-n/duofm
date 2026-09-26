@@ -1,0 +1,21 @@
+schema_version: 1
+feature: drag-dir-load-stale-marks
+phase: create-spec
+status: in_progress
+generation: 1
+base_revision: 6b0c620a3597e96e41e3a4200e6ef1227a883538
+last_input_digest: sha256:36e1749dea1f40479c43137f6580553cbaa2923f7e13b875c3263ff9561baa79
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:36e1749dea1f40479c43137f6580553cbaa2923f7e13b875c3263ff9561baa79
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
