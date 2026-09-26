@@ -1,14 +1,18 @@
 schema_version: 1
 feature: narrow-pane-render-panic
 phase: create-spec
-status: initialized
+status: dispatching
 generation: 1
-base_revision: b459fab9fdeea162f415a454f80059534e98cbeb
-last_input_digest: null
-active_request_id: null
+base_revision: d416d3f258af559b0456b1f8649dfb8870da164d
+last_input_digest: sha256:bebf53ce63d9fb09177c9eea227de2989741a2f56e902cdd3b392178965b2352
+active_request_id: create-spec-run-0001
 packets: {}
 answers: {}
-worker_runs: []
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:bebf53ce63d9fb09177c9eea227de2989741a2f56e902cdd3b392178965b2352
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
