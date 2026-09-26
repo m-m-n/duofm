@@ -159,7 +159,7 @@ tasks:
     - FR2
     - NFR1
     - NFR2
-    status: in_progress
+    status: merged
     branch: em-workflow/e2e-rename-initial-value-check/task0002
     provenance:
       source: verify
