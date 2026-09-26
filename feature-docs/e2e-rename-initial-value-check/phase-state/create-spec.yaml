@@ -26,16 +26,18 @@ worker_runs:
   input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
   output_digest: null
 - request_id: create-spec-run-0005
-  status: dispatched
+  status: completed
   input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
-  output_digest: null
+  output_digest: sha256:a3f175cd1f4d47e229581d827f8b29f5e26d39a9dbe5ecc2ef088eeacc383fa6
 artifacts:
+- path: feature-docs/e2e-rename-initial-value-check/REQUIREMENTS.md
+  sha256: sha256:c64818c823a047c961ecb9bdc208aa6250c1c2bd21e18eaad136981532784fdd
+  produced_by: create-spec-run-0005
 - path: feature-docs/e2e-rename-initial-value-check/SPEC.md
-  sha256: sha256:d468b0e200b730ba4e55f13a322724400020836b3b28e01132bc0221e3b46fdc
-  produced_by: create-spec-run-0002
+  sha256: sha256:94fb0132f12dfe6dabc83c5ace48c20cc633365b3e83e2f85211363ee7ff2e06
+  produced_by: create-spec-run-0005
 patches: []
 progress_fingerprint: sha256:531c56d43d9fe8c9f15b3093747bc6ca1d9083a4ac63cda183052d319ebdf235
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: 'run-0004 blocked: spec-writer has no hashing tool; orchestrator pre-verifies
-  target digests and computes written_artifacts digests on re-dispatch'
+last_error: null
