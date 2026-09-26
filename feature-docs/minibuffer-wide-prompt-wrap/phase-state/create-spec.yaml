@@ -1,14 +1,74 @@
 schema_version: 1
 feature: minibuffer-wide-prompt-wrap
 phase: create-spec
-status: initialized
+status: awaiting_answers
 generation: 1
 base_revision: f18eefd12f1e13caad980aac5bab503ff69feed4
-last_input_digest: null
+last_input_digest: sha256:b4586e8493cb56f4ed5a67f2f82388601119b19b8742280a29d457335502c6cd
 active_request_id: null
-packets: {}
-answers: {}
-worker_runs: []
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-26T17:54:08+09:00'
+    questions:
+    - question_id: requirement.scope.one-line-guarantee
+      status: answered
+    - question_id: requirement.testing.regression-level
+      status: answered
+    - question_id: design-step.decision
+      status: answered
+answers:
+  requirement.scope.one-line-guarantee:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:54:08+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - all_paths_display_width
+    freeform: null
+    normalized_answer: 'View 全体を表示幅基準にする: Minibuffer.View のプロンプトの幅・入力部分の表示範囲・パディング（内容幅
+      m.width-4）を表示幅で計算し、availableWidth<=0 と >=1 の両方の経路でどの幅でも 1 行に収める。表示幅は lipgloss
+      が折り返し判定に使うのと同じ基準（lipgloss.Width 系）で測る [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen all_paths_display_width; not chosen [''narrow_branch_only''];
+      codex reason: 正の分岐でも折り返すため、こちらが期待を満たすよ。availableWidthはバイト数と余白2列で計算する一方、実際の内容幅はwidth-4だよ（internal/ui/minibuffer.go:206、:275）。幅37、例のプロンプト、入力「echo
+      日本語」、末尾カーソルでは、表示部分がカーソル抜きでも34列となり、内容幅33列を超えるよ。変更範囲は広がるけど、View内の表示計算に絞り、幅とカーソル位置を変えるテストで確認できるよ;
+      codex notes: コードの静的確認に基づく判断で、ファイル変更やGoテストの実行はしていないよ。提示された幅36・末尾カーソルの例は、末尾空白が除去されるため、33列>32列という計算だけでは折り返しを証明できないよ（Goモジュールキャッシュ内のx/cellbuf@v0.0.13-0.20250311204145-2c3ea96c31dd/wrap.go:149）。再発テストには負の分岐の幅24と、正の分岐の幅37を含めるといいよ。ASCIIの長い入力にも幅不足があるよ。lipglossの折り返しはcellbuf.Wrap→ansi.DecodeSequence→unisegの表示幅を使い、lipgloss.Widthも同じ書記素単位の幅計算を使うよ（lipgloss@v1.1.0/style.go:366、size.go:15、x/ansi@v0.10.1/parser_decode.go:71、:179、width.go:95）。pane_render.go:247、:287では既にrunewidth.Truncateを使っているけど、go-runewidthは環境による曖昧幅設定と別の幅計算を使うため、そのまま流用すれば同じ結果になるとは限らないよ（go-runewidth@v0.0.16/runewidth.go:30、:177）。a1〜a3には賛成だよ。全角文字が収まらない境界、結合文字・絵文字、末尾カーソルの1列、全角文字上の反転表示を確認し、編集用の文字位置と表示列数を混同しないことが必要だよ。幅0〜4では既存の改行なし・パニックなしを維持するけど、プロンプトを無加工で残すこと自体は既存テストの要件ではないよ。正の内容幅では表示幅上限も検査し、ペイン比較には確実に1行になるASCIIの基準を使うといいよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.testing.regression-level:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:54:08+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - unit_only
+    freeform: null
+    normalized_answer: '単体テストのみ: minibuffer_test.go に全角プロンプト・全角入力で幅を変えても改行しない（表示幅が内容幅以下）ことを確かめる表形式テストを追加し、pane_render_test.go
+      に全角プロンプト時の行数が ASCII 時と一致することを確かめるテストを追加する。幅には負の分岐（例: 24〜32）と正の分岐（例: 36〜37）を含める
+      [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation,
+      record_as_assumption); codex consulted: yes (1 turn, harness codex, converged);
+      Opus escalation: no; chosen unit_only; not chosen [''unit_and_e2e'']; codex
+      reason: Viewの改行とペインの行数を直接検査すれば、今回の再発を検出できるよ。ペインはミニバッファに1行だけ割り当てていて、行数を比較する既存テストもあるよ（internal/ui/pane_render.go:67、:109、internal/ui/pane_render_test.go:657）。この選択肢にはペインとの組み合わせテストも含まれるので、tmuxや履歴準備への依存を追加せずに完了条件を満たせるよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  design-step.decision:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:54:08+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: 'Accept recommendation: design step skipped (existing minibuffer
+      width-calculation bug fix, no new UI element or visual change)'
+    resolution_note: batch-policies.yaml create-spec.design-step -> decide_autonomously;
+      analyst recommendation 'skip' accepted
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:b4586e8493cb56f4ed5a67f2f82388601119b19b8742280a29d457335502c6cd
+  output_digest: sha256:46099dfe7c30ab5ef1db3db635af2f1ed29dd0314f16cf5fcdb214f91bedc2fe
 artifacts: []
 patches: []
 progress_fingerprint: null
