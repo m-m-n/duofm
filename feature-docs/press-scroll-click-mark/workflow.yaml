@@ -123,7 +123,7 @@ workflow:
   summary: 'build OK; go test ./... OK; gofmt -w . 差分なし; go vet ./... 指摘なし; E2E 262/262 pass (mouse_tests.sh / mark_tests.sh 含む); TS-1〜TS-8, TS-10 の単体テスト pass; TS-11: model.go / pane.go は差分なし; 手動確認 2 項目は実端末が無いため未実施（TS-1/TS-8 の単体テストで代替）'
   completed_at_commit: 9ec1023dcd79c0312ab07b7e9b95759a61fb14f7
 - id: retrospect
-  status: pending
+  status: in_progress
 tasks:
   task0001:
     title: Keep the pre-press scroll offset when an entry press activates a bg-split pane
