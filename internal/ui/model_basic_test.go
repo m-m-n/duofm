@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -379,6 +380,43 @@ func TestModelRenderMethods(t *testing.T) {
 			t.Error("View with error status should not be empty")
 		}
 	})
+}
+
+// --- AC-5 (FR3, FR5): Model.View at narrow terminal widths ---
+
+func TestModelView_NarrowTerminalWidths_NoPanic(t *testing.T) {
+	const height = 24
+
+	for width := 0; width <= 3; width++ {
+		t.Run(fmt.Sprintf("width=%d/no-minibuffer", width), func(t *testing.T) {
+			model := NewModel()
+			msg := tea.WindowSizeMsg{Width: width, Height: height}
+			updatedModel, _ := model.Update(msg)
+			m := updatedModel.(Model)
+
+			mustNotPanic(t, "Model.View", m.View)
+		})
+
+		t.Run(fmt.Sprintf("width=%d/incremental-search", width), func(t *testing.T) {
+			model := NewModel()
+			msg := tea.WindowSizeMsg{Width: width, Height: height}
+			updatedModel, _ := model.Update(msg)
+			m := updatedModel.(Model)
+			m.startSearch(SearchModeIncremental)
+
+			mustNotPanic(t, "Model.View", m.View)
+		})
+
+		t.Run(fmt.Sprintf("width=%d/shell-command-mode", width), func(t *testing.T) {
+			model := NewModel()
+			msg := tea.WindowSizeMsg{Width: width, Height: height}
+			updatedModel, _ := model.Update(msg)
+			m := updatedModel.(Model)
+			m.startShellCommandMode()
+
+			mustNotPanic(t, "Model.View", m.View)
+		})
+	}
 }
 
 func TestModelInitWithWarnings(t *testing.T) {

@@ -58,8 +58,8 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 	b.WriteString(headerStyle.Render(headerLine2))
 	b.WriteString("\n")
 
-	// 区切り線
-	border := strings.Repeat("─", p.width-2)
+	// 区切り線（幅が2未満の場合は0本、行自体は維持する）
+	border := strings.Repeat("─", headerSeparatorGlyphCount(p.width))
 	borderStyle := lipgloss.NewStyle().Padding(0, 1).Foreground(p.theme.BorderFg)
 	b.WriteString(borderStyle.Render(border))
 	b.WriteString("\n")
@@ -113,6 +113,15 @@ func (p *Pane) viewInternal(diskSpace uint64, minibuffer *Minibuffer) string {
 	}
 
 	return b.String()
+}
+
+// headerSeparatorGlyphCount returns the number of "─" glyphs the header
+// separator row holds for the given pane width: width-2, clamped at zero so
+// narrow panes (width 0 or 1) still emit the separator row, just empty.
+// Shared by viewInternal, ViewWithBgOutput and ViewDimmedWithDiskSpace so the
+// three sites compute it identically.
+func headerSeparatorGlyphCount(width int) int {
+	return max(0, width-2)
 }
 
 // formatPath はパスを表示用にフォーマット
@@ -492,8 +501,8 @@ func (p *Pane) ViewWithBgOutput(diskSpace uint64, buf *OutputBuffer, command str
 	b.WriteString(headerStyle.Render(headerLine2))
 	b.WriteString("\n")
 
-	// 区切り線
-	border := strings.Repeat("─", p.width-2)
+	// 区切り線（幅が2未満の場合は0本、行自体は維持する）
+	border := strings.Repeat("─", headerSeparatorGlyphCount(p.width))
 	borderStyle := lipgloss.NewStyle().Padding(0, 1).Foreground(p.theme.BorderFg)
 	b.WriteString(borderStyle.Render(border))
 	b.WriteString("\n")
@@ -609,8 +618,8 @@ func (p *Pane) ViewDimmedWithDiskSpace(diskSpace uint64) string {
 	b.WriteString(headerStyle.Render(headerLine2))
 	b.WriteString("\n")
 
-	// 区切り線
-	border := strings.Repeat("─", p.width-2)
+	// 区切り線（幅が2未満の場合は0本、行自体は維持する）
+	border := strings.Repeat("─", headerSeparatorGlyphCount(p.width))
 	borderStyle := lipgloss.NewStyle().
 		Padding(0, 1).
 		Background(p.theme.DimmedBg).
