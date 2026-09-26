@@ -5,7 +5,7 @@ status: dispatching
 generation: 1
 base_revision: 94e227e23418db9ce564c0ce1daab9905c0fc7c1
 last_input_digest: sha256:2fab2db772e5a7786318872341f3b30ba680765a7eb62b5c421a855606b40356
-active_request_id: create-spec-run-0002
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -14,10 +14,13 @@ worker_runs:
   input_digest: sha256:530745802ccc03acc2a77b2411a9c168f13650761c158574048f86ca9a8d7051
   output_digest: sha256:c3c13cfc52ca758d10b526ad1136d8c7972b1249f230071006c8fb1d11be8b0a
 - request_id: create-spec-run-0002
-  status: dispatched
+  status: completed
   input_digest: sha256:2fab2db772e5a7786318872341f3b30ba680765a7eb62b5c421a855606b40356
-  output_digest: null
-artifacts: []
+  output_digest: sha256:d468b0e200b730ba4e55f13a322724400020836b3b28e01132bc0221e3b46fdc
+artifacts:
+- path: feature-docs/e2e-rename-initial-value-check/SPEC.md
+  sha256: sha256:d468b0e200b730ba4e55f13a322724400020836b3b28e01132bc0221e3b46fdc
+  produced_by: create-spec-run-0002
 patches: []
 progress_fingerprint: sha256:531c56d43d9fe8c9f15b3093747bc6ca1d9083a4ac63cda183052d319ebdf235
 stale_redispatch_count: 0
