@@ -1,0 +1,46 @@
+schema_version: 1
+feature: fix-e2e-failures
+phase: create-plan
+status: completed
+generation: 1
+base_revision: 7cda1f356991280fdae0b1bc98a56bf7c498f672
+last_input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: completed
+  input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
+  output_digest: sha256:792d781d86ae5f1f2485498707baeaad9512fc9daa6581ee2b7833f18e3155f5
+artifacts:
+- path: feature-docs/fix-e2e-failures/IMPLEMENTATION.md
+  sha256: sha256:31273f579ac4c2f5bc63148dccd3dca630697ee969d78d362c621a613ee65e8b
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/VERIFICATION.md
+  sha256: sha256:a5bd0740887d0a2e5b5a6feb172e41aef3ba83b2e4b379fce94c2bc0486beae6
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/tasks/task0001.md
+  sha256: sha256:507fa10cbf71e81769a494a472fb0b296f9270395fcf18259d592db01de8c41e
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/tasks/task0002.md
+  sha256: sha256:a2ba3fa7b172285b2e8ce9ce457f7313af4b830d0d1f3c738a953a02f6822e58
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/tasks/task0003.md
+  sha256: sha256:d7ea09651da87c4f7c69c9fc82c7c406bf12aaa01e190557f467f06d991db292
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/tasks/task0004.md
+  sha256: sha256:30eec8c496e031b571afe74ac27535350f949a396bf09e5dad1a84e1f3351532
+  produced_by: create-plan-run-0001
+- path: feature-docs/fix-e2e-failures/tasks/task0005.md
+  sha256: sha256:1978ecf388b22f5a2142f7a772d2583d432c4d45d9d7681d573b4d3f2647b6cc
+  produced_by: create-plan-run-0001
+patches:
+- patch_id: fix-e2e-failures-create-plan-p0001
+  status: applied
+  base_input_digest: sha256:5977e6c685bd435910ce2366516eff55a1c2ee1343950c145e5b9d21966de44e
+  base_workflow_blob: d2fa5e3fcdf06820df42892177d55f0ff23f9ee3
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null

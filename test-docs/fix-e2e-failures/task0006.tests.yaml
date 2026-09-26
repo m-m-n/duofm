@@ -1,0 +1,74 @@
+task_id: task0006
+baseline_failures: []          # `go test ./...` in the podman container: all packages ok, no failures
+final_failures: []             # re-run of `go test ./...` after the edit: all packages ok, unchanged
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      No existing automated test covers this (searched *_test.go and the e2e
+      tests/ directory by path and by basename "archive_tests.sh"; the only
+      reference besides docs/workflow state is run_all_tests.sh sourcing the
+      file, which requires tmux/Docker to execute and is unavailable in this
+      worktree, matching the task plan's Test Notes). Verified statically:
+      `grep -n 'send_keys "\$CURRENT_SESSION" "m"' test_multifile_compress`
+      returns zero matches after the edit (three before), and the three mark
+      presses now read `send_keys "$CURRENT_SESSION" "Space"`, the same key
+      name mark_tests.sh uses. Behavioral confirmation is deferred to the
+      verify-phase full/archive-only E2E run (TS1/TS10) per the task plan.
+  AC-2:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Same environment limitation as AC-1. Verified by reading: each Space
+      press is preceded by "/" + filename + Enter (search filter) placing
+      the cursor by name; this navigation structure is unchanged from the
+      pre-existing test and no step relies on the cursor advancing after a
+      mark.
+  AC-3:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Searched *_test.go for KeyMark/KeyMove; none exists. Adding a new Go
+      test to assert these constants would touch a file outside
+      test/e2e/scripts/tests/archive_tests.sh, which AC-5 forbids for this
+      task, so no executable check is available within scope. Verified by
+      reading internal/ui/keys.go at the base commit directly: `KeyMark = "
+      "` (space) and `KeyMove = "m"`, both defined in internal/ui/keys.go.
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Criterion describes what must stay unchanged in the diff; no
+      pre-implementation red state applies. Verified via `git diff`: only
+      the three "m" -> "Space" replacements changed; the "8. Compress 3
+      files" assertion (before pressing "8"), the tar.gz-by-number
+      selection, and the existence/member/cleanup checks are byte-identical
+      to before the edit.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Criterion describes the shape of the diff itself; no pre-implementation
+      red state applies. Verified via `git diff --stat` (only
+      test/e2e/scripts/tests/archive_tests.sh changed) and `git status
+      --porcelain` (no other files touched) plus `grep -c '^test_'
+      archive_tests.sh` (still the same 9 function names, none added or
+      renamed).
+  AC-6:
+    tests: ["bash -n test/e2e/scripts/tests/archive_tests.sh"]
+    red_confirmed: false
+    red_reason: >
+      The file's bash syntax was already valid before this task's edit (the
+      pre-existing bug was a wrong key name, not a syntax error), so this
+      check had no red state to observe. Confirmed passing after the edit:
+      `bash -n` exits 0. shellcheck is not installed in this environment, so
+      its conditional clause does not apply.
+notes: >
+  Environment has no Docker, so the e2e suite itself (run_all_tests.sh /
+  archive_tests.sh) cannot execute here, matching the task plan's own Test
+  Notes, which name AC-1, AC-2, AC-4, AC-5 and AC-6 as checked by reading and
+  by the syntax check rather than by automated test. `go test ./...` was
+  re-run after the change (final_failures above) even though it does not
+  read the edited shell script, to confirm the podman-based build/test
+  pipeline itself stayed green.

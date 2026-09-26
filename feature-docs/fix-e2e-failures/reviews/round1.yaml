@@ -1,0 +1,75 @@
+round: 1
+executed_at: "2026-09-25T21:55:04+09:00"
+scope:
+  review_mode: diff
+  base_commit: 4d6eeb594515cc21041c20ac1f4a5a759992e406
+  head_commit: 61925fe164ab579dcd56fedca7a661deff27b79f
+  changed_files:
+    - test-docs/fix-e2e-failures/task0001.tests.yaml
+    - test-docs/fix-e2e-failures/task0002.tests.yaml
+    - test-docs/fix-e2e-failures/task0003.tests.yaml
+    - test-docs/fix-e2e-failures/task0004.tests.yaml
+    - test-docs/fix-e2e-failures/task0005.tests.yaml
+    - test/e2e/scripts/run_all_tests.sh
+    - test/e2e/scripts/tests/archive_tests.sh
+    - test/e2e/scripts/tests/bookmark_tests.sh
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    - test/e2e/scripts/tests/history_tests.sh
+    - test/e2e/scripts/tests/mark_tests.sh
+    - test/e2e/scripts/tests/shell_tests.sh
+    - test/e2e/scripts/tests/sort_tests.sh
+plan:
+  floor: [comprehensive, security, performance, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+  - {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+  - {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+  - {run_id: "performance#0", perspective: performance, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+  - {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+  - {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+  - stable_id: f7ccb13cac7b0bdb
+    severity: medium
+    category: comprehensive
+    file: test/e2e/scripts/run_all_tests.sh
+    line: 363
+    title: "ガードは通るのに本実行でテスト関数が未定義のまま呼ばれ、集計から漏れる経路がある"
+    description: "run_all は TEST_FILES に登録されたファイルだけを source する一方、定義集合と未定義エントリのガードは tests/*.sh の静的な名前集合で判定している。helpers.sh の run_test は関数呼び出しの失敗（command not found を含む）を集計しないため、TEST_FILES 未登録のファイルにテストを置いて FULL_RUN_LIST に加えると、ガードは通るのに本実行では未定義のまま呼ばれ、Total にも Failed にも数えられず終了コード 0 で終わる。現状は tests/ の 14 ファイルがすべて TEST_FILES に載っているため潜在不具合。"
+    suggestion: "run_all の source 対象を tests/*.sh に揃え、run_test を呼ぶ直前に declare -F で関数の存在を確認し、無ければ report_undefined_entry で失敗として数える。TEST_FILES 未登録ファイルの関数を FULL_RUN_LIST に入れたとき Failed が 1 増える回帰確認を追加する。"
+    sources: ["codex:comprehensive"]
+    confidence: 85
+    resolution: unresolved
+    resolution_reason: "medium severity: outside the auto-fix candidate gate (critical/high only)"
+  - stable_id: 537ddc2b5d008e78
+    severity: medium
+    category: spec
+    file: test/e2e/scripts/tests/file_operation_tests.sh
+    line: 195
+    title: "リネームダイアログの初期値チェックが常に通る（FR9）"
+    description: "追加された assert_contains「before_rename」（195 行目）と assert_contains「navren_before」（439 行目）は、ダイアログ背後のファイル一覧に before_rename.txt / navren_before.txt が見えている限り入力欄の初期値に関係なく通る。history_tests.sh 167 行目の assert_contains「testdata」もパス表示により常に通る（直後の assert_not_contains が実際の判定を担う）。"
+    suggestion: "初期値は入力欄にしか出ない形で照合する（例: before_rename([^.]|$)）。navren_before も同様。history の「testdata」は削除するかパス表示行に絞る。"
+    sources: ["claude:evaluator"]
+    confidence: 60
+    resolution: unresolved
+    resolution_reason: "medium severity: outside the auto-fix candidate gate (critical/high only)"
+evaluation:
+  round_summary: "ラウンド 1（diff モード、cross_validation なし）。4 視点とも completed。critical/high の指摘は 0 件。comprehensive#0 の中程度 1 件（run_all が TEST_FILES だけを source し、未定義の関数呼び出しが集計されない経路）を helpers.sh の run_test で裏付け。評価者自身の点検で FR9 に関わる常に通るアサーション（リネームの初期値チェック）を中程度 1 件追加。reviewer 出力への指示の差し込みは無し。読み取り上限に達したため test-docs/fix-e2e-failures/task0001-0005.tests.yaml の 5 件は評価者未読。security: corroborated（YAML 5 件は未読）。performance: corroborated。spec: findings。"
+  recommended_action: "auto_fix"
+  action_rationale: "critical/high は無い。中程度 2 件はいずれも run_all_tests.sh とテストスクリプトの小さな修正で閉じられる。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: false
+  branch: null
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null

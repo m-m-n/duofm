@@ -151,31 +151,43 @@ test_history_independent_from_previous() {
 test_history_forward_cleared() {
     start_duofm "$CURRENT_SESSION"
 
-    # Enter first subdirectory (dir1)
-    send_keys "$CURRENT_SESSION" "j" "Enter"
+    # Enter directory A (dir1) by name, not by cursor position
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "1" "Enter"
+    sleep 0.3
+    send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
 
-    # Enter second subdirectory (subdir)
-    send_keys "$CURRENT_SESSION" "j" "Enter"
-    sleep 0.5
+    assert_contains "$CURRENT_SESSION" "/testdata/dir1" \
+        "Entered directory A (dir1)"
 
-    # Go back in history to dir1
+    # Go back in history to /testdata - forward history now points at A
     send_keys "$CURRENT_SESSION" "["
     sleep 0.5
 
-    # Navigate to a different directory (dir2 via parent)
-    send_keys "$CURRENT_SESSION" "h"
+    assert_contains "$CURRENT_SESSION" "testdata" \
+        "[ key navigates back toward /testdata"
+    assert_not_contains "$CURRENT_SESSION" "/testdata/dir1" \
+        "[ key leaves directory A (dir1)"
+
+    # Enter a different directory B (dir2) by name - new navigation should
+    # clear the forward history that pointed at A
+    send_keys "$CURRENT_SESSION" "/" "d" "i" "r" "2" "Enter"
     sleep 0.3
-    send_keys "$CURRENT_SESSION" "j" "j" "Enter"
+    send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
+
+    assert_contains "$CURRENT_SESSION" "/testdata/dir2" \
+        "Entered directory B (dir2)"
 
     # Try to go forward - should have no effect (forward history cleared)
     send_keys "$CURRENT_SESSION" "]"
     sleep 0.3
 
-    # Should still be in dir2 (forward history was cleared)
+    # Should still be in dir2, and not have jumped forward into A
     assert_contains "$CURRENT_SESSION" "another.txt" \
-        "Forward history cleared after new navigation"
+        "Forward history cleared after new navigation (still in dir2)"
+    assert_not_contains "$CURRENT_SESSION" "subdir" \
+        "Forward history cleared: A's distinguishing content (subdir) not shown"
 
     stop_duofm "$CURRENT_SESSION"
 }
