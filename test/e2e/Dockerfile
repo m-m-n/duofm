@@ -71,5 +71,8 @@ WORKDIR /testdata
 # Run as non-root user to test permission handling
 USER testuser
 
-# Default command runs E2E tests
-CMD ["/e2e/scripts/run_all_tests.sh"]
+# Default command runs the runner self-test first; the E2E suite runs only
+# when the self-test passed. An explicit command given to `docker run`
+# replaces this entirely (no ENTRYPOINT is set), so it does not affect
+# invocations such as interactive.sh or the runner with an explicit argument.
+CMD ["/bin/bash", "-c", "/e2e/scripts/runner_self_test.sh && exec /e2e/scripts/run_all_tests.sh"]
