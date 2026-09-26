@@ -473,6 +473,211 @@ func TestRenderHeaderLine2_NarrowWidth(t *testing.T) {
 	}
 }
 
+// --- shared helpers for narrow-width panic regression tests (task0001) ---
+
+// mustNotPanic runs fn, recovering any panic and failing the test with the
+// given name if one occurs. Style matches TestRenderHeaderLine1_NarrowWidths_NoPanicZeroWidth.
+func mustNotPanic(t *testing.T, name string, fn func() string) string {
+	t.Helper()
+	var result string
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("%s panicked: %v", name, r)
+			}
+		}()
+		result = fn()
+	}()
+	return result
+}
+
+// splitRows splits a rendered view into its rows. Every row, including the
+// last, ends with "\n" (task0001 row-structure invariant), so the final
+// element of strings.Split is always the empty string after the trailing
+// break; this drops it.
+func splitRows(s string) []string {
+	rows := strings.Split(s, "\n")
+	if len(rows) > 0 && rows[len(rows)-1] == "" {
+		rows = rows[:len(rows)-1]
+	}
+	return rows
+}
+
+// --- AC-1 (FR1, NFR1): header separator row glyph count ---
+
+func TestPaneViews_HeaderSeparatorGlyphCount(t *testing.T) {
+	const height = 24
+	widths := []int{0, 1, 2, 3, 4, 40}
+
+	wantCount := func(width int) int {
+		want := width - 2
+		if want < 0 {
+			want = 0
+		}
+		return want
+	}
+
+	checkSeparator := func(t *testing.T, result string, want int) {
+		t.Helper()
+		rows := splitRows(result)
+		if len(rows) < 3 {
+			t.Fatalf("expected at least 3 rows, got %d: %q", len(rows), result)
+		}
+		got := strings.Count(rows[2], "─")
+		if got != want {
+			t.Errorf("separator glyph count = %d, want %d (row: %q)", got, want, rows[2])
+		}
+	}
+
+	for _, width := range widths {
+		want := wantCount(width)
+
+		t.Run(fmt.Sprintf("View/width=%d", width), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 5, width, height, true)
+			result := mustNotPanic(t, "View", pane.View)
+			checkSeparator(t, result, want)
+		})
+
+		t.Run(fmt.Sprintf("ViewWithBgOutput/width=%d", width), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 5, width, height, true)
+			pane.SetBgOutputActive(true)
+			buf := NewOutputBuffer(10)
+			buf.Append("output line one")
+			result := mustNotPanic(t, "ViewWithBgOutput", func() string {
+				return pane.ViewWithBgOutput(0, buf, "ls -la", false)
+			})
+			checkSeparator(t, result, want)
+		})
+
+		t.Run(fmt.Sprintf("ViewDimmedWithDiskSpace/width=%d", width), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 5, width, height, true)
+			result := mustNotPanic(t, "ViewDimmedWithDiskSpace", func() string {
+				return pane.ViewDimmedWithDiskSpace(0)
+			})
+			checkSeparator(t, result, want)
+		})
+	}
+}
+
+// --- AC-2 (FR2, FR5): the four pane views render without panicking at widths 0-4 ---
+
+func TestPaneViews_NarrowWidths_NoPanic(t *testing.T) {
+	const height = 24
+
+	for width := 0; width <= 4; width++ {
+		t.Run(fmt.Sprintf("width=%d/View", width), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 5, width, height, true)
+			mustNotPanic(t, "View", pane.View)
+		})
+
+		for _, focused := range []bool{false, true} {
+			t.Run(fmt.Sprintf("width=%d/ViewWithBgOutput/focused=%v", width, focused), func(t *testing.T) {
+				pane := newFilesPane(t, LeftPane, 5, width, height, true)
+				pane.SetBgOutputActive(true)
+				buf := NewOutputBuffer(10)
+				buf.Append("output line one")
+				buf.Append("output line two")
+				mustNotPanic(t, "ViewWithBgOutput", func() string {
+					return pane.ViewWithBgOutput(0, buf, "ls -la", focused)
+				})
+			})
+		}
+
+		t.Run(fmt.Sprintf("width=%d/ViewDimmedWithDiskSpace", width), func(t *testing.T) {
+			pane := newFilesPane(t, LeftPane, 5, width, height, true)
+			mustNotPanic(t, "ViewDimmedWithDiskSpace", func() string {
+				return pane.ViewDimmedWithDiskSpace(0)
+			})
+		})
+
+		for _, input := range []string{"", "abc"} {
+			t.Run(fmt.Sprintf("width=%d/ViewWithMinibuffer/input=%q", width, input), func(t *testing.T) {
+				pane := newFilesPane(t, LeftPane, 5, width, height, true)
+				mb := NewMinibuffer()
+				mb.SetPrompt("/: ")
+				mb.SetWidth(width)
+				mb.SetInput(input)
+				mb.Show()
+				mustNotPanic(t, "ViewWithMinibuffer", func() string {
+					return pane.ViewWithMinibuffer(0, mb)
+				})
+			})
+		}
+	}
+}
+
+// --- AC-3 (FR4): output row count at widths 0/1 matches the width-40 baseline ---
+
+func TestPaneViews_NarrowWidths_RowCountMatchesWidth40(t *testing.T) {
+	const height = 24
+	const baselineWidth = 40
+
+	for _, width := range []int{0, 1} {
+		t.Run(fmt.Sprintf("width=%d/View", width), func(t *testing.T) {
+			narrow := newFilesPane(t, LeftPane, 5, width, height, true)
+			base := newFilesPane(t, LeftPane, 5, baselineWidth, height, true)
+
+			gotRows := strings.Count(mustNotPanic(t, "View", narrow.View), "\n")
+			wantRows := strings.Count(base.View(), "\n")
+			if gotRows != wantRows {
+				t.Errorf("row count = %d, want %d", gotRows, wantRows)
+			}
+		})
+
+		t.Run(fmt.Sprintf("width=%d/ViewWithBgOutput", width), func(t *testing.T) {
+			narrow := newFilesPane(t, LeftPane, 5, width, height, true)
+			narrow.SetBgOutputActive(true)
+			base := newFilesPane(t, LeftPane, 5, baselineWidth, height, true)
+			base.SetBgOutputActive(true)
+			buf := NewOutputBuffer(10)
+			buf.Append("output line")
+
+			gotRows := strings.Count(mustNotPanic(t, "ViewWithBgOutput", func() string {
+				return narrow.ViewWithBgOutput(0, buf, "ls -la", false)
+			}), "\n")
+			wantRows := strings.Count(base.ViewWithBgOutput(0, buf, "ls -la", false), "\n")
+			if gotRows != wantRows {
+				t.Errorf("row count = %d, want %d", gotRows, wantRows)
+			}
+		})
+
+		t.Run(fmt.Sprintf("width=%d/ViewDimmedWithDiskSpace", width), func(t *testing.T) {
+			narrow := newFilesPane(t, LeftPane, 5, width, height, true)
+			base := newFilesPane(t, LeftPane, 5, baselineWidth, height, true)
+
+			gotRows := strings.Count(mustNotPanic(t, "ViewDimmedWithDiskSpace", func() string {
+				return narrow.ViewDimmedWithDiskSpace(0)
+			}), "\n")
+			wantRows := strings.Count(base.ViewDimmedWithDiskSpace(0), "\n")
+			if gotRows != wantRows {
+				t.Errorf("row count = %d, want %d", gotRows, wantRows)
+			}
+		})
+
+		t.Run(fmt.Sprintf("width=%d/ViewWithMinibuffer", width), func(t *testing.T) {
+			narrow := newFilesPane(t, LeftPane, 5, width, height, true)
+			narrowMB := NewMinibuffer()
+			narrowMB.SetPrompt("/: ")
+			narrowMB.SetWidth(width)
+			narrowMB.Show()
+
+			base := newFilesPane(t, LeftPane, 5, baselineWidth, height, true)
+			baseMB := NewMinibuffer()
+			baseMB.SetPrompt("/: ")
+			baseMB.SetWidth(baselineWidth)
+			baseMB.Show()
+
+			gotRows := strings.Count(mustNotPanic(t, "ViewWithMinibuffer", func() string {
+				return narrow.ViewWithMinibuffer(0, narrowMB)
+			}), "\n")
+			wantRows := strings.Count(base.ViewWithMinibuffer(0, baseMB), "\n")
+			if gotRows != wantRows {
+				t.Errorf("row count = %d, want %d", gotRows, wantRows)
+			}
+		})
+	}
+}
+
 func TestRenderHeaderLine1_NoBranchWhenEmpty(t *testing.T) {
 	pane := &Pane{
 		path:      "/tmp/test",

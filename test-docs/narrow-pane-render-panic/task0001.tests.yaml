@@ -1,0 +1,73 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (Step 4a)
+final_failures: []             # go test ./... is fully green after the fix (re-run after implementation)
+acceptance_tests:
+  AC-1:
+    tests: [TestPaneViews_HeaderSeparatorGlyphCount]
+    red_confirmed: true
+    red_reason: >-
+      At pane widths 0 and 1 (View, ViewWithBgOutput, ViewDimmedWithDiskSpace)
+      the pre-fix strings.Repeat("─", p.width-2) panicked with "strings:
+      negative Repeat count", so the separator glyph count could not even be
+      observed.
+  AC-2:
+    tests: [TestPaneViews_NarrowWidths_NoPanic]
+    red_confirmed: true
+    red_reason: >-
+      At pane widths 0 and 1, View / ViewWithBgOutput (both focused values) /
+      ViewDimmedWithDiskSpace panicked with "strings: negative Repeat count".
+      ViewWithMinibuffer panicked at widths 0-4 for both empty and non-empty
+      input: "strings: negative Repeat count" at widths 0-1 (inherited from
+      the pane border), and "runtime error: slice bounds out of range" at
+      widths 2-4 (e.g. width 4, input "abc": slice bounds out of range
+      [5:3]).
+  AC-3:
+    tests: [TestPaneViews_NarrowWidths_RowCountMatchesWidth40]
+    red_confirmed: true
+    red_reason: >-
+      At pane widths 0 and 1 the same "strings: negative Repeat count" panics
+      as AC-2 fired for all four views before any row count could be
+      compared against the width-40 baseline.
+  AC-4:
+    tests:
+      - TestMinibufferView_NarrowWidths_NoPanicNoLineBreak
+      - TestMinibufferView_ReverseISearchPrompt_NarrowWidth_NoPanicNoLineBreak
+    red_confirmed: true
+    red_reason: >-
+      Minibuffer.View panicked with "runtime error: slice bounds out of
+      range" across widths 0-4 for nearly every prompt/input/cursor
+      combination, including the width 4, prompt "/: ", input "a", cursor 1
+      case named in AC-6 (observed: slice bounds out of range [3:1]). The
+      empty-input case was also observed to panic when the input display
+      width is negative, e.g. width 0, prompt "!: ", input "": slice bounds
+      out of range [5:0], confirming the Test Notes' "not yet confirmed"
+      remark.
+  AC-5:
+    tests: [TestModelView_NarrowTerminalWidths_NoPanic]
+    red_confirmed: true
+    red_reason: >-
+      Model.View panicked with "strings: negative Repeat count" at terminal
+      widths 0-3 in all three states (no minibuffer shown, after startSearch
+      with incremental search, after startShellCommandMode), inherited from
+      the pane border panic.
+  AC-6:
+    tests:
+      - TestPaneViews_NarrowWidths_NoPanic
+      - TestMinibufferView_NarrowWidths_NoPanicNoLineBreak
+    red_confirmed: true
+    red_reason: >-
+      This criterion is the red-phase observation itself. The AC-2 tests at
+      pane widths 0 and 1, and the AC-4 case (width 4, prompt "/: ", input
+      "a", cursor 1), were run against the unmodified production code before
+      any fix existed and both failed, exactly as detailed under AC-2 and
+      AC-4 above.
+  AC-7:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      Verified by the full test_command (go test ./...) rather than a single
+      named test. Pre-fix, the internal/ui package reported FAIL because of
+      the new AC-1 through AC-5 tests added in this task. Post-fix, every
+      package including the existing width-40 row-alignment / hit-test
+      tests and TestMinibufferView / TestMinibufferViewTruncation reports
+      ok.

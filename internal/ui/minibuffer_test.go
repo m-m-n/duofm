@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -297,6 +298,61 @@ func TestMinibufferViewHidden(t *testing.T) {
 	view := mb.View()
 	if view != "" {
 		t.Errorf("Hidden minibuffer View() = %q, want empty string", view)
+	}
+}
+
+// --- AC-4 (FR6, FR5): Minibuffer.View at narrow widths (input display width <= 0) ---
+
+func TestMinibufferView_NarrowWidths_NoPanicNoLineBreak(t *testing.T) {
+	widths := []int{0, 1, 2, 3, 4}
+	prompts := []string{"/: ", "!: "}
+	inputs := []string{"", "a", "abc"}
+
+	for _, width := range widths {
+		for _, prompt := range prompts {
+			for _, input := range inputs {
+				runeCount := len([]rune(input))
+				cursors := []struct {
+					label string
+					pos   int
+				}{
+					{"start", 0},
+					{"half", runeCount / 2},
+					{"end", runeCount},
+				}
+
+				for _, c := range cursors {
+					name := fmt.Sprintf("width=%d/prompt=%q/input=%q/cursor=%s", width, prompt, input, c.label)
+					t.Run(name, func(t *testing.T) {
+						mb := NewMinibuffer()
+						mb.SetPrompt(prompt)
+						mb.SetWidth(width)
+						mb.SetInput(input)
+						mb.SetCursorPos(c.pos)
+						mb.Show()
+
+						result := mustNotPanic(t, "Minibuffer.View", mb.View)
+						if strings.ContainsAny(result, "\n\r") {
+							t.Errorf("result contains a line break: %q", result)
+						}
+					})
+				}
+			}
+		}
+	}
+}
+
+func TestMinibufferView_ReverseISearchPrompt_NarrowWidth_NoPanicNoLineBreak(t *testing.T) {
+	mb := NewMinibuffer()
+	mb.SetPrompt("(reverse-i-search)'': ")
+	mb.SetWidth(24)
+	mb.SetInput("a")
+	mb.SetCursorPos(1)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
 	}
 }
 
