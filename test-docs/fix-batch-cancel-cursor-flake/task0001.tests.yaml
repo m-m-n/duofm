@@ -1,0 +1,107 @@
+task_id: task0001
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests:
+      - ui.TestGetMarkedFilesOrderMatchesDisplayOrderAcrossRepeatedCalls
+    red_confirmed: true
+    red_reason: >-
+      Against the pre-fix map-iteration implementation, the first of 50
+      repeated calls already mismatched: "iteration 0: GetMarkedFiles() =
+      [file3.txt file2.txt file1.txt subdir], want [subdir file1.txt
+      file2.txt file3.txt]".
+  AC-2:
+    tests:
+      - ui.TestGetMarkedFilesDirsPrecedeFilesWhenMarkedOutOfOrder
+    red_confirmed: true
+    red_reason: >-
+      Against the pre-fix implementation: "GetMarkedFiles() = [file2.txt
+      zdir file1.txt adir], want [adir zdir file1.txt file2.txt]" — marks
+      returned in insertion/map order instead of display order, directories
+      not grouped before files.
+  AC-3:
+    tests:
+      - ui.TestGetMarkedFilesFollowsSortOrderChangeAfterMarking
+    red_confirmed: true
+    red_reason: >-
+      Against the pre-fix implementation, after switching sort to name
+      descending and calling ApplySortAndPreserveCursor: "GetMarkedFiles()
+      after sort change = [file1.txt file2.txt subdir], want [subdir
+      file2.txt file1.txt]" — the result did not follow the new display
+      order.
+  AC-4:
+    tests:
+      - ui.TestGetMarkedFilesHiddenNamesAppendedAscending
+    red_confirmed: true
+    red_reason: >-
+      Against the pre-fix implementation: "GetMarkedFiles() = [bvvfile.txt
+      yvvfile.txt hidden_a.txt hidden_b.txt avvdir zdir], want [avvdir
+      bvvfile.txt yvvfile.txt hidden_a.txt hidden_b.txt zdir]" — visible
+      marks were not led by display order and hidden marks were not
+      appended in ascending order.
+  AC-5:
+    tests:
+      - ui.TestGetMarkedFilesAndPathsEmptyAndSingleMark
+    red_confirmed: false
+    red_reason: >-
+      With zero marks or exactly one mark there is no possible ordering
+      violation (0 or 1 elements are trivially "in order" under any
+      implementation), so this test already passed against the pre-fix
+      implementation. The criterion is a boundary check for NFR2
+      (set/length correctness), not an ordering behavior change; no
+      executable red was observable here. Existing tests TestGetMarkedFiles
+      and TestGetMarkedFilePaths were searched (internal/ui/pane_mark_test.go,
+      basename pane_mark_test.go) and already cover the general
+      not-empty/single-file shape without pinning order; they do not
+      contradict this observation.
+  AC-6:
+    tests:
+      - ui.TestGetMarkedFilePathsMatchesNamesWithHiddenMarks
+    red_confirmed: true
+    red_reason: >-
+      Against the pre-fix implementation (GetMarkedFilePaths iterating the
+      map independently of GetMarkedFiles), a run with -count=20 showed
+      repeated mismatches, e.g. "paths[0] = .../yvvfile.txt, want
+      .../hidden_b.txt" — the two queries' element-wise correspondence did
+      not hold because each iterated the mark map independently.
+  AC-7:
+    tests:
+      - test_batch_cancel_cursor
+    red_confirmed: true
+    red_reason: >-
+      Ran the hardened test_batch_cancel_cursor (bounded wait + new
+      src/dst assertions) through the containerized E2E harness (docker
+      build -f test/e2e/Dockerfile . && docker run ... cursor-preserve)
+      against the pre-fix Go ordering, 5 times. Run 3 of 5 failed exactly
+      the assertion this task added confidence around: "First file was
+      moved before cancel — File not found:
+      /testdata/user_owned/bcan_dst/01_aaa.txt" — because GetMarkedFiles()
+      returned 02_bbb.txt before 01_aaa.txt in that run, so the overwrite
+      dialog appeared for 02_bbb.txt before 01_aaa.txt had been moved.
+      Against the fixed ordering, 3 full cursor-preserve category runs (42
+      assertions each, including test_batch_cancel_cursor's 5) all passed.
+      `run_all_tests.sh --check-list` also passes (123 entries, no
+      undefined/missing run-list entries).
+  AC-8:
+    tests:
+      - ui.TestGetMarkedFiles
+      - ui.TestGetMarkedFilePaths
+    red_confirmed: false
+    red_reason: >-
+      A dedicated new test for signature/compile stability is out of scope,
+      but the existing ui.TestGetMarkedFiles and ui.TestGetMarkedFilePaths
+      (searched by repository-relative path internal/ui/pane_marks.go and
+      by basename pane_marks.go, pane_mark_test.go) already call both
+      functions with their unchanged signatures; no red state occurred for
+      this change. The criterion's other verifiable outcomes are `go
+      build`/`go test ./...` passing, `gofmt -l .` producing no output, and
+      `go vet ./...` reporting no findings, none of which had a
+      pre-implementation failing state to observe (the fix only reorders
+      existing return values behind unchanged signatures). Verified green
+      after implementation: `go test ./...` all packages ok, `gofmt -l .`
+      empty, `go vet ./...` empty, `make build` succeeds.
+notes: >-
+  final_failures re-run after every source/test change in this task; no
+  skip condition applied. AC-5 and AC-8 are listed in unconfirmed_reds per
+  the report below.
