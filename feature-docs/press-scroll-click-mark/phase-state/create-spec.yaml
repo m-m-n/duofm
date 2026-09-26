@@ -1,14 +1,52 @@
 schema_version: 1
 feature: press-scroll-click-mark
 phase: create-spec
-status: initialized
+status: awaiting_answers
 generation: 1
 base_revision: b32348205e2d5a2cfac6871dd0d00d7eb80e4537
-last_input_digest: null
+last_input_digest: sha256:f86deebfa7fb7cb7db78a2bd573e1da6f4f923500b24ecb05b0a0dbd47b1d7a6
 active_request_id: null
-packets: {}
-answers: {}
-worker_runs: []
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-26T17:33:04+09:00'
+    questions:
+    - question_id: requirement.press-scroll.behavior
+      status: answered
+    - question_id: design-step.press-scroll-click-mark
+      status: answered
+answers:
+  requirement.press-scroll.behavior:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:33:04+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - keep_scroll
+    freeform: null
+    normalized_answer: keep_scroll を採用する。押下でクリックしたペインのスクロール位置が変わる場合、押下前のスクロール位置に戻し、押した項目をポインタの下に残す。押下項目が縮小後の表示範囲に収まらない場合だけ既存の表示範囲調整を行う（このときダブルクリックの
+      2 回目が同じ項目に当たらないことがあるのは許容する）。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: keep_scroll
+      / row_based; chosen: keep_scroll; codex_consulted: true (codex entry, 1 turn);
+      opus_escalation: false; key points: row_based はドラッグ開始判定だけを直すため、押下行に戻るドラッグやダブルクリックの
+      2 回目が別項目を指す問題が残る。keep_scroll は handleEntryPress 内で押下前の scrollOffset を保存・復元し、クリック対象に既存の表示調整を適用するだけで共通のスクロール処理を変えずに済む。例外として、押下項目が縮小後の表示範囲より下にある場合は最下行へ移るため、2
+      回目の押下は項目外になり得る（Codex 指摘、mouse_hittest.go:74/98）。検証は実行中と bgClosing、上下への位置変化、既存マーク、''..''、ドラッグ後の押下行への復帰を含める。'
+  design-step.press-scroll-click-mark:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T17:33:04+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - skip
+    freeform: null
+    normalized_answer: 設計ステップはスキップする（内部のマウス処理の修正のみで、新しい表示要素・見た目の変更がない）。
+    resolution_note: 'gate: create-spec.design-step; policy decide_autonomously ->
+      analyst recommendation skip adopted'
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:f86deebfa7fb7cb7db78a2bd573e1da6f4f923500b24ecb05b0a0dbd47b1d7a6
+  output_digest: sha256:fc445795c0c0dbe36c736b0fe345a94ff3a5a0880cffa81e08598c96f081f2d5
 artifacts: []
 patches: []
 progress_fingerprint: null
