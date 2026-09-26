@@ -1,0 +1,21 @@
+schema_version: 1
+feature: drag-dir-load-stale-marks
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 3dcb9a4200d6842ea3d931495429cb49f21356ab
+last_input_digest: sha256:187a2ccf5a6d9a478c03d1976f3851d45074af03b83ff75b3fb09b65b83d167c
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:187a2ccf5a6d9a478c03d1976f3851d45074af03b83ff75b3fb09b65b83d167c
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
