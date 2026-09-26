@@ -121,7 +121,8 @@ workflow:
   base_commit: 7207ebf500b66e67f7af1e03ed3b74f9b3536ada
   completed_at_commit: 10c5cc2d15d693f5f07798ea3aa8503b4228353f
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 1978074616d6e87083133992b5bec9c0a4030e54
 - id: verify
   status: pending
 - id: retrospect
@@ -153,8 +154,8 @@ tasks:
     status: merged
     branch: em-workflow/narrow-pane-render-panic/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
   plan:
     floor:
     - comprehensive
@@ -162,6 +163,12 @@ review:
     - spec
     discretionary: []
     cross_validation: false
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
 requirements:
   FR1:
     title: 区切り線の繰り返し回数を 0 未満にしない

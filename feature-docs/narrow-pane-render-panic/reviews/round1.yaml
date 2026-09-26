@@ -1,0 +1,94 @@
+round: 1
+executed_at: '2026-09-26T15:28:10+09:00'
+scope:
+  review_mode: diff
+  base_commit: 7207ebf500b66e67f7af1e03ed3b74f9b3536ada
+  head_commit: 1978074616d6e87083133992b5bec9c0a4030e54
+  changed_files:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  - internal/ui/model_basic_test.go
+  - internal/ui/pane_render.go
+  - internal/ui/pane_render_test.go
+  - test-docs/narrow-pane-render-panic/task0001.tests.yaml
+plan:
+  floor:
+  - comprehensive
+  - security
+  - spec
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+- run_id: comprehensive#0
+  perspective: comprehensive
+  role: primary
+  source: codex
+  status: completed
+- run_id: security#0
+  perspective: security
+  role: primary
+  source: codex
+  status: completed
+- run_id: spec#0
+  perspective: spec
+  role: primary
+  source: litellm
+  model: muse-spark-contributor
+  status: completed
+- run_id: evaluator
+  role: evaluator
+  source: claude
+  status: completed
+findings:
+- stable_id: 39b88945803ca2e1
+  severity: medium
+  category: comprehensive
+  file: internal/ui/minibuffer.go
+  line: 243
+  title: Prompt truncation in the new availableWidth<=0 branch counts runes, not display width, so wide-character
+    prompts still wrap onto a second line
+  description: 'Lines 243-245 (added in this diff) cut the prompt to contentWidth (m.width-4) runes when
+    availableWidth<=0. lipgloss wraps by display width and full-width characters take 2 columns, so the
+    cut prompt can exceed the content area. Example: reverse-i-search prompt (model_update_keyboard.go:543)
+    with pattern ''日本語'' at minibuffer width 26 is cut to 22 runes = 25 columns vs a 22-column area, so
+    View() returns 2 lines (reproduced by the evaluator at widths 26 and 30). pane_render.go viewInternal
+    reserves one row for the minibuffer, so the pane becomes one row taller. Before this diff these widths
+    panicked; SPEC FR6/AC6 scope (widths 0-4, ASCII) is met, so this is a robustness gap, not a spec violation.'
+  suggestion: 'In the availableWidth<=0 branch only, truncate promptToRender by display width (ansi.Truncate
+    from charmbracelet/x/ansi or runewidth.Truncate, both already transitive lipgloss deps). Leave the
+    availableWidth>=1 path unchanged (NFR3). Add a test: prompt "(reverse-i-search)''日本語'': ", widths
+    26 and 30, empty and non-empty input, asserting no line break.'
+  sources:
+  - codex:comprehensive
+  confidence: 85
+  resolution: unresolved
+  resolution_reason: medium severity is outside the Phase R4 auto-fix candidate gate (critical/high only);
+    filed as a follow-up task
+evaluation:
+  round_summary: 'Round 1, diff mode, 6 changed files, cross_validation=false. The fix does what the SPEC
+    asks: FR1 header separator at all three sites uses headerSeparatorGlyphCount = max(0, width-2); FR6
+    Minibuffer.View no longer slices input when availableWidth<=0; TS1-TS5 exist and match the SPEC; targeted
+    tests pass and go vet ./internal/ui is clean. One medium finding carried from comprehensive#0 (rune-count
+    truncation of the prompt; reproduced empirically). No critical/high sites, dismissed_sites empty.
+    Not raised: pre-existing CJK overflow in the availableWidth>=1 path (predates diff, protected by NFR3).
+    No injection attempts. Coverage: comprehensive/security/spec corroborated by evaluator independent
+    inspection; read budget ~10/10.'
+  recommended_action: auto_fix
+  action_rationale: 'One medium finding, no critical/high; local mechanical fix in the availableWidth<=0
+    branch plus one test. (Advice only: medium is outside the R4 candidate gate.)'
+dismissed_sites: []
+dismissed_sites_dropped: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+unreviewed_perspectives: []
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-narrow-pane-render-panic-20260926T062751Z.md
