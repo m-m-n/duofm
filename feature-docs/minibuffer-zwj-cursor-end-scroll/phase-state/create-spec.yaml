@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-zwj-cursor-end-scroll
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: f8e299d3db323bb5410ded9a02cb24a53f62c6de
 last_input_digest: sha256:1bdf238145ca30ba5722989437b853aedab847f4e79c5f4185392ad4a0744c12
