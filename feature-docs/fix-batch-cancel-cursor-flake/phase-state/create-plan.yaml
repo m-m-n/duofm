@@ -1,0 +1,21 @@
+schema_version: 1
+feature: fix-batch-cancel-cursor-flake
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 062a03ca33417d08bccd6f97305d8c7b8c6a5c5b
+last_input_digest: sha256:b1222a459ca1d9d76ca7f14289fde7064c9e4ef0c6afb41caa70abf96fec2629
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:b1222a459ca1d9d76ca7f14289fde7064c9e4ef0c6afb41caa70abf96fec2629
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
