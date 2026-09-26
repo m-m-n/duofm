@@ -1,7 +1,7 @@
 schema_version: 1
 feature: fix-batch-cancel-cursor-flake
 phase: create-spec
-status: applying_patch
+status: completed
 generation: 1
 base_revision: 0d1d632e23c70dfcbd3150b749fd22896e522a12
 last_input_digest: sha256:618dd2b69c667755630e892865ab0d37ac820c69681063f06f4665a27a441d41
@@ -105,5 +105,4 @@ patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: 'create-spec-run-0001: validation layer 2 (gate_id option vocabulary for create-spec.design-step);
-  re-emitted as create-spec-run-0002'
+last_error: null
