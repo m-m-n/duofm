@@ -120,14 +120,19 @@ workflow:
   status: completed
   completed_at_commit: 55c3638af1605e33339af2fed7d6035756394ced
 - id: verify
-  status: completed
-  result: pass
-  failed_items: []
-  completed_at_commit: bc584e272dc78883a17e1d19f49c027800ed0469
+  status: failed
+  result: fail
+  failed_items:
+  - id: AC-2
+    category: spec
+    note: 'assert_input_field_value の照合式がベース名の前後に空白以外の任意の 1 文字を許すため、初期値が
+      before_rename. / xbefore_rename / before_renamex（navren_before も同様）でも合格する。AC-2（初期値が期待値と異なるとき両検査が失敗する）を満たさない。review
+      の medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と同根'
   summary: 'build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
     --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) /
-    TS-2 mutation (C-u before check, and full-name variant) each fail exactly the 2 initial-value
-    checks (28/30 file-ops) / TS-4 no *.go or helpers.sh diff. Excluded requirements: none'
+    TS-2 mutation (C-u, full-name variant) each fail exactly the 2 initial-value checks
+    / TS-4 no *.go or helpers.sh diff / AC-2 fails: one extra leading or trailing character
+    is accepted. Excluded requirements: none'
 - id: retrospect
   status: pending
 tasks:
@@ -217,8 +222,9 @@ requirements:
 batch:
   review_rework_count: 0
   verify_rework:
-    rounds: 0
-    failed_id_counts: {}
+    rounds: 1
+    failed_id_counts:
+      AC-2: 1
   infra_resume:
     rounds: 0
     cap: 2
