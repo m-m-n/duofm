@@ -678,6 +678,42 @@ func TestPaneViews_NarrowWidths_RowCountMatchesWidth40(t *testing.T) {
 	}
 }
 
+// --- AC-6 (FR7, TS-3): a minibuffer with a wide prompt and full-width input
+// occupies the same number of output rows as a minibuffer with a short
+// ASCII prompt and no input, at the same width (task0001).
+
+func TestPaneViews_ViewWithMinibuffer_WidePromptRowCountMatchesSimplePrompt(t *testing.T) {
+	const height = 24
+
+	for _, width := range []int{26, 37} {
+		t.Run(fmt.Sprintf("width=%d", width), func(t *testing.T) {
+			wide := newFilesPane(t, LeftPane, 5, width, height, true)
+			wideMB := NewMinibuffer()
+			wideMB.SetPrompt("(reverse-i-search)'日本語': ")
+			wideMB.SetWidth(width)
+			wideMB.SetInput("echo 日本語")
+			wideMB.Show()
+
+			simple := newFilesPane(t, LeftPane, 5, width, height, true)
+			simpleMB := NewMinibuffer()
+			simpleMB.SetPrompt("/: ")
+			simpleMB.SetWidth(width)
+			simpleMB.Show()
+
+			gotRows := strings.Count(mustNotPanic(t, "ViewWithMinibuffer", func() string {
+				return wide.ViewWithMinibuffer(0, wideMB)
+			}), "\n")
+			wantRows := strings.Count(mustNotPanic(t, "ViewWithMinibuffer", func() string {
+				return simple.ViewWithMinibuffer(0, simpleMB)
+			}), "\n")
+
+			if gotRows != wantRows {
+				t.Errorf("row count = %d, want %d", gotRows, wantRows)
+			}
+		})
+	}
+}
+
 func TestRenderHeaderLine1_NoBranchWhenEmpty(t *testing.T) {
 	pane := &Pane{
 		path:      "/tmp/test",
