@@ -1,11 +1,11 @@
 schema_version: 1
 feature: e2e-unregistered-test-file-guard
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
-base_revision: 44a6750604f2db969ce5c4dabea4f4fba7db8a55
+base_revision: 50be5fc1c2d47adfdf3b6998c4fe66c3a3b4d5ed
 last_input_digest: sha256:e22eb06bf40608dbe35a5e8f5116db2720bd10ff7b3003ef7a14cae143b841df
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -28,7 +28,7 @@ artifacts:
   produced_by: create-plan-run-0001
 patches:
 - patch_id: e2e-unregistered-test-file-guard-create-plan-p0001
-  status: validated
+  status: applied
   base_input_digest: sha256:e22eb06bf40608dbe35a5e8f5116db2720bd10ff7b3003ef7a14cae143b841df
   base_workflow_blob: 6c9101c7e58076ad7ba08ae7ea4ca31b6acff32c
 progress_fingerprint: null
