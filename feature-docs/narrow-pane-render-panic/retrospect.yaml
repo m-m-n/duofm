@@ -1,0 +1,37 @@
+feature: narrow-pane-render-panic
+collected_at: "2026-09-26T15:45:00+09:00"
+session_ids: [01a0dc74-649d-714d-93e0-a071d920da39.jsonl]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full;
+      description_only P(0)=0.25, description_plus_code P(0)=0.01)'
+    bases:
+      - basis: description_only
+        probabilities: {'0': 0.25, '1': 0.75, '2': 0.0, '3': 0.0}
+      - basis: description_plus_code
+        probabilities: {'0': 0.01, '1': 0.91, '2': 0.08, '3': 0.0}
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/pane_render.go
+        - internal/ui/pane_render_test.go
+        - internal/ui/minibuffer.go
+        - internal/ui/minibuffer_test.go
+      changed_lines_approx: 120
+      new_functions_needed: 2
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: true
+      spillover_modules:
+        - internal/ui/minibuffer.go
+      work_still_required: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review round1 の medium finding 39b88945803ca2e1（全角プロンプトの切り詰めが rune 数基準）は R4 の自動修正対象外で未解決のまま残り、Notion に別タスクとして起票済み"
+  - "verify 後の integration worktree に podman 実行由来と見られる未追跡の .config/go/ が残っていた。Step C の git worktree remove（--force なし）を妨げる可能性がある"
