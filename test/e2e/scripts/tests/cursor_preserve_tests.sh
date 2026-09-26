@@ -58,6 +58,71 @@ assert_file_not_exists() {
     fi
 }
 
+# Helper: Assert a file's content equals an expected string exactly.
+# Usage: assert_file_content <filepath> <expected_content> <description>
+assert_file_content() {
+    local filepath="$1"
+    local expected="$2"
+    local description="$3"
+
+    TESTS_RUN=$((TESTS_RUN + 1))
+
+    if [ ! -f "$filepath" ]; then
+        echo -e "${RED}✗${NC} $description"
+        echo -e "  ${YELLOW}File not found:${NC} $filepath"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+
+    local actual
+    actual=$(cat "$filepath")
+    if [ "$actual" = "$expected" ]; then
+        echo -e "${GREEN}✓${NC} $description"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        return 0
+    else
+        echo -e "${RED}✗${NC} $description"
+        echo -e "  ${YELLOW}Expected content:${NC} $expected"
+        echo -e "  ${YELLOW}Actual content:${NC} $actual"
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+}
+
+# Helper: Wait for text to appear on screen, bounded by a timeout. Polls the
+# screen at a short interval instead of sleeping a fixed duration. Records
+# exactly one assertion: pass as soon as the text is seen, fail with a short
+# screen excerpt once the timeout elapses. Never blocks past the bound.
+# Usage: wait_for_text <session_name> <expected_text> <description> [timeout_seconds]
+wait_for_text() {
+    local session_name="$1"
+    local expected="$2"
+    local description="$3"
+    local timeout_seconds="${4:-5}"
+    local interval_seconds="0.15"
+
+    TESTS_RUN=$((TESTS_RUN + 1))
+
+    local start_seconds=$SECONDS
+    local screen=""
+    while (( SECONDS - start_seconds < timeout_seconds )); do
+        screen=$(capture_screen "$session_name")
+        if echo "$screen" | grep -qF -- "$expected"; then
+            echo -e "${GREEN}✓${NC} $description"
+            TESTS_PASSED=$((TESTS_PASSED + 1))
+            return 0
+        fi
+        sleep "$interval_seconds"
+    done
+
+    echo -e "${RED}✗${NC} $description"
+    echo -e "  ${YELLOW}Expected to find within ${timeout_seconds}s:${NC} $expected"
+    echo -e "  ${YELLOW}Screen content:${NC}"
+    echo "$screen" | head -10 | sed 's/^/    /'
+    TESTS_FAILED=$((TESTS_FAILED + 1))
+    return 1
+}
+
 # Helper: Navigate both panes - right pane to dst, left pane to src
 # Both directories must be under the starting directory (e.g., /testdata/user_owned)
 # Syncs right pane first since it starts at ~ (home directory)
@@ -455,10 +520,13 @@ test_batch_cancel_cursor() {
 
     # Start batch move
     send_keys "$CURRENT_SESSION" "m"
-    sleep 1.0
 
     # First file (01_aaa) should move successfully
-    # Second file (02_bbb) should show overwrite dialog
+    # Second file (02_bbb) should show overwrite dialog: wait for it with a
+    # bounded poll instead of a fixed sleep
+    wait_for_text "$CURRENT_SESSION" "already exists" \
+        "Overwrite dialog appeared for 02_bbb.txt" 5
+
     # Cancel on overwrite dialog
     send_keys "$CURRENT_SESSION" "2"
     sleep 0.5
@@ -470,6 +538,14 @@ test_batch_cancel_cursor() {
     # 01_aaa should have been moved (first in batch)
     assert_file_exists "$dstdir/01_aaa.txt" \
         "First file was moved before cancel"
+
+    # 02_bbb.txt should remain in source (batch stopped before moving it)
+    assert_file_exists "$srcdir/02_bbb.txt" \
+        "Second file left in source after cancel"
+
+    # dst/02_bbb.txt should retain its pre-existing content (not overwritten)
+    assert_file_content "$dstdir/02_bbb.txt" "existing" \
+        "Destination file content unchanged after cancel"
 
     rm -rf "$srcdir" "$dstdir"
     stop_duofm "$CURRENT_SESSION"
