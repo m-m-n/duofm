@@ -88,7 +88,31 @@ workflow:
   status: pending
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Prevent narrow-width render panics in pane and minibuffer views
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/pane_render.go
+    - internal/ui/minibuffer.go
+    - internal/ui/pane_render_test.go
+    - internal/ui/minibuffer_test.go
+    - internal/ui/model_basic_test.go
+    skills: []
+    domains:
+    - ui
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - FR6
+    - NFR1
+    - NFR2
+    - NFR3
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -98,64 +122,87 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-6
   FR2:
     title: ペイン幅 0〜4 で各表示が panic しない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
   FR3:
     title: 端末幅 0〜3 でもモデル全体の描画が panic しない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-3
   FR4:
     title: 狭い幅でもヘッダーと行の構成を変えない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-2
   FR5:
     title: 再発検出テスト
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-3
+    - TS-5
   FR6:
     title: ミニバッファの入力表示幅が 0 以下でも panic しない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-5
   NFR1:
     title: 既存のペイン描画結果を変えない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
+    - TS-6
   NFR2:
     title: 既存テストを通す
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
   NFR3:
     title: 既存のミニバッファ描画結果を変えない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
 batch:
   review_rework_count: 0
   verify_rework:
