@@ -90,7 +90,11 @@ workflow:
   status: completed
   completed_at_commit: dd6c2452034cea501484fa6758fbc637f5666044
 - id: verify
-  status: in_progress
+  status: completed
+  completed_at_commit: 206313b11c90be3136522f9c1d20b5c17d4d6f75
+  result: pass
+  failed_items: []
+  summary: 'build ok; go test ./... ok (TS-1..TS-5 included); gofmt no diff; go vet clean; E2E 265/265 passed (mouse_tests / mark_tests included). M-1 is manual and not run in batch; TS-1/TS-2 cover the reproduction.'
 - id: retrospect
   status: pending
 tasks:
