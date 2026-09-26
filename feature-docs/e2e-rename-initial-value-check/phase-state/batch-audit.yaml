@@ -10,3 +10,12 @@ records:
     freeform: "verify を failed（AC-2）にして自動 rework を回す"
     normalized_answer: "verify failed on AC-2; auto-rework via tier upgrade reduced -> full"
     resolution_note: "gate: verify 判定（AC-2 の成否が review 未解決 medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と食い違う）; options: A=pass 維持して残件を別タスク起票, B=failed にして rework; chosen: B; not chosen: A; codex_consulted: true (2 回。1 回目: カーソルは反転表示のみで独立文字は出ない internal/ui/text_input.go:198,205、厳密一致式でも TS-1 は壊れないと grep で確認し B を推奨。2 回目: reduced tier の verify failed は full への昇格を伴い費用が大きいと追加提示したが、既知の反例がある成功条件を pass にするのは検証の取り繕いになるとして B を維持); opus_escalation: false; 推奨式: ${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}"
+  - question_id: create-spec.design-step.reentry
+    packet_id: null
+    answered_at: "2026-09-27T02:47:00+09:00"
+    source: batch-policy
+    answer_mode: select_or_freeform
+    selected_option_ids: [decide_autonomously]
+    freeform: "design step skipped"
+    normalized_answer: "design step skipped per requirements-analyst recommendation (E2E shell scripts only, no UI)"
+    resolution_note: "gate: create-spec.design-step (tier upgrade re-entry; the upgrade procedure had set design pending); chosen: decide_autonomously -> skipped; codex_consulted: false; opus_escalation: false. Also: spec-writer run-0004 blocked (no hashing tool); orchestrator pre-verified target digests and substituted written_artifacts digests for run-0005"
