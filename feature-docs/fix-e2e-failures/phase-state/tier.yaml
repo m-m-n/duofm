@@ -1,0 +1,62 @@
+schema_version: 1
+feature: fix-e2e-failures
+tier: full
+rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full; both readings:
+  P(0)=0.0)'
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.0
+    '1': 0.25
+    '2': 0.75
+    '3': 0.0
+  expectation_clear: 0.8
+  observed_at: '2026-09-25T20:42:33+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.0
+    '1': 0.39
+    '2': 0.61
+    '3': 0.0
+  expectation_clear: 0.86
+  observed_at: '2026-09-25T20:47:46+09:00'
+pre_survey_estimate:
+  files_expected:
+  - test/e2e/Dockerfile
+  - test/e2e/scripts/run_all_tests.sh
+  - test/e2e/scripts/helpers.sh
+  - test/e2e/scripts/tests/archive_tests.sh
+  - test/e2e/scripts/tests/file_operation_tests.sh
+  - test/e2e/scripts/tests/mark_tests.sh
+  - test/e2e/scripts/tests/sort_tests.sh
+  - test/e2e/scripts/tests/shell_tests.sh
+  - test/e2e/scripts/tests/bookmark_tests.sh
+  - test/e2e/scripts/tests/history_tests.sh
+  changed_lines_approx: 250
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: 2
+  covering_tests_exist: true
+  spillover_modules:
+  - test/e2e/Dockerfile
+  - test/e2e/scripts/run_all_tests.sh
+  - test/e2e/scripts/helpers.sh
+  work_still_required: true
+  notes: 'HEAD 4d6eeb5を静的に調査したよ。ファイルは変更していないよ。報告された29件はテスト側の古い期待・操作・準備で説明でき、アプリ本体の変更は現時点では見込まないよ
+
+    Archive（22件）：メニューはoではなく@で開き、/Compress・/Extractによる検索には対応していないよ。番号選択へ修正し、複数選択は移動操作のmからSpaceへ変更する必要があるよ。圧縮先は反対ペインなので、書き込み可能な保存先を設定するよ。形式番号はコマンドの有無で変わるため固定5=zipを見直すよ。ZIP未生成を失敗に数えない分岐も修正するよ
+
+    Rename（2件）：rは既存名入りの拡張子保持画面を開くため、題名と空欄前提が古いよ。Ctrl+Uで名前部分を置換し、一覧確認前に検索条件を解除するよ。関連テストの後始末も直すよ
+
+    Mark（1件）：Enterは削除を確定せず、yが必要だよ。残存ファイルで選択順が変わるため対象名も明示するよ
+
+    Sort（1件）：q取消は意図的に廃止されているよ。通常状態ではEsc/Ctrl+C、選択肢展開中はEscで段階的に閉じる期待へ修正するよ
+
+    Shell（1件）：!の説明は最初の20行の外にあるため、ヘルプをページ送りして検証するよ
+
+    Bookmark（1件）：表示はD:Deleteではなくd:Deleteだよ
+
+    History（1件）：dir1/subdirはDockerfileで権限000にされており、想定した履歴が作られないよ。親移動後のカーソル復元も固定j回数と合わないため、移動可能な専用ディレクトリと明示選択で検証するよ。前進履歴の切捨ては実装・単体テストがあるよ
+
+    入口は追跡済みのrun_tests.sh→run_all_tests.shリンクで解消済みだよ。ただし実行一覧には未定義のsort関数3件と既存テスト9件の実行漏れがあり、helpers.shは未定義呼出しを失敗集計しないため修正対象だよ。追加依存2件はZIP検証用のzip/unzipで、Go依存追加は不要だよ。既存E2Eと関連単体テストを更新して再発を検出するよ。Dockerが使えないため全件成功は未検証だよ'
+decided_at: '2026-09-25T20:47:52+09:00'

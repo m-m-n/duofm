@@ -1,0 +1,76 @@
+task_id: task0004
+baseline_failures: []          # go test ./... — all packages pass at base commit
+final_failures: []             # go test ./... — all packages pass after this task's edits
+acceptance_tests:
+  AC-1:
+    tests: [test_sort_dialog_q_cancel]
+    red_confirmed: false
+    red_reason: >
+      E2E shell tests cannot be executed inside this implementation worktree
+      (Test Notes: no e2e run here; pass/fail is confirmed at the verify
+      phase, VERIFICATION.md TS1/TS4). Verified statically instead: read
+      internal/ui/model_update_keyboard.go (when m.sortDialog is active,
+      handleKeyInput delegates every key to sortDialog.Update and returns,
+      regardless of whether the dialog recognizes the key) and
+      internal/ui/sort_dialog.go handleDialogKey (switch has no case for
+      "q"), confirming q does nothing to the dialog. The pre-edit test
+      asserted the opposite (assert_not_contains "Sort by" after q), which
+      would have failed against this source; the edited test now asserts
+      assert_contains "Sort by" before and after q.
+  AC-2:
+    tests: [test_sort_dialog_q_cancel_with_dropdown]
+    red_confirmed: false
+    red_reason: >
+      Same execution constraint as AC-1. Verified statically: with the
+      dropdown expanded, SortDialog.HandleKey routes to
+      handleExpandedDropdownKey, which calls Dropdown.HandleKey
+      (internal/ui/dropdown.go) whose switch also has no case for "q", so it
+      returns DropdownActionNone and handleExpandedDropdownKey's default
+      branch returns (false, false) — dropdown stays expanded, dialog stays
+      open. The edited test expands the dropdown, asserts "Size" (a literal
+      shown only while expanded) before q, presses q, then asserts "Sort by"
+      is still shown.
+  AC-3:
+    tests: [test_sort_dialog_q_cancel, test_sort_dialog_q_cancel_with_dropdown]
+    red_confirmed: false
+    red_reason: >
+      Verified by code review of the edited functions (not independently
+      executable): both now use only assert_contains "Sort by" around the q
+      press (no assert_not_contains that would pass on close), and the check
+      descriptions read "Sort dialog stays open after q" /
+      "Sort dialog stays open after q even with dropdown expanded".
+  AC-4:
+    tests: []
+    red_reason: >
+      Audited the 5 newly-listed sort tests named in the task plan
+      (test_sort_dialog_dropdown_expansion, test_sort_dialog_dropdown_jk_navigation,
+      test_sort_dialog_jk_major_item_navigation, test_sort_dialog_ok_button_confirmation,
+      test_sort_dialog_tab_three_items) against internal/ui/sort_dialog.go and
+      internal/ui/dropdown.go. Keys (Enter/j/k/Tab/Escape) and expected
+      literals ("Size", "[OK]") all match current behavior; no key/literal
+      mismatches found. One correction was made for check quality (see AC-4
+      note in report): test_sort_dialog_dropdown_expansion's post-expand
+      assertion was changed from "Name" to "Size", because "Name" (the
+      default sort field) is already visible in the pane header
+      (internal/ui/pane_render.go renderHeaderLine2 -> p.sortConfig.String())
+      before the dropdown is ever opened, so it could not prove expansion
+      happened; "Size" only appears once the dropdown lists all options.
+  AC-5:
+    tests: []
+    red_reason: >
+      `bash -n test/e2e/scripts/tests/sort_tests.sh` passed. Function name
+      set verified unchanged: `grep -o '^test_[a-zA-Z0-9_]*' ... | sort -u`
+      lists the same 14 test_-prefixed names before and after the edit (no
+      rename/add/remove). shellcheck is not installed in this environment,
+      so that part of AC-5 could not be checked; noted in the report.
+  AC-6:
+    tests: []
+    red_reason: >
+      Literals asserted by the edited tests (test_sort_dialog_dropdown_expansion,
+      test_sort_dialog_q_cancel, test_sort_dialog_q_cancel_with_dropdown):
+      "Sort by" -> internal/ui/sort_dialog.go (renderSortByRow:
+      labelStyle.Render("Sort by")); "Size" -> internal/ui/sort_dialog.go
+      (fieldOptions DropdownOption{Label: "Size", Value: "size"}), rendered
+      by internal/ui/dropdown.go (viewClosed's SelectedLabel() and
+      viewExpanded's option-label loop). Both literals appear verbatim in
+      internal/ui source at the base commit.
