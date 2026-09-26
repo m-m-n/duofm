@@ -104,14 +104,14 @@ workflow:
   status: completed
   completed_at_commit: dd2b43559ae3b21f87d6788817d1e177728314f8
 - id: implement
-  status: completed
+  status: pending
   completed_at_commit: 8fb553453e92e92b613a03dbab5034dda1475933
   base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
 - id: review
-  status: completed
+  status: pending
   completed_at_commit: bd1a654aaff2f59fb7974bcb6bf73d7a0a0ad981
 - id: verify
-  status: failed
+  status: pending
   result: fail
   failed_items:
   - id: AC-6
@@ -167,6 +167,26 @@ tasks:
       source_ids:
       - AC-2
       review_round: null
+  task0003:
+    title: Anchor the input-field assertion to the dialog row's structure
+    plan: tasks/task0003.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - NFR1
+    - NFR2
+    status: pending
+    provenance:
+      source: verify
+      source_ids:
+      - AC-6
+      review_round: null
 review:
   status: completed
   plan:
@@ -192,10 +212,12 @@ requirements:
     tasks:
     - task0001
     - task0002
+    - task0003
     tests:
     - TS-1
     - TS-2
     - TS-5
+    - TS-6
   FR2:
     title: Restrict the initial-value check in test_navigation_after_rename to the input field, with strict
       matching
@@ -205,10 +227,12 @@ requirements:
     tasks:
     - task0001
     - task0002
+    - task0003
     tests:
     - TS-1
     - TS-2
     - TS-5
+    - TS-6
   FR3:
     title: Remove the always-passing testdata check from history_tests.sh
     status: ok
@@ -226,6 +250,7 @@ requirements:
     tasks:
     - task0001
     - task0002
+    - task0003
     tests:
     - TS-4
   NFR2:
@@ -236,6 +261,7 @@ requirements:
     tasks:
     - task0001
     - task0002
+    - task0003
     tests:
     - TS-4
 batch:
