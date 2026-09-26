@@ -1,0 +1,21 @@
+schema_version: 1
+feature: fix-batch-cancel-cursor-flake
+phase: create-spec
+status: dispatching
+generation: 1
+base_revision: 0d1d632e23c70dfcbd3150b749fd22896e522a12
+last_input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd5352cc8eedf55
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd5352cc8eedf55
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
