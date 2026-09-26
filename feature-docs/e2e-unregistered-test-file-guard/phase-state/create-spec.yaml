@@ -3,9 +3,9 @@ feature: e2e-unregistered-test-file-guard
 phase: create-spec
 status: dispatching
 generation: 1
-base_revision: 25584f52c306ecfbd7a10931e45b96a6760a619e
+base_revision: 5e8e91e692674d99ed3f53699587f1fedd59268b
 last_input_digest: sha256:2bb1d9347bf72f315bcbd141fffb1a67e5cab4b1c2e598e6075819752ade66c4
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -64,10 +64,16 @@ worker_runs:
   input_digest: sha256:4d1fc0843d04b6520e7ed4b53066d9e34f0649a6afe3a85c4149374e6eb1b0a0
   output_digest: sha256:0bca323cdd45652b13558e7d37ace0551ec1b924d28048e968cc97e585a3d64e
 - request_id: create-spec-run-0003
-  status: dispatched
+  status: completed
   input_digest: sha256:2bb1d9347bf72f315bcbd141fffb1a67e5cab4b1c2e598e6075819752ade66c4
-  output_digest: null
-artifacts: []
+  output_digest: sha256:73ea4d7db10e78f1d27b48f10d34f8aa2aa7f0468e5f67498ec54ca4adab6ddd
+artifacts:
+- path: feature-docs/e2e-unregistered-test-file-guard/REQUIREMENTS.md
+  sha256: sha256:73ea4d7db10e78f1d27b48f10d34f8aa2aa7f0468e5f67498ec54ca4adab6ddd
+  produced_by: create-spec-run-0003
+- path: feature-docs/e2e-unregistered-test-file-guard/SPEC.md
+  sha256: sha256:eed1ee78fbd88cec868e4bdeb56c0dcab9a8b82d39bc522d26a4de05ac6ba097
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
