@@ -93,7 +93,7 @@ workflow:
   base_commit: e0569216ea0692e67efba5928b030254c66efc7a
   completed_at_commit: f6af37e06987eba3cef287ac36dcd85daa9db9a3
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
 - id: retrospect
@@ -126,8 +126,15 @@ tasks:
     status: merged
     branch: em-workflow/minibuffer-wide-prompt-wrap/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: 表示幅の基準
