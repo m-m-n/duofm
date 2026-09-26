@@ -1,0 +1,47 @@
+feature: minibuffer-wide-prompt-wrap
+collected_at: "2026-09-26T21:15:13+09:00"
+session_ids: [01a0dda2-f991-709d-a69b-1521321ff799]
+signals:
+  review_critical_high:
+    - stable_id: 1372160ec8ca2a16
+      category: comprehensive
+      file: internal/ui/minibuffer.go
+      title: "VS16 付き絵文字の表示幅を過小評価し、1 行の保証が崩れる"
+      resolution: fixed
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: "unconditional row: no threshold member declared (decided_by threshold_rows:full; both readings agree: P(0)=0.23 / 0.22, below the reduced P(0) floor)"
+    bases:
+      - basis: description_only
+        score:
+          probabilities: {'0': 0.23, '1': 0.64, '2': 0.13, '3': 0.0}
+          expectation_clear: 0.86
+        observed_at: "2026-09-26T17:45:34+09:00"
+      - basis: description_plus_code
+        score:
+          probabilities: {'0': 0.22, '1': 0.67, '2': 0.11, '3': 0.0}
+          expectation_clear: 0.85
+        observed_at: "2026-09-26T17:45:34+09:00"
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/minibuffer.go
+        - internal/ui/minibuffer_test.go
+      changed_lines_approx: 45
+      new_functions_needed: 0
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: false
+      spillover_modules: []
+      work_still_required: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review round 1 の loop 1 で入った縮小ループに medium が 2 件（408ffc35dd15e043: 大量の結合文字で O(n²)、abb435ae05afd8f2: ZWJ 列の過剰な切り詰め）残った。high 自動修正が別の medium を生む流れ"
+  - "high 1372160ec8ca2a16 の自動修正はテスト追加が editor の対象外で未実施のまま fixed になった（VS16 の回帰テストが無い）"
+  - "comprehensive#0 の Codex 出力にリポジトリ外由来のプロンプトインジェクション文が混入した（546610131641665a、unresolved）。Codex 実行環境の確認が要る"
+  - "podman での検証コマンドが integration worktree に untracked の .config/go/telemetry を残す。Step C の git worktree remove を妨げる可能性がある"
+  - "事前調査の見積り 45 行・2 ファイルに対し、実装は pane_render_test.go も触った（files 予測には含まれており deviation ではない）"
