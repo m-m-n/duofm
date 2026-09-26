@@ -1,11 +1,11 @@
 schema_version: 1
 feature: minibuffer-wide-prompt-wrap
 phase: create-spec
-status: awaiting_answers
+status: dispatching
 generation: 1
 base_revision: f18eefd12f1e13caad980aac5bab503ff69feed4
-last_input_digest: sha256:b4586e8493cb56f4ed5a67f2f82388601119b19b8742280a29d457335502c6cd
-active_request_id: null
+last_input_digest: sha256:bbc09c4ed4c1a9a908d92114d8844b7133f04da9bb8b8e89600a20edc99f6e4b
+active_request_id: create-spec-run-0003
 packets:
   create-spec-q0001:
     status: answered
@@ -69,6 +69,10 @@ worker_runs:
   status: needs_user_input
   input_digest: sha256:b4586e8493cb56f4ed5a67f2f82388601119b19b8742280a29d457335502c6cd
   output_digest: sha256:46099dfe7c30ab5ef1db3db635af2f1ed29dd0314f16cf5fcdb214f91bedc2fe
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:bbc09c4ed4c1a9a908d92114d8844b7133f04da9bb8b8e89600a20edc99f6e4b
+  output_digest: sha256:46221d0cf4a57a26495aa9a9362be3907b6dc9b98839e6eaf390b2c06e755cd8
 artifacts: []
 patches: []
 progress_fingerprint: null
