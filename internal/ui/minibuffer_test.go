@@ -613,6 +613,162 @@ func TestMinibufferView_Width40_PromptAndInputFitUntruncated(t *testing.T) {
 	}
 }
 
+// --- task0001 (AC-1..AC-4 / SPEC AC1-AC5): the "fits untruncated" branch of
+// Minibuffer.View's remaining-width >= 1 path must judge fit by the input's
+// actual (grapheme-cluster) display width, not the sum of each rune's own
+// width, so ZWJ-joined sequences that actually fit are shown whole.
+
+// familyEmojiLsInput is a ZWJ-joined family emoji (U+1F468 U+200D U+1F469
+// U+200D U+1F467 U+200D U+1F466), 7 runes, followed by "ls" (2 runes): 9
+// runes total. Its actual display width is 4; the sum of each rune's own
+// width is 10 -- the gap this task's fix exploits.
+const familyEmojiLsInput = "👨‍👩‍👧‍👦ls"
+
+// searchPrompt is the task plan's fixture prompt, with an actual display
+// width of 10.
+const searchPrompt = "(search): "
+
+// checkFamilyEmojiFixture fails the test immediately if the numbers the
+// task plan's test data relies on -- prompt width 10, input actual width 4,
+// input rune-width sum 10 -- have drifted, so a later assertion failure
+// can't be mistaken for one of these instead. Same shape as
+// TestMinibufferView_ScrolledInput_CursorCharacterVisible's fixture check.
+func checkFamilyEmojiFixture(t *testing.T) {
+	t.Helper()
+	if got := lipgloss.Width(searchPrompt); got != 10 {
+		t.Fatalf("test fixture assumption broken: prompt width = %d, want 10", got)
+	}
+	if got := lipgloss.Width(familyEmojiLsInput); got != 4 {
+		t.Fatalf("test fixture assumption broken: input actual width = %d, want 4", got)
+	}
+	runes := []rune(familyEmojiLsInput)
+	if len(runes) != 9 {
+		t.Fatalf("test fixture assumption broken: input rune count = %d, want 9", len(runes))
+	}
+	sum := 0
+	for _, r := range runes {
+		sum += lipgloss.Width(string(r))
+	}
+	if sum != 10 {
+		t.Fatalf("test fixture assumption broken: input rune-width sum = %d, want 10", sum)
+	}
+}
+
+// TestMinibufferView_ZWJInputCursorAtEnd_ShowsUntruncated is AC-1 (FR1, FR2
+// / SPEC AC1, AC5): with the cursor at the end, m.width 19-24 (remaining
+// width 5-10: actual width + 1 = 5 fits, but the rune-width sum + 1 = 11
+// does not), the visible text must contain the prompt directly followed by
+// the whole input -- the leading U+1F468 must not be dropped.
+func TestMinibufferView_ZWJInputCursorAtEnd_ShowsUntruncated(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	want := searchPrompt + familyEmojiLsInput
+	for width := 19; width <= 24; width++ {
+		t.Run(fmt.Sprintf("width=%d", width), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(searchPrompt)
+			mb.SetWidth(width)
+			mb.SetInput(familyEmojiLsInput)
+			mb.SetCursorPos(len([]rune(familyEmojiLsInput)))
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, width, result)
+
+			visible := stripANSI(result)
+			if !strings.Contains(visible, want) {
+				t.Errorf("width=%d: expected visible text to contain %q, got %q", width, want, visible)
+			}
+		})
+	}
+}
+
+// TestMinibufferView_ZWJInputCursorMidSequence_ShowsUntruncated is AC-2
+// (FR1, FR3 / SPEC AC2): same prompt/input/width range as AC-1, but with
+// the cursor on 'l' (rune index 7) or 's' (rune index 8) instead of at the
+// end. The family emoji must not be split, and 's' must still be visible.
+func TestMinibufferView_ZWJInputCursorMidSequence_ShowsUntruncated(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	cursors := []struct {
+		label string
+		pos   int
+	}{
+		{"l", 7},
+		{"s", 8},
+	}
+	want := searchPrompt + familyEmojiLsInput
+
+	for width := 19; width <= 24; width++ {
+		for _, c := range cursors {
+			t.Run(fmt.Sprintf("width=%d/cursor=%s", width, c.label), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(searchPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(c.pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+
+				visible := stripANSI(result)
+				if !strings.Contains(visible, want) {
+					t.Errorf("width=%d/cursor=%s: expected visible text to contain %q, got %q", width, c.label, want, visible)
+				}
+			})
+		}
+	}
+}
+
+// TestMinibufferView_ZWJInputAllWidthsAndCursors_BoundedSingleLine is AC-3
+// (FR4 / SPEC AC3): for every m.width 18-30 and every cursor position 0-9
+// (including positions inside the ZWJ sequence), View's result must never
+// contain a line break and its display width must stay within m.width-2.
+func TestMinibufferView_ZWJInputAllWidthsAndCursors_BoundedSingleLine(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	for width := 18; width <= 30; width++ {
+		for pos := 0; pos <= 9; pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(searchPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+			})
+		}
+	}
+}
+
+// TestMinibufferView_ZWJInputWidth18CursorAtEnd_ScrollsButShowsTail is AC-4
+// (FR1 / SPEC a2): with the cursor at the end and m.width 18 (remaining
+// width 4: even actual width + 1 = 5 does not fit), the existing scroll
+// path is used; the visible text must still contain "ls" and satisfy the
+// same single-line bound as AC-3.
+func TestMinibufferView_ZWJInputWidth18CursorAtEnd_ScrollsButShowsTail(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(searchPrompt)
+	mb.SetWidth(18)
+	mb.SetInput(familyEmojiLsInput)
+	mb.SetCursorPos(len([]rune(familyEmojiLsInput)))
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 18, result)
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "ls") {
+		t.Errorf("expected visible text to contain %q, got %q", "ls", visible)
+	}
+}
+
 func TestMinibufferViewTruncation(t *testing.T) {
 	mb := NewMinibuffer()
 	mb.SetPrompt("/: ")
