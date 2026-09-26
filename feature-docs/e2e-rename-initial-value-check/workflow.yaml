@@ -117,7 +117,7 @@ workflow:
   completed_at_commit: a545d467e447091566c46f7472cecdfbde2e55cd
   base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
   result: null
@@ -145,7 +145,14 @@ tasks:
     status: merged
     branch: em-workflow/e2e-rename-initial-value-check/task0001
 review:
-  status: pending
+  status: in_progress
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
   rounds_completed: 0
   residual_critical_high: 0
   needs_rework: false
