@@ -1,0 +1,71 @@
+round: 1
+executed_at: '2026-09-26T22:10:10+09:00'
+scope:
+  review_mode: diff
+  base_commit: 2f8bc9549ed017bb2c7b8324ef7f464bb4ad34dd
+  head_commit: dd6c2452034cea501484fa6758fbc637f5666044
+  changed_files:
+  - internal/ui/model_update.go
+  - internal/ui/model_update_mouse.go
+  - internal/ui/model_update_mouse_test.go
+  - test-docs/drag-dir-load-stale-marks/task0001.tests.yaml
+plan:
+  floor:
+  - comprehensive
+  - security
+  - spec
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+- run_id: comprehensive#0
+  perspective: comprehensive
+  role: primary
+  source: codex
+  status: completed
+- run_id: security#0
+  perspective: security
+  role: primary
+  source: codex
+  status: completed
+- run_id: spec#0
+  perspective: spec
+  role: primary
+  source: litellm
+  model: muse-spark-contributor
+  status: completed
+- run_id: evaluator
+  role: evaluator
+  source: claude
+  status: completed
+findings: []
+evaluation:
+  round_summary: 'Round 1（diff モード、基準 2f8bc95）。3 つのレビュー実行（comprehensive#0、security#0、spec#0）はすべて完了し、どれも
+    medium 以上の指摘なしだった。critical/high の指摘もないので dismissed_sites は空。注入の試みはどのレビュー出力にもなかった。独自に確認した内容: handleDirectoryLoadComplete（internal/ui/model_update.go:424-496）は、古い完了（pendingPath
+    不一致、436 行）とエラー完了（msg.err != nil、443-458 行）で、新しい cancelDragOnLoadComplete の呼び出し（493 行、成功経路の最後で updateDiskSpace
+    の後）に届く前に return する。これで FR3 と NFR2 を満たす。cancelDragOnLoadComplete（internal/ui/model_update_mouse.go:173-177）は
+    armed かつ pane == msg.paneID のときだけ mouseDrag をリセットする。active は armed のときにしか付かない（updateDrag を呼ぶのは armed
+    で絞った motion/release の分岐だけ）ので、FR1 の「armed または active」を満たす。もう一方のペインは影響を受けず（FR2）、markedFiles には触れない（FR4）。リセット後の
+    motion/release は !armed で止まる。directoryLoadCompleteMsg は Update の先頭の switch（model_update.go:320）から必ずこのハンドラに届く。値レシーバの
+    m に対するポインタレシーバの呼び出しはローカルのコピーを書き換え、それがそのまま return されるので正しい。テスト TS-1〜TS-5（model_update_mouse_test.go）は
+    SPEC のシナリオに対応する。TS-1/TS-2 は、修正前ならセッション状態の確認で落ち、修正後にマーク集合を確認する（新しいエントリ名で applyDragMarks が走れば検出できる）。newDragLoadTestModel
+    は diskSpaceMonitor を設定し、updateDiskSpace での nil 参照を避けている。task0001.tests.yaml の red/green の記録は各テストの設計と矛盾しない。テストは実行していない（読み取り専用の制約のため）。perspective
+    ごとの確認結果: comprehensive — corroborated、security — corroborated（変更は画面内のドラッグ状態のリセットと単体テストだけで、入力・ファイル操作・外部コマンドの面は新たに増えていない）、spec
+    — corroborated（FR1〜FR5、NFR1/NFR2、TS-1〜TS-5 を差分とテストで確認した）。'
+  recommended_action: complete
+  action_rationale: 3 つの perspective すべてで指摘はなかった。独自に確認した結果、修正は SPEC の FR1〜FR5 を満たし、呼び出し位置でエラー経路と古い完了の経路には影響しない。求められた回帰テストも揃っている。修正すべき点も、追加で確認すべき点もない。
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: ntd
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null

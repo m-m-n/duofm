@@ -87,7 +87,8 @@ workflow:
   completed_at_commit: 7e6f26db49286d2ca8cef23e4583734a57fd8cfb
   base_commit: 2f8bc9549ed017bb2c7b8324ef7f464bb4ad34dd
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: dd6c2452034cea501484fa6758fbc637f5666044
 - id: verify
   status: pending
 - id: retrospect
@@ -117,8 +118,8 @@ tasks:
     status: merged
     branch: em-workflow/drag-dir-load-stale-marks/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
   plan:
     floor:
     - comprehensive
@@ -126,7 +127,10 @@ review:
     - spec
     discretionary: []
     cross_validation: false
-  perspectives: []
+  perspectives:
+  - comprehensive
+  - security
+  - spec
   residual_critical_high: 0
   needs_rework: false
 requirements:
