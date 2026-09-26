@@ -1,0 +1,6 @@
+schema_version: 1
+feature: e2e-rename-initial-value-check
+from_tier: reduced
+to_tier: full
+regenerated_at: "2026-09-27T02:55:51+09:00"
+consumed: false

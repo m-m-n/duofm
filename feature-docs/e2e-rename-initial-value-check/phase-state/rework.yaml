@@ -8,4 +8,4 @@ spec_change:
   origin_id: AC-2
   recorded_at_commit: e9335ffa3e745fd78f8429ea4c393cf3349daea7
   consumed: true
-  replan_authorized: true
+  replan_authorized: false

@@ -101,14 +101,15 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: The feature changes only E2E test shell scripts; it has no user interface or visual change.
+  skipped_reason: The feature changes only E2E test shell scripts; it has no user
+    interface or visual change.
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: needs_update
-  completed_at_commit: 0d4f183c7f160d1de08efdba9b5d7b4fc122721f
+  status: completed
+  completed_at_commit: dd2b43559ae3b21f87d6788817d1e177728314f8
 - id: implement
   status: completed
   completed_at_commit: a545d467e447091566c46f7472cecdfbde2e55cd
@@ -122,14 +123,14 @@ workflow:
   failed_items:
   - id: AC-2
     category: spec
-    note: 'assert_input_field_value の照合式がベース名の前後に空白以外の任意の 1 文字を許すため、初期値が
-      before_rename. / xbefore_rename / before_renamex（navren_before も同様）でも合格する。AC-2（初期値が期待値と異なるとき両検査が失敗する）を満たさない。review
-      の medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と同根'
+    note: assert_input_field_value の照合式がベース名の前後に空白以外の任意の 1 文字を許すため、初期値が before_rename.
+      / xbefore_rename / before_renamex（navren_before も同様）でも合格する。AC-2（初期値が期待値と異なるとき両検査が失敗する）を満たさない。review
+      の medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と同根
   summary: 'build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
-    --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) /
-    TS-2 mutation (C-u, full-name variant) each fail exactly the 2 initial-value checks
-    / TS-4 no *.go or helpers.sh diff / AC-2 fails: one extra leading or trailing character
-    is accepted. Excluded requirements: none'
+    --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3)
+    / TS-2 mutation (C-u, full-name variant) each fail exactly the 2 initial-value
+    checks / TS-4 no *.go or helpers.sh diff / AC-2 fails: one extra leading or trailing
+    character is accepted. Excluded requirements: none'
 - id: retrospect
   status: pending
 tasks:
@@ -170,7 +171,8 @@ review:
   needs_rework: false
 requirements:
   FR1:
-    title: Restrict the initial-value check in test_rename_file to the input field, with strict matching
+    title: Restrict the initial-value check in test_rename_file to the input field,
+      with strict matching
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -179,8 +181,10 @@ requirements:
     tests:
     - TS-1
     - TS-2
+    - TS-5
   FR2:
-    title: Restrict the initial-value check in test_navigation_after_rename to the input field, with strict matching
+    title: Restrict the initial-value check in test_navigation_after_rename to the
+      input field, with strict matching
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -189,6 +193,7 @@ requirements:
     tests:
     - TS-1
     - TS-2
+    - TS-5
   FR3:
     title: Remove the always-passing testdata check from history_tests.sh
     status: ok
@@ -208,7 +213,8 @@ requirements:
     tests:
     - TS-4
   NFR2:
-    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh is not changed.
+    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh
+      is not changed.
     status: ok
     tbd_reason: null
     excluded_reason: null
