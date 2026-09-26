@@ -1,11 +1,11 @@
 schema_version: 1
 feature: e2e-rename-initial-value-check
 phase: create-spec
-status: initialized
+status: dispatching
 generation: 2
 base_revision: 2c52fb742d3156ad2cf41b7967707a55fc84af45
-last_input_digest: sha256:2fab2db772e5a7786318872341f3b30ba680765a7eb62b5c421a855606b40356
-active_request_id: null
+last_input_digest: sha256:eab6b9e07b1e4df3fef24836832042fe0f3a057b3fde20862da2d901a0d39559
+active_request_id: create-spec-run-0003
 packets: {}
 answers: {}
 worker_runs:
@@ -17,6 +17,10 @@ worker_runs:
   status: completed
   input_digest: sha256:2fab2db772e5a7786318872341f3b30ba680765a7eb62b5c421a855606b40356
   output_digest: sha256:d468b0e200b730ba4e55f13a322724400020836b3b28e01132bc0221e3b46fdc
+- request_id: create-spec-run-0003
+  status: dispatched
+  input_digest: sha256:eab6b9e07b1e4df3fef24836832042fe0f3a057b3fde20862da2d901a0d39559
+  output_digest: null
 artifacts:
 - path: feature-docs/e2e-rename-initial-value-check/SPEC.md
   sha256: sha256:d468b0e200b730ba4e55f13a322724400020836b3b28e01132bc0221e3b46fdc
