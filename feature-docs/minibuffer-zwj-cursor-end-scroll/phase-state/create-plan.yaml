@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-zwj-cursor-end-scroll
+phase: create-plan
+status: dispatched
+generation: 1
+base_revision: fc46c857be483ff3ec5e9a1ca017dd3f3df88e2e
+last_input_digest: sha256:28d4083f784b5adcd9e6ddc3b375a062d507bde2e3749bc624ca5576c5483e70
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:28d4083f784b5adcd9e6ddc3b375a062d507bde2e3749bc624ca5576c5483e70
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
