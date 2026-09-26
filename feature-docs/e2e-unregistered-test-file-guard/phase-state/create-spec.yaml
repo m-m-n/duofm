@@ -1,0 +1,17 @@
+schema_version: 1
+feature: e2e-unregistered-test-file-guard
+phase: create-spec
+status: initialized
+generation: 1
+base_revision: 33b2029e994b157a06e16e8add46e663e2125974
+last_input_digest: null
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
