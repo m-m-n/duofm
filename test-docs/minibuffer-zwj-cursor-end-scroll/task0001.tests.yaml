@@ -1,0 +1,73 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (step 4a)
+final_failures: []             # go test ./... fully green after implementation
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferView_ZWJInputCursorAtEnd_ShowsUntruncated]
+    red_confirmed: true
+    red_reason: >-
+      Before implementation, all subtests width=19..24 failed. Example
+      (width=19): "expected visible text to contain \"(search):
+      \U0001F468‍\U0001F469‍\U0001F467‍\U0001F466ls\", got
+      \" (search): ‍\U0001F466ls  \"" -- the leading U+1F468 (and
+      other leading members of the ZWJ sequence, depending on width) was
+      dropped because the old code judged fit by the sum of each rune's
+      own width instead of the input's actual display width.
+  AC-2:
+    tests: [TestMinibufferView_ZWJInputCursorMidSequence_ShowsUntruncated]
+    red_confirmed: true
+    red_reason: >-
+      Before implementation, subtests width=19..23 (both cursor=l and
+      cursor=s) failed with the same "leading code point(s) dropped"
+      symptom as AC-1, e.g. (width=19/cursor=l): "expected visible text
+      to contain \"(search):
+      \U0001F468‍\U0001F469‍\U0001F467‍\U0001F466ls\", got
+      \" (search): ‍\U0001F467‍\U0001F466l   \"". width=24 (both
+      cursor=l and cursor=s) already passed before implementation, matching
+      the task plan's stated pre-implementation behavior for this
+      criterion.
+  AC-3:
+    tests: [TestMinibufferView_ZWJInputAllWidthsAndCursors_BoundedSingleLine]
+    red_confirmed: false
+    red_reason: >-
+      This criterion is the pre-existing single-line/width-bound invariant
+      that the D2 shrink loop already guaranteed and that this task's scope
+      explicitly leaves unchanged (task plan Design step 5, FR4). The test
+      (all width 18-30 x cursor 0-9 combinations) was run against the
+      unmodified code before any implementation and already passed in full;
+      there is no code path this task touches that could make it fail
+      without exceeding the task's declared scope, so no red state exists
+      to observe.
+  AC-4:
+    tests: [TestMinibufferView_ZWJInputWidth18CursorAtEnd_ScrollsButShowsTail]
+    red_confirmed: false
+    red_reason: >-
+      This criterion covers the case where the actual width still does not
+      fit (m.width=18, remaining=4), which the task plan states must keep
+      using the existing scroll path unchanged (Design step 4, Out of
+      Scope). The test was run against the unmodified code before any
+      implementation and already passed, since this code path is untouched
+      by the fix; no red state exists to observe.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-5 is "existing minibuffer_test.go tests, unmodified, and go test
+      ./... all pass" -- a no-regression requirement over the whole
+      existing suite, not a single new test with an observable red state.
+      Verified by running `go test ./...` before any change (step 4a,
+      fully green) and again after implementation (fully green, identical
+      empty result), and by leaving every pre-existing test in
+      minibuffer_test.go untouched (only new tests were appended).
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-6 constrains the change set (only internal/ui/minibuffer.go and
+      internal/ui/minibuffer_test.go changed; minibuffer.go's change
+      confined to Minibuffer.View's display computation and related
+      comments) -- a file-scope constraint, not a behavior with a red
+      state. Verified via `git diff --stat` (only these two files
+      modified) and `git diff -- internal/ui/minibuffer.go` (change
+      confined to the actualWidth/actualWidthWithCursor computation and
+      its case branch inside View, plus the comments describing it).

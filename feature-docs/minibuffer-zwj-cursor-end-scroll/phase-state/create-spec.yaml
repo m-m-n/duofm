@@ -1,0 +1,28 @@
+schema_version: 1
+feature: minibuffer-zwj-cursor-end-scroll
+phase: create-spec
+status: completed
+generation: 1
+base_revision: f8e299d3db323bb5410ded9a02cb24a53f62c6de
+last_input_digest: sha256:1bdf238145ca30ba5722989437b853aedab847f4e79c5f4185392ad4a0744c12
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: completed
+  input_digest: sha256:d235bc2529b1aa04d30d5f1961af912b7f1d89693dd6138293ec1190423e933a
+  output_digest: sha256:b71b8b53dae8a4e274d3a3be3f75d90fc4b03c2c09e205c5d9a3caf90bcc23e7
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:1bdf238145ca30ba5722989437b853aedab847f4e79c5f4185392ad4a0744c12
+  output_digest: null
+artifacts:
+- path: feature-docs/minibuffer-zwj-cursor-end-scroll/SPEC.md
+  sha256: sha256:03e59b8f0328e4c067e1889fcb7af46c2311e1430dfe40ea917e494e8a0c3cd0
+  produced_by: create-spec-run-0002
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
