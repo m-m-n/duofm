@@ -93,7 +93,8 @@ workflow:
   base_commit: e0569216ea0692e67efba5928b030254c66efc7a
   completed_at_commit: f6af37e06987eba3cef287ac36dcd85daa9db9a3
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: a441b2a1c4bf53356fda8729f46f94d2cd63a7c9
 - id: verify
   status: pending
 - id: retrospect
@@ -126,8 +127,14 @@ tasks:
     status: merged
     branch: em-workflow/minibuffer-wide-prompt-wrap/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor:
     - comprehensive
