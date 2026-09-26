@@ -120,9 +120,14 @@ workflow:
   status: completed
   completed_at_commit: 55c3638af1605e33339af2fed7d6035756394ced
 - id: verify
-  status: in_progress
-  result: null
+  status: completed
+  result: pass
   failed_items: []
+  completed_at_commit: bc584e272dc78883a17e1d19f49c027800ed0469
+  summary: 'build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
+    --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) /
+    TS-2 mutation (C-u before check, and full-name variant) each fail exactly the 2 initial-value
+    checks (28/30 file-ops) / TS-4 no *.go or helpers.sh diff. Excluded requirements: none'
 - id: retrospect
   status: pending
 tasks:
