@@ -44,7 +44,7 @@ goal: '# E2E リネームテストの初期値チェックが常に通る
 
   '
 parent_branch: em-workflow/e2e-rename-initial-value-check/integration
-tier: reduced
+tier: full
 tier_decision:
   by: orchestrator
   confidence:
@@ -96,21 +96,19 @@ workflow:
 - id: create-spec
   artifacts:
   - SPEC.md
-  status: completed
+  status: needs_update
   completed_at_commit: 627ac2b297c8919d397ed870bccfb636d6c035c4
 - id: design
   artifacts:
   - DESIGN.md
   - design/
-  status: skipped
-  skipped_reason: reduced tier で design step を削減。加えて E2E テストスクリプトだけの変更で、画面の設計を伴わない（create-spec.design-step
-    = decide_autonomously で推奨 skip を採用）
+  status: pending
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: completed
+  status: needs_update
   completed_at_commit: 0d4f183c7f160d1de08efdba9b5d7b4fc122721f
 - id: implement
   status: completed
