@@ -1,0 +1,40 @@
+round: 1
+executed_at: "2026-09-26T18:07:14+09:00"
+scope:
+  review_mode: diff
+  base_commit: 81bfaf12179eee5f5aeb3d0c30d4318fabf26f77
+  head_commit: e471fcf8c8b3edf6df3229d26c84662913b2c4a4
+  changed_files:
+  - internal/ui/model_update_mouse.go
+  - internal/ui/model_update_mouse_test.go
+  - test-docs/press-scroll-click-mark/task0001.tests.yaml
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+  - {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+  - {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+  - {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+  - {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings: []
+evaluation:
+  round_summary: "ラウンド1の3観点（comprehensive#0、security#0、spec#0）はどれも指摘ゼロで、reviewer 出力に注入の試みは無かった。evaluator が差分と周辺コード（model_update_mouse.go、pane.go、model.go の switchToPane/syncPaneBgOutputState、mouse_hittest.go）を独立に確認し、handleEntryPress が switchToPane 前の scrollOffset を保存・復元することで FR1〜FR4 を満たし、共通スクロール処理は無変更で NFR1/NFR2 も満たすと判断。テストの数値も手計算で一致。NFR4 の go vet ./... は tests.yaml 上単独実行されていないため verify で確認すること。観点ごと: comprehensive: corroborated / security: corroborated / spec: corroborated"
+  recommended_action: complete
+  action_rationale: "全観点の reviewer が指摘ゼロで、独立確認でも中程度以上の問題は見つからなかった。critical/high の箇所も無い。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: false   # vulnerability 観点は未選択（依存マニフェストの変更なし）で、対象 findings が 0 件
+  branch: null
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null
