@@ -3,9 +3,9 @@ feature: e2e-unregistered-test-file-guard
 phase: create-spec
 status: dispatching
 generation: 1
-base_revision: 382d7ec60679300e2d38b77777da09a72f937a89
-last_input_digest: sha256:4d1fc0843d04b6520e7ed4b53066d9e34f0649a6afe3a85c4149374e6eb1b0a0
-active_request_id: null
+base_revision: 25584f52c306ecfbd7a10931e45b96a6760a619e
+last_input_digest: sha256:2bb1d9347bf72f315bcbd141fffb1a67e5cab4b1c2e598e6075819752ade66c4
+active_request_id: create-spec-run-0003
 packets:
   create-spec-q0001:
     status: answered
@@ -63,6 +63,10 @@ worker_runs:
   status: completed
   input_digest: sha256:4d1fc0843d04b6520e7ed4b53066d9e34f0649a6afe3a85c4149374e6eb1b0a0
   output_digest: sha256:0bca323cdd45652b13558e7d37ace0551ec1b924d28048e968cc97e585a3d64e
+- request_id: create-spec-run-0003
+  status: dispatched
+  input_digest: sha256:2bb1d9347bf72f315bcbd141fffb1a67e5cab4b1c2e598e6075819752ade66c4
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
