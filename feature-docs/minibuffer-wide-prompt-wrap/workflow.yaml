@@ -86,7 +86,8 @@ workflow:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: 665d45a312e8a1e0a65b1f75ab040981ad9c3adb
 - id: implement
   status: pending
 - id: review
@@ -95,7 +96,32 @@ workflow:
   status: pending
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: ミニバッファ描画を表示幅基準にして 1 行を保証する
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/minibuffer.go
+    - internal/ui/minibuffer_test.go
+    - internal/ui/pane_render_test.go
+    - go.mod
+    - go.sum
+    skills:
+    - frontend-impl
+    domains:
+    - ui
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - FR6
+    - FR7
+    - FR8
+    - NFR1
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -105,64 +131,91 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
   FR2:
     title: 1 行の保証
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
   FR3:
     title: プロンプトだけで内容幅を使い切るとき
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   FR4:
     title: 入力部分の表示範囲
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-7
   FR5:
     title: 全角文字が境界にかかるとき
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   FR6:
     title: 幅 0〜4 の既存の挙動を維持
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
   FR7:
     title: ペインの行数
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-3
   FR8:
     title: 収まる内容はそのまま表示
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
+    - TS-6
   NFR1:
     title: 変更範囲
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-8
 batch:
   review_rework_count: 0
   verify_rework:
