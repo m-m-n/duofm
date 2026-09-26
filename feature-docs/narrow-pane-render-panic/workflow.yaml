@@ -124,7 +124,14 @@ workflow:
   status: completed
   completed_at_commit: 1978074616d6e87083133992b5bec9c0a4030e54
 - id: verify
-  status: in_progress
+  status: completed
+  completed_at_commit: 25779fd4ef99be1951c4449bbca7f2c90f82392a
+  result: pass
+  failed_items: []
+  excluded_scenarios: []
+  summary: 'build ok; go test ./... ok (TS-1〜TS-6 含む); gofmt 差分なし; go vet ./... 指摘なし; 回帰検出は
+    test-docs/narrow-pane-render-panic/task0001.tests.yaml の red_confirmed で確認; 既存 E2E 262/262 pass;
+    手動確認: 端末幅 3 の tmux で起動・インクリメンタル検索・シェルコマンドモードを操作し panic なし（exit 0）'
 - id: retrospect
   status: pending
 tasks:
