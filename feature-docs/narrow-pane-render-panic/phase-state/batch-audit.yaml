@@ -1,0 +1,21 @@
+schema_version: 1
+feature: narrow-pane-render-panic
+records:
+- question_id: create-spec.requirement-clarification.minibuffer-scope
+  packet_id: null
+  answered_at: '2026-09-26T14:49:01+09:00'
+  source: batch-codex-consultation
+  answer_mode: select
+  selected_option_ids:
+  - include_minibuffer
+  freeform: null
+  normalized_answer: 仮定 A4 を取り下げる。ミニバッファ表示中のペイン描画（ViewWithMinibuffer / Minibuffer.View）も範囲に含め、ペイン幅
+    0〜4 で入力が空・非空、カーソル位置の組み合わせでも panic しないように直し、再発検出テストを追加する。ダイアログの重ね描画（lipgloss.Place
+    / overlayDialogOnPane）は引き続き範囲外とする。
+  resolution_note: 'gate: create-spec.requirement-clarification (orchestrator-opened
+    after analyst run 0001, assumption A4); options: exclude_minibuffer (analyst tentative
+    A4) / include_minibuffer; chosen: include_minibuffer; codex_consulted: true (codex
+    entry, 1 turn); opus_escalation: false; key points: タスクの期待挙動は『ペイン全体』で、ViewWithMinibuffer
+    は通常表示と同じ viewInternal を通る。Codex がコードで minibuffer.go:207 の runes[startPos:endPos]
+    逆転（幅4・''/: ''・入力''a'' で runes[3:1]、22文字の履歴検索プロンプトでは幅24で runes[2:1]）を確認。修正は入力幅
+    0 以下で切り出しを避ける小さな変更で済む。ダイアログ重ね描画までは広げない。'
