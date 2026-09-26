@@ -1,0 +1,43 @@
+feature: minibuffer-zwj-cursor-end-scroll
+collected_at: "2026-09-26T21:59:40+09:00"
+session_ids: [01a0ddcc-0b85-77cd-8b79-67392e49d16e]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: reduced
+    rationale: "both readings agree: score 1.07, P(1)=0.93 / P(2)=0.07, placing the change in the reduced tier"
+    bases:
+      - basis: description_only
+        score:
+          probabilities: {'0': 0.0, '1': 0.93, '2': 0.07, '3': 0.0}
+          score: 1.07
+          confidence: 0.93
+        observed_at: "2026-09-26T21:27:54+09:00"
+      - basis: description_plus_code
+        score:
+          probabilities: {'0': 0.0, '1': 0.93, '2': 0.07, '3': 0.0}
+          score: 1.07
+          confidence: 0.93
+        observed_at: "2026-09-26T21:27:54+09:00"
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/minibuffer.go
+        - internal/ui/minibuffer_test.go
+      changed_lines_approx: 40
+      new_functions_needed: 0
+      new_files_needed: 0
+      new_dependencies_needed: []
+      covering_tests_exist: false
+      spillover_modules: []
+      work_still_required: true
+follow_up_drafts: []
+lessons_candidates:
+  - "タスク記述の該当箇所 minibuffer.go:302（cursorAtEnd 分岐）は現行コードに存在せず、Codex 事前調査が SetWidth(19) で同じ切り詰めを再現して作業要否を判定した。起票時の行番号は前機能の途中状態を指していた"
+  - "review round 1 は 3 観点とも findings 0 件。前機能の medium（abb435ae05afd8f2）を別 feature として切り出した reduced tier の単一タスク構成で問題なく完走した"
+  - "workflow.yaml の base_branch が前機能の integration ブランチ（em-workflow/minibuffer-wide-prompt-wrap/integration）を指しているが、そのブランチは main にマージ済みでリモートに存在しない。PR 作成時の base 解決に注意が要る"
+  - "podman での検証コマンドが integration worktree に untracked の .config/ を残す（前機能と同じ）。Step C の git worktree remove（--force なし）を妨げる"
