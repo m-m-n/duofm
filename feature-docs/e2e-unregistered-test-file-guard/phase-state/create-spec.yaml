@@ -3,9 +3,9 @@ feature: e2e-unregistered-test-file-guard
 phase: create-spec
 status: dispatching
 generation: 1
-base_revision: 1db901f452e30d37d5109c313c955a5228949cfc
+base_revision: 382d7ec60679300e2d38b77777da09a72f937a89
 last_input_digest: sha256:4d1fc0843d04b6520e7ed4b53066d9e34f0649a6afe3a85c4149374e6eb1b0a0
-active_request_id: create-spec-run-0002
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -44,19 +44,28 @@ answers:
       entry, 2 turns); opus_escalation: false; key points: turn1 で Codex は修正方針に count_undefined_only（変更最小）を推した。turn2 で、run-list ガード（--check-list と全体実行前のガード）は一覧と定義の不一致を tmux 実行前に静的に検出するためのもので、count_undefined_only
       だとガードは OK を出したまま全体実行だけが失敗し、原因も『未定義』としか出ない点を提示。Codex は、登録漏れをファイル名つきで両経路から検出できる点を変更量より重視し count_undefined_and_flag_unregistered に変更して収束。run_test の未定義計上は実行時の安全網として残す。再発テストは両ターンとも self_test_in_make_e2e（Docker
       は要るが自己テスト自体は tmux/duofm を起動しない。リポジトリに CI 設定は無い）。'
+  create-spec.design-step:
+    packet_id: null
+    answered_at: '2026-09-27T01:17:20+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: requirements-analyst の design_step_recommendation（skip）を採用する。変更対象は E2E のテストランナー (bash) と Dockerfile の既定コマンドだけで UI 変更が無い。
+    resolution_note: 'gate: create-spec.design-step; batch policy decide_autonomously; run 0002 の analyst が推奨 skip を resolved_requirements.design_step に反映して completed を返した'
 worker_runs:
 - request_id: create-spec-run-0001
   status: needs_user_input
   input_digest: sha256:ab6dafc280138c19e9091b8ba2dab93d09b3fec04e3c28c2839a78e5d1ded87c
   output_digest: sha256:4e808436f4b9327b7ec4a59e7cc476650e5c53f33d3365cc529482ac315ad66f
 - request_id: create-spec-run-0002
-  status: dispatched
+  status: completed
   input_digest: sha256:4d1fc0843d04b6520e7ed4b53066d9e34f0649a6afe3a85c4149374e6eb1b0a0
-  output_digest: null
+  output_digest: sha256:0bca323cdd45652b13558e7d37ace0551ec1b924d28048e968cc97e585a3d64e
 artifacts: []
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: 'create-spec-run-0001: validate-worker-output.py gate_id error — questions[2] (create-spec.design-step) lacks option_id decide_autonomously; that question is marked obsolete and will be re-issued
-  by the next dispatch'
+last_error: null
