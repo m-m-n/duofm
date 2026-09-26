@@ -1,11 +1,11 @@
 schema_version: 1
 feature: e2e-rename-initial-value-check
 phase: create-plan
-status: completed
-generation: 1
-base_revision: 529c59d74dd3c82ea5e7f801cdf997572d4b253e
-last_input_digest: sha256:38898049ddab60a89b88f19e937af550c672b60c2c30995122750bb7ee2555f0
-active_request_id: null
+status: dispatching
+generation: 2
+base_revision: 53597f15cc12452d7cc502c34f42f28062c70d3f
+last_input_digest: sha256:a5e0c62ee02272da7218fef155acb3798d9d332981774088be563563fb241a81
+active_request_id: create-plan-run-0002
 packets: {}
 answers: {}
 worker_runs:
@@ -13,6 +13,10 @@ worker_runs:
   status: completed
   input_digest: sha256:38898049ddab60a89b88f19e937af550c672b60c2c30995122750bb7ee2555f0
   output_digest: sha256:62588bae006c463ff54948707db70a83568e0568dc734f553b6ed291a5d56b62
+- request_id: create-plan-run-0002
+  status: dispatched
+  input_digest: sha256:a5e0c62ee02272da7218fef155acb3798d9d332981774088be563563fb241a81
+  output_digest: null
 artifacts:
 - path: feature-docs/e2e-rename-initial-value-check/VERIFICATION.md
   sha256: sha256:7e9b0bff8d7bbfa2fa5535dce1ff0c694c772051a585d6e276e5842b55541432
