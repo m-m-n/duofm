@@ -844,3 +844,299 @@ func TestHandleMouse_PressAfterDragActivated_NoEnterEvenWithinWindow(t *testing.
 		t.Errorf("cmd = %v, want nil (drag activation must have reset the detector)", cmd)
 	}
 }
+
+// --- task0001: keep the pre-press scroll offset when an entry press
+// activates a bg-split pane ---
+//
+// Shared fixture: 80x24 geometry, left pane active over 20 generated files,
+// right pane inactive over 20 generated files (21 entries including ".." at
+// index0), right cursor 15, right scroll offset 0, a background command
+// attached to the right pane. The right pane shows 18 entry rows without the
+// bg split and 11 with it (see TestVisibleLinesAndBgSplitHeight_UnchangedAtGivenHeights).
+
+// newBgSplitPressTestModel builds the fixture shared by AC-1 through AC-6.
+// running selects the "running" variant (TS-1): the runner reports the
+// right pane and IsRunning() true. When false, the runner still reports the
+// right pane but IsRunning() false, and the model's closing flag is set
+// instead (the "closing" variant, TS-2) -- both make the right pane's
+// bg-split appear once it becomes active, the same way isBgActive() does.
+func newBgSplitPressTestModel(t *testing.T, running bool) Model {
+	t.Helper()
+	model := newMouseTestModel(t, 20, 20)
+	model.rightPane.cursor = 15
+	model.rightPane.scrollOffset = 0
+	model.bgRunner = &BackgroundRunner{running: running, pane: RightPane}
+	if !running {
+		model.bgClosing = true
+	}
+	return model
+}
+
+// newBgSplitPressDirFixtureModel builds the same fixture as
+// newBgSplitPressTestModel (left pane active, right pane inactive with
+// cursor 15 and scroll offset 0, a running background command attached to
+// the right pane), except the right pane's directory holds 7 subdirectories
+// sorted before 13 regular files. SortEntries orders entries as parent, then
+// directories, then files, both name-ascending, so index 7 (the generated
+// files fixture has no directory at all) lands on a directory here -- needed
+// by AC-7's double-click-into-directory check.
+func newBgSplitPressDirFixtureModel(t *testing.T, clock *fakeClock) Model {
+	t.Helper()
+	const width, height = 80, 24
+	paneWidth, paneHeight := width/2, height-2
+
+	left := newFilesPane(t, LeftPane, 20, paneWidth, paneHeight, true)
+
+	dir := t.TempDir()
+	for i := 0; i < 7; i++ {
+		name := fmt.Sprintf("d%02d", i)
+		if err := os.Mkdir(filepath.Join(dir, name), 0755); err != nil {
+			t.Fatalf("mkdir %s: %v", name, err)
+		}
+	}
+	for i := 0; i < 13; i++ {
+		name := fmt.Sprintf("f%02d", i)
+		if err := os.WriteFile(filepath.Join(dir, name), nil, 0644); err != nil {
+			t.Fatalf("write file %s: %v", name, err)
+		}
+	}
+	right, err := NewPane(RightPane, dir, paneWidth, paneHeight, false, nil)
+	if err != nil {
+		t.Fatalf("NewPane right: %v", err)
+	}
+	right.cursor = 15
+	right.scrollOffset = 0
+
+	return Model{
+		leftPane:   left,
+		rightPane:  right,
+		activePane: LeftPane,
+		width:      width,
+		height:     height,
+		detector:   newDoubleClickDetector(clock.now),
+		bgRunner:   &BackgroundRunner{running: true, pane: RightPane},
+	}
+}
+
+// AC-1 (TS-1 running, TS-2 closing): a same-row press/release on right index
+// 7 leaves the mark set, cursor and scroll offset exactly as before the
+// press.
+func TestHandleMouse_BgSplitActivation_SameRowClick_KeepsPrePressOffsetAndMarks(t *testing.T) {
+	cases := []struct {
+		name    string
+		running bool
+	}{
+		{"running", true},
+		{"closing", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			model := newBgSplitPressTestModel(t, c.running)
+			wantMarks := model.rightPane.snapshotMarks()
+
+			updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+			model = updated.(Model)
+			updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+			model = updated.(Model)
+
+			if model.rightPane.cursor != 7 {
+				t.Errorf("cursor = %d, want 7", model.rightPane.cursor)
+			}
+			if model.rightPane.scrollOffset != 0 {
+				t.Errorf("scrollOffset = %d, want 0", model.rightPane.scrollOffset)
+			}
+			assertMarksEqual(t, model.rightPane.markedFiles, wantMarks)
+		})
+	}
+}
+
+// AC-2 (TS-3): pressed index above the shifted window (a), inside the kept
+// range (b), and below the shifted window but on a pre-press visible row
+// (c) -- a same-row press/release adds no marks and the cursor ends on the
+// pressed index in every case.
+func TestHandleMouse_BgSplitActivation_PressReleaseAcrossOffsetPositions_NoMarks(t *testing.T) {
+	cases := []struct {
+		name        string
+		index       int
+		checkOffset bool
+	}{
+		{"above shifted window", 3, true},
+		{"inside kept range", 7, true},
+		{"below shifted window on pre-press visible row", 16, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			model := newBgSplitPressTestModel(t, true)
+
+			updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(c.index, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+			model = updated.(Model)
+			updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(c.index, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+			model = updated.(Model)
+
+			if model.rightPane.cursor != c.index {
+				t.Errorf("cursor = %d, want %d", model.rightPane.cursor, c.index)
+			}
+			if model.rightPane.HasMarkedFiles() {
+				t.Error("marks should be empty")
+			}
+			if c.checkOffset && model.rightPane.scrollOffset != 0 {
+				t.Errorf("scrollOffset = %d, want 0", model.rightPane.scrollOffset)
+			}
+		})
+	}
+}
+
+// AC-3 (TS-4): pressing an index at or beyond the pre-press offset plus the
+// post-activation visible lines lands the cursor on the bottom visible
+// file-list row, and a same-row release adds no marks.
+func TestHandleMouse_BgSplitActivation_PressBelowRestoredWindow_ScrollsToBottomRow(t *testing.T) {
+	model := newBgSplitPressTestModel(t, true)
+
+	updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(13, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(13, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	if model.rightPane.cursor != 13 {
+		t.Errorf("cursor = %d, want 13", model.rightPane.cursor)
+	}
+	if model.rightPane.scrollOffset != 3 {
+		t.Errorf("scrollOffset = %d, want 3", model.rightPane.scrollOffset)
+	}
+	if model.rightPane.HasMarkedFiles() {
+		t.Error("marks should be empty")
+	}
+}
+
+// AC-4 (TS-5): with entries marked before the press, both inside and
+// outside the range the unmodified handler would have marked, a same-row
+// press/release leaves the mark set exactly as it was before the press.
+func TestHandleMouse_BgSplitActivation_SameRowClick_PreservesExistingMarks(t *testing.T) {
+	model := newBgSplitPressTestModel(t, true)
+	model.rightPane.markedFiles[model.rightPane.entries[9].Name] = true // inside 7..12
+	model.rightPane.markedFiles[model.rightPane.entries[2].Name] = true // outside 7..12
+	wantMarks := model.rightPane.snapshotMarks()
+
+	updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	assertMarksEqual(t, model.rightPane.markedFiles, wantMarks)
+}
+
+// AC-5 (TS-6): a same-row press/release on the ".." row adds no marks and
+// leaves the cursor on it.
+func TestHandleMouse_BgSplitActivation_ParentDirRow_NoMarksCursorOnParent(t *testing.T) {
+	model := newBgSplitPressTestModel(t, true)
+
+	updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(0, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(0, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	if model.rightPane.cursor != 0 || !model.rightPane.entries[0].IsParentDir() {
+		t.Errorf("cursor = %d, want on parent dir (index 0)", model.rightPane.cursor)
+	}
+	if model.rightPane.HasMarkedFiles() {
+		t.Error("marks should be empty")
+	}
+}
+
+// AC-6 (TS-7): a drag that starts from a bg-split-activating press maps
+// motion and release rows against the restored pre-press offset, both when
+// it extends past the anchor and when it returns to the anchor before
+// release.
+func TestHandleMouse_BgSplitActivation_Drag_UsesPrePressOffsetThroughout(t *testing.T) {
+	t.Run("extends to index 9", func(t *testing.T) {
+		model := newBgSplitPressTestModel(t, true)
+		wantMarks := model.rightPane.snapshotMarks()
+
+		updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+		model = updated.(Model)
+		updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(9, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+		model = updated.(Model)
+		updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(9, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+		model = updated.(Model)
+
+		wantMarks[model.rightPane.entries[7].Name] = true
+		wantMarks[model.rightPane.entries[8].Name] = true
+		wantMarks[model.rightPane.entries[9].Name] = true
+		assertMarksEqual(t, model.rightPane.markedFiles, wantMarks)
+	})
+
+	t.Run("returns to anchor before release", func(t *testing.T) {
+		model := newBgSplitPressTestModel(t, true)
+		wantMarks := model.rightPane.snapshotMarks()
+
+		updated, _ := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+		model = updated.(Model)
+		updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(9, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+		model = updated.(Model)
+		updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+		model = updated.(Model)
+		updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+		model = updated.(Model)
+
+		wantMarks[model.rightPane.entries[7].Name] = true
+		assertMarksEqual(t, model.rightPane.markedFiles, wantMarks)
+		if model.rightPane.cursor != 7 {
+			t.Errorf("cursor = %d, want 7", model.rightPane.cursor)
+		}
+	})
+}
+
+// AC-7 (TS-8): a second press on the same row, within the double-click
+// window, after a bg-split-activating first press/release, still hits the
+// same directory entry and runs the existing Enter action on it.
+func TestHandleMouse_BgSplitActivation_DoubleClickOnDirectory_StartsLoading(t *testing.T) {
+	clock := newFakeClock()
+	model := newBgSplitPressDirFixtureModel(t, clock)
+	if !model.rightPane.entries[7].IsDir {
+		t.Fatalf("fixture entries[7] = %+v, want a directory", model.rightPane.entries[7])
+	}
+	wantPath := filepath.Join(model.rightPane.Path(), model.rightPane.entries[7].Name)
+
+	updated, cmd1 := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	if cmd1 != nil {
+		t.Errorf("first press cmd = %v, want nil", cmd1)
+	}
+	updated, _ = model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	clock.advance(200 * time.Millisecond)
+	updated, cmd2 := model.Update(mouseMsg(mouseTestRightX, rowFor(7, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+
+	if cmd2 == nil {
+		t.Fatal("second press cmd = nil, want non-nil (Enter on directory)")
+	}
+	if model.rightPane.Path() != wantPath {
+		t.Errorf("pane path = %q, want %q", model.rightPane.Path(), wantPath)
+	}
+	if !model.rightPane.IsLoading() {
+		t.Error("pane should be loading the new directory")
+	}
+}
+
+// AC-8 (TS-9): keyboard pane switching keeps its current bg-split scroll
+// behavior. This pins pre-existing, unmodified behavior -- it passes both
+// before and after this task's change -- guarding NFR1/NFR2 (the shared
+// scroll logic and keyboard pane switching are not touched by this task).
+func TestHandleMoveRight_BgSplitActivation_KeepsCurrentScrollBehavior(t *testing.T) {
+	model := newBgSplitPressTestModel(t, true)
+
+	updated, _ := model.handleMoveRight()
+	model = updated.(Model)
+
+	if model.activePane != RightPane {
+		t.Errorf("activePane = %v, want RightPane", model.activePane)
+	}
+	if model.rightPane.cursor != 15 {
+		t.Errorf("cursor = %d, want 15", model.rightPane.cursor)
+	}
+	if model.rightPane.scrollOffset != 5 {
+		t.Errorf("scrollOffset = %d, want 5", model.rightPane.scrollOffset)
+	}
+}

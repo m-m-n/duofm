@@ -123,16 +123,24 @@ func (m *Model) handleMousePress(x, y int) tea.Cmd {
 // needed, move its cursor), then consults the double-click detector to
 // either run the existing Enter action or arm a drag session.
 func (m *Model) handleEntryPress(pane PanePosition, index int) tea.Cmd {
+	p := m.paneAt(pane)
+	preOffset := p.scrollOffset
+
 	if pane != m.activePane {
 		m.switchToPane(pane)
 	}
 
-	p := m.paneAt(pane)
+	// Restore the pre-press scroll offset: activation may have moved it
+	// (e.g. the bg split appearing on this pane shrinks its visible lines
+	// and re-adjusts scroll against the pane's previous cursor). The
+	// pressed entry stays under the pointer unless, at this offset, it now
+	// falls outside the visible range -- handled below.
+	p.scrollOffset = preOffset
 	p.SetCursor(index)
 
-	// If activation shrank the pane's visible lines (the bg split appears
-	// on the bg command's pane) and the cursor fell outside them, apply the
-	// existing ensure-visible adjustment.
+	// If the pressed index is outside the visible range of the restored
+	// offset (activation may have shrunk the pane's visible lines), apply
+	// the existing ensure-visible adjustment.
 	if index < p.scrollOffset || index >= p.scrollOffset+p.getVisibleLines() {
 		p.EnsureCursorVisible()
 	}
