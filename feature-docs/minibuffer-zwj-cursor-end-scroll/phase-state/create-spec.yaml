@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-zwj-cursor-end-scroll
+phase: create-spec
+status: dispatching
+generation: 1
+base_revision: f8e299d3db323bb5410ded9a02cb24a53f62c6de
+last_input_digest: sha256:d235bc2529b1aa04d30d5f1961af912b7f1d89693dd6138293ec1190423e933a
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+  - request_id: create-spec-run-0001
+    status: dispatched
+    input_digest: sha256:d235bc2529b1aa04d30d5f1961af912b7f1d89693dd6138293ec1190423e933a
+    output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
