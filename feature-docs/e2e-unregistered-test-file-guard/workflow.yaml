@@ -87,7 +87,8 @@ workflow:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: 50be5fc1c2d47adfdf3b6998c4fe66c3a3b4d5ed
 - id: implement
   status: pending
 - id: review
@@ -98,7 +99,48 @@ workflow:
   failed_items: []
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Runner guard for unregistered test files, undefined run_test names, and runner self-test
+    plan: tasks/task0001.md
+    files:
+    - test/e2e/scripts/runner_self_test.sh
+    - test/e2e/scripts/helpers.sh
+    - test/e2e/scripts/run_all_tests.sh
+    skills:
+    - infra-impl
+    domains:
+    - config-infra
+    - external-io
+    - api-contract
+    complexity: high
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - FR5
+    - NFR1
+    - NFR2
+    - NFR3
+    - NFR4
+    status: pending
+  task0002:
+    title: E2E image runs the runner self-test before the suite
+    plan: tasks/task0002.md
+    files:
+    - test/e2e/Dockerfile
+    skills:
+    - infra-impl
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR6
+    - NFR2
+    - NFR3
+    - NFR4
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -108,7 +150,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-5
@@ -117,73 +160,100 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-2
     - TS-3
     - TS-4
+    - TS-6
   FR3:
     title: 全体実行で未登録ファイルを失敗として報告する
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-3
+    - TS-6
   FR4:
     title: --check-list で未登録ファイルを報告する
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-2
     - TS-3
     - TS-4
+    - TS-6
   FR5:
     title: 再発を検出する bash の自己テスト
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
+    - TS-3
+    - TS-4
+    - TS-5
+    - TS-7
   FR6:
     title: make test-e2e で自己テストを毎回走らせる
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0002
+    tests:
+    - TS-8
+    - TS-9
   NFR1:
     title: 自己テストは tmux と duofm を起動しない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-10
   NFR2:
     title: 書き込み範囲
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    - task0002
+    tests:
+    - TS-11
   NFR3:
     title: 依存を増やさない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    - task0002
+    tests:
+    - TS-12
   NFR4:
     title: 既存の CLI を保つ
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    - task0002
+    tests:
+    - TS-13
 batch:
   review_rework_count: 0
   verify_rework:
