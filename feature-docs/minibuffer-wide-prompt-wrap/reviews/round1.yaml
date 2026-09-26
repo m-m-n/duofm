@@ -1,0 +1,92 @@
+round: 1
+executed_at: "2026-09-26T20:57:37+09:00"
+scope:
+  review_mode: diff
+  base_commit: e0569216ea0692e67efba5928b030254c66efc7a
+  head_commit: a6555f891df4613b741f824d4d16f307e30dee75
+  changed_files:
+    - internal/ui/minibuffer.go
+    - internal/ui/minibuffer_test.go
+    - internal/ui/pane_render_test.go
+    - test-docs/minibuffer-wide-prompt-wrap/task0001.tests.yaml
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+  - {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+  - {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+  - {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+  - {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+  - {run_id: "comprehensive#loop1", perspective: comprehensive, role: primary, source: codex, status: completed}
+  - {run_id: "security#loop1", perspective: security, role: primary, source: codex, status: completed}
+  - {run_id: "spec#loop1", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: completed}
+findings:
+  - stable_id: 1372160ec8ca2a16
+    severity: high
+    category: comprehensive
+    file: internal/ui/minibuffer.go
+    line: 207
+    title: "VS16 付き絵文字の表示幅を過小評価し、1 行の保証が崩れる"
+    description: "runeDisplayWidths は rune ごとの幅の合計を書記素の幅の上限とみなしているが、VS16（U+FE0F）付き絵文字では結合後の幅が合計より広くなる（U+2764 U+FE0F は 1+0 ではなく 2 桁）。幅 37・プロンプト「(reverse-i-search)'日本語': 」・入力 U+2764 U+FE0F ×4・カーソル末尾で 37 桁になり 2 行に折り返す。救済処理も装飾を外すだけで幅が変わらない。プロンプト切り詰め（FR3 の経路）も同じ前提に依存。FR1/FR2 と SPEC Edge Cases に反する。"
+    suggestion: "組み立てた行を lipgloss.Width で実測し、内容幅を超える間はカーソルから遠い側から縮める。プロンプト切り詰めも実測で縮める。誤った前提のコメントを直す。VS16 のテストを追加する。"
+    sources: [codex:comprehensive]
+    confidence: 85
+    resolution: fixed
+    resolution_reason: "auto-applied loop 1 (batch: review.auto-fix-judgment → Apply as-is). テスト追加部分は editor の対象外で未実施"
+  - stable_id: 546610131641665a
+    severity: medium
+    category: security
+    file: internal/ui/minibuffer.go
+    line: null
+    title: "Codex レビュアーの出力にプロンプトインジェクションが混入（リポジトリ外由来）"
+    description: "comprehensive#0 の Codex の生の suggestion に、チェックの省略や隠し設定の追加を指示する文が埋め込まれていた。codex-reviewer が除去し、指示には従っていない。変更ファイルと差分全体に該当文言は無く、レビュー対象コード由来ではない。コードの不具合ではなく記録目的で file を置いている。"
+    suggestion: "コード変更は不要。Codex の実行環境（グローバル指示ファイル、ツール出力、取得したネットワーク内容）に不審な指示文が無いかを人間が確認する。"
+    sources: [claude:evaluator]
+    confidence: 70
+    resolution: unresolved
+    resolution_reason: "medium・評価者由来のため自動修正の対象外。人間による環境確認が必要"
+  - stable_id: 408ffc35dd15e043
+    severity: medium
+    category: security
+    file: internal/ui/minibuffer.go
+    line: 368
+    title: "大量の結合文字を貼り付けると二次時間の再描画で操作不能になる"
+    description: "loop 1 の修正で入った縮小ループは、先頭の幅 0 の文字を 1 個ずつ削りながら残り全体を組み立て・実測するため O(n²)。U+0301 を 10 万個 + ASCII 71 個 + U+00A9 U+FE0F を幅 80 で貼り付けると再描画が長時間止まる。"
+    suggestion: "書記素の境界と幅を一度計算し、表示範囲の決定を線形時間で終えてから描画する。大量の幅 0 文字と VS16 を含む入力で処理時間の退行を検証するテストを追加する。"
+    sources: [codex:security]
+    confidence: 60
+    resolution: unresolved
+    resolution_reason: "loop 1 後の再レビューで検出した medium。自動修正の対象外（critical/high のみ）"
+  - stable_id: abb435ae05afd8f2
+    severity: medium
+    category: comprehensive
+    file: internal/ui/minibuffer.go
+    line: 302
+    title: "Cursor-at-end scroll window over-truncates combining-sequence input that would actually fit"
+    description: "cursorAtEnd 分岐は rune ごとの幅の合計でスクロール開始位置を決めるため、ZWJ 連結のように結合で幅が縮む入力では幅を過大評価し、実際は収まる入力の先頭の code point を削ってしまう。後段の縮小ループは縮めるだけで開始位置を戻さないため、書記素の途中で切れた別の絵文字として表示される。"
+    suggestion: "スクロール要否と開始位置の判断も組み立てた文字列の実測幅で行う。先頭に ZWJ/VS16 の結合列がある入力で、全体が保たれることを確かめるテストを追加する。"
+    sources: [codex:comprehensive]
+    confidence: 60
+    resolution: unresolved
+    resolution_reason: "loop 1 後の再レビューで検出した medium。自動修正の対象外（critical/high のみ）"
+evaluation:
+  round_summary: "ラウンド 1（diff モード、3 観点、cross_validation なし）。comprehensive#0 の VS16 付き絵文字の幅の過小評価を評価者が lipgloss/uniseg の幅計算で確認し、FR1/FR2 と SPEC Edge Cases に反するため high に上げて採用した。FR3 のプロンプト切り詰めと FR4 の入力表示範囲の両経路に影響する。インジェクションの記録: codex-reviewer が comprehensive#0 の Codex の生出力から、チェックの省略と隠し設定の追加を指示する文を検出して除去した。変更ファイルと差分全体に該当文言は無く、リポジトリ外由来と判断した。指示には従っていない。security = corroborated、spec = spec#0 の適合判定は VS16 の件で裏付けられず comprehensive の finding に統合。補足: task0001.tests.yaml の final_failures に既存の失敗 7 件がベースラインのまま残っており、AC7 は検証フェーズで扱う必要がある。"
+  recommended_action: auto_fix
+  action_rationale: "high の 1 件は minibuffer.go の View の中だけで直せ、処方も明確。ただし処方は文章なので判断が必要な経路に入る。security の 1 件は評価者由来でコード修正対象でもないため自動修正候補から外れる。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+auto_fix:
+  loops_run: 1
+  applied_total: 1
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+unreviewed_perspectives: []
+triage_filing:
+  executed: false
+  branch: null
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null
