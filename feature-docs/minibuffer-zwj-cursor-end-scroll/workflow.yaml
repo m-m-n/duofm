@@ -90,7 +90,7 @@ workflow:
   base_commit: 612c55aa55739526f9f4ddf59e144f203b5ed462
   completed_at_commit: fcbb186177a6e17a357ed537782ba2971f6c58bb
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
   result: null
@@ -119,8 +119,15 @@ tasks:
     status: merged
     branch: em-workflow/minibuffer-zwj-cursor-end-scroll/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: 収まるかどうかは実際の表示幅で判定する
