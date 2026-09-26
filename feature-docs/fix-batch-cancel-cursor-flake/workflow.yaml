@@ -129,7 +129,8 @@ workflow:
   failed_items: []
   completed_at_commit: 3ab13dd26dd438644e1fb548e46672d8de16e5f3
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: 1f04b33829df0db8b0b69548bf6d4bd8fa893c41
 tasks:
   task0001:
     title: Display-order marked-file queries, order tests, and E2E batch-cancel hardening
