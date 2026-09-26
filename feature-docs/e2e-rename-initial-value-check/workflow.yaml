@@ -2,28 +2,47 @@ schema_version: 1
 feature: e2e-rename-initial-value-check
 created: '2026-09-27'
 base_branch: main
-goal: |
-  # E2E リネームテストの初期値チェックが常に通る
+goal: '# E2E リネームテストの初期値チェックが常に通る
+
 
   Notion task: https://www.notion.so/3e63509ec8ee81138a78d466708fa2da
+
   種別: 改善
 
+
   ## やりたいこと (必須)
+
   E2E のリネームテストで、ダイアログ入力欄の初期値を実際に検証できるようにする。
 
+
   ## 背景・なぜ (必須)
-  `file_operation_tests.sh` の `assert_contains "before_rename"`（195 行目）と `assert_contains "navren_before"`（439 行目）は、ダイアログ背後のファイル一覧に同名ファイルが表示されている限り、入力欄の初期値に関係なく通る。
-  `history_tests.sh` 167 行目の `assert_contains "testdata"` もパス表示により常に通る（直後の `assert_not_contains` が実際の判定を担っている）。
-  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4 ）
+
+  `file_operation_tests.sh` の `assert_contains "before_rename"`（195 行目）と `assert_contains
+  "navren_before"`（439 行目）は、ダイアログ背後のファイル一覧に同名ファイルが表示されている限り、入力欄の初期値に関係なく通る。
+
+  `history_tests.sh` 167 行目の `assert_contains "testdata"` もパス表示により常に通る（直後の `assert_not_contains`
+  が実際の判定を担っている）。
+
+  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4
+  ）
+
   レビュー指摘 537ddc2b5d008e78
 
+
   ## 受け入れ条件 / 完了の定義 (必須)
+
   - [ ] 初期値の照合が、入力欄にしか出ない形で行われる
+
   - [ ] `navren_before` のチェックも同様に直す
+
   - [ ] `history_tests.sh` の常に通る `testdata` チェックを削除するか、パス表示行に絞る
 
+
   ## 制約・前提 (任意)
+
   Go のソースは変更しない。
+
+  '
 parent_branch: em-workflow/e2e-rename-initial-value-check/integration
 tier: reduced
 tier_decision:
@@ -54,9 +73,24 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
+        ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD"
+        -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w
+        .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -69,13 +103,15 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: reduced tier で design step を削減。加えて E2E テストスクリプトだけの変更で、画面の設計を伴わない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+  skipped_reason: reduced tier で design step を削減。加えて E2E テストスクリプトだけの変更で、画面の設計を伴わない（create-spec.design-step
+    = decide_autonomously で推奨 skip を採用）
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: 0d4f183c7f160d1de08efdba9b5d7b4fc122721f
 - id: implement
   status: pending
   base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
@@ -87,7 +123,25 @@ workflow:
   failed_items: []
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Input-line-only initial-value checks for the rename E2E tests, and removal
+      of the always-passing history check
+    plan: tasks/task0001.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    - test/e2e/scripts/tests/history_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - NFR1
+    - NFR2
+    status: pending
 review:
   status: pending
   rounds_completed: 0
@@ -99,36 +153,48 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   FR2:
     title: test_navigation_after_rename の初期値照合を入力欄に限定する
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-1
+    - TS-2
   FR3:
     title: history_tests.sh の常に通る testdata チェックを削除する
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-3
   NFR1:
     title: Go のソース（*.go）は変更しない。
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
   NFR2:
     title: helpers.sh の既存の assert_contains / assert_not_contains の挙動は変えない（全 E2E テストが使っている）。
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-4
 batch:
   review_rework_count: 0
   verify_rework:
