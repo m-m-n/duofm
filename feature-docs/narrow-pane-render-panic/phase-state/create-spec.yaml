@@ -1,11 +1,11 @@
 schema_version: 1
 feature: narrow-pane-render-panic
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: d416d3f258af559b0456b1f8649dfb8870da164d
 last_input_digest: sha256:8518caad87cab0ef4848becb296553c71f1c37898c8142af151c64b2fd5be385
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets: {}
 answers:
   create-spec.requirement-clarification.minibuffer-scope:
@@ -36,10 +36,16 @@ worker_runs:
   input_digest: sha256:68fd6fd82d90d2695814b36420e2e648baa85266a432e0734c1b2ab658c4a8ab
   output_digest: sha256:21696d26d8e17302ce2cb9b077b88e3a26b24f5feacd3f7fccf9052bc21e8e68
 - request_id: create-spec-run-0003
-  status: dispatched
+  status: completed
   input_digest: sha256:8518caad87cab0ef4848becb296553c71f1c37898c8142af151c64b2fd5be385
   output_digest: null
-artifacts: []
+artifacts:
+- path: feature-docs/narrow-pane-render-panic/REQUIREMENTS.md
+  sha256: sha256:4791404476d129254e01244907879087ae1fb0f534fd18ce00d43729ba6caa8a
+  produced_by: create-spec-run-0003
+- path: feature-docs/narrow-pane-render-panic/SPEC.md
+  sha256: sha256:01b559a3bf7240bb8728ffbca1b53d2c51664e6d407f7e1827800c37b4c90c79
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
