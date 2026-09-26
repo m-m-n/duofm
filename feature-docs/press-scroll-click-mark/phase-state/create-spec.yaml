@@ -1,0 +1,17 @@
+schema_version: 1
+feature: press-scroll-click-mark
+phase: create-spec
+status: initialized
+generation: 1
+base_revision: b32348205e2d5a2cfac6871dd0d00d7eb80e4537
+last_input_digest: null
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
