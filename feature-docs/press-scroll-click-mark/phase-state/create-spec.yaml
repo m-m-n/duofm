@@ -1,11 +1,11 @@
 schema_version: 1
 feature: press-scroll-click-mark
 phase: create-spec
-status: awaiting_answers
+status: dispatching
 generation: 1
 base_revision: b32348205e2d5a2cfac6871dd0d00d7eb80e4537
-last_input_digest: sha256:f86deebfa7fb7cb7db78a2bd573e1da6f4f923500b24ecb05b0a0dbd47b1d7a6
-active_request_id: null
+last_input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
+active_request_id: create-spec-run-0003
 packets:
   create-spec-q0001:
     status: answered
@@ -47,6 +47,10 @@ worker_runs:
   status: needs_user_input
   input_digest: sha256:f86deebfa7fb7cb7db78a2bd573e1da6f4f923500b24ecb05b0a0dbd47b1d7a6
   output_digest: sha256:fc445795c0c0dbe36c736b0fe345a94ff3a5a0880cffa81e08598c96f081f2d5
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
+  output_digest: sha256:ff8405bfd13ab7d8002715584111c27853debfb6e17cf46208a5033b38bd5084
 artifacts: []
 patches: []
 progress_fingerprint: null
