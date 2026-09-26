@@ -1,14 +1,18 @@
 schema_version: 1
 feature: e2e-unregistered-test-file-guard
 phase: create-spec
-status: initialized
+status: dispatching
 generation: 1
-base_revision: 33b2029e994b157a06e16e8add46e663e2125974
-last_input_digest: null
-active_request_id: null
+base_revision: 000f693864aef684d51723d3fc25d077cf44f3b2
+last_input_digest: sha256:ab6dafc280138c19e9091b8ba2dab93d09b3fec04e3c28c2839a78e5d1ded87c
+active_request_id: create-spec-run-0001
 packets: {}
 answers: {}
-worker_runs: []
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:ab6dafc280138c19e9091b8ba2dab93d09b3fec04e3c28c2839a78e5d1ded87c
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
