@@ -125,7 +125,7 @@ tasks:
     - NFR2
     - NFR3
     - NFR4
-    status: in_progress
+    status: merged
     branch: em-workflow/e2e-unregistered-test-file-guard/task0001
   task0002:
     title: E2E image runs the runner self-test before the suite
