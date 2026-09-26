@@ -1,0 +1,47 @@
+schema_version: 1
+feature: fix-batch-cancel-cursor-flake
+tier: full
+rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full; both readings
+  agree: P(0)=0.07 / 0.01, below the reduced P(0) floor)'
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.07
+    '1': 0.8
+    '2': 0.13
+    '3': 0.0
+  expectation_clear: 0.82
+  observed_at: '2026-09-26T14:41:36+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.01
+    '1': 0.61
+    '2': 0.38
+    '3': 0.0
+  expectation_clear: 0.88
+  observed_at: '2026-09-26T14:43:26+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/pane_marks.go
+  - internal/ui/pane_mark_test.go
+  - test/e2e/scripts/tests/cursor_preserve_tests.sh
+  changed_lines_approx: 90
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: true
+  spillover_modules:
+  - internal/ui/model_update_keyboard.go
+  - internal/ui/model_update.go
+  - internal/ui/model_update_dialog.go
+  - internal/ui/batch_operation_manager.go
+  - internal/ui/model_permission.go
+  - internal/ui/model_update_archive.go
+  - internal/ui/model_update_trash.go
+  - internal/ui/context_menu_dialog.go
+  - internal/ui/open_with_dialog.go
+  - internal/ui/exec.go
+  - internal/archive
+  work_still_required: true
+  notes: HEAD 7fa768dでは未修正で、作業ツリーに変更はなかったよ。両取得関数はmapを直接列挙しているよ。移動は取得順に処理されるため、02_bbbが先頭だと上書き確認で全体が中止され、01_aaaの移動を期待するE2Eが失敗するよ。GetMarkedFilesの呼び出し元はコピー・移動、削除確認・実行、権限変更、圧縮、ごみ箱、外部アプリ起動、メニュー生成だよ。コピー・移動の中止時点と削除失敗時の処理済み対象は順序に依存し、権限変更の処理・エラー順、圧縮対象順、外部アプリの表示・引数順にも影響するよ。確認・メニューの件数判定と、ごみ箱の並列処理は特定順を前提にしていないよ。GetMarkedFilePathsはテスト以外に呼び出しがなかったよ。修正案はGetMarkedFilesを標準ライブラリで名前の辞書順に整列し、GetMarkedFilePathsもその結果から生成する方法だよ。既存単体テストは名前の集合と単一パスを検証しているけれど、順序は検証していないよ。既存テストを拡張して複数ファイル・異なるマーク順・反復取得の順序を検証し、E2Eでは中止結果と未移動ファイルの確認を強化する見積もりだよ。ファイル変更やテスト実行、外部への更新はしていないよ
+decided_at: '2026-09-26T14:43:31+09:00'
