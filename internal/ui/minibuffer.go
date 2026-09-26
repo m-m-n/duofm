@@ -299,15 +299,24 @@ func (m *Minibuffer) View() string {
 		remaining := contentWidth - promptWidth
 
 		cursorAtEnd := m.cursorPos >= len(runes)
-		totalWidth := prefix[len(runes)]
-		totalWithCursor := totalWidth
+		// actualWidth is the input's actual display width, measured
+		// grapheme-cluster-wise (same basis as the shrink loop below),
+		// not the sum of each rune's own width. A rune-width sum
+		// overestimates sequences like ZWJ-joined emoji, which can push
+		// an input that actually fits into the scroll path below and
+		// cost it its leading code point.
+		actualWidth := lipgloss.Width(m.input)
+		actualWidthWithCursor := actualWidth
 		if cursorAtEnd {
-			totalWithCursor++
+			actualWidthWithCursor++
 		}
 
 		switch {
-		case totalWithCursor <= remaining:
-			// FR8: input and cursor block both fit; show untruncated.
+		case actualWidthWithCursor <= remaining:
+			// FR1, FR2, FR3: the input's actual display width (plus the
+			// 1-column cursor block when the cursor sits at the end) fits
+			// the remaining width; show it untruncated instead of falling
+			// back to the per-rune-width scroll path below.
 			displayStart, displayEnd = 0, len(runes)
 			cursorDisplayPos = m.cursorPos
 
