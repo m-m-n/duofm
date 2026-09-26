@@ -19,3 +19,12 @@ records:
     freeform: "design step skipped"
     normalized_answer: "design step skipped per requirements-analyst recommendation (E2E shell scripts only, no UI)"
     resolution_note: "gate: create-spec.design-step (tier upgrade re-entry; the upgrade procedure had set design pending); chosen: decide_autonomously -> skipped; codex_consulted: false; opus_escalation: false. Also: spec-writer run-0004 blocked (no hashing tool); orchestrator pre-verified target digests and substituted written_artifacts digests for run-0005"
+  - question_id: verify.ac6-judgment
+    packet_id: null
+    answered_at: "2026-09-27T04:35:00+09:00"
+    source: batch-codex-consultation
+    answer_mode: select_or_freeform
+    selected_option_ids: [B]
+    freeform: "verify を failed（AC-6）にして自動 rework を回す"
+    normalized_answer: "verify failed on AC-6; auto-rework round 2 (lineage cap and hard cap not reached)"
+    resolution_note: "gate: verify 判定（明示シナリオ TS-1..TS-5 は全合格だが、AC-6 のソース確認で review round2 未解決 medium 指摘 7f5017c72dd1dcab / 4db551c190612b80 の反例 x│before_rename が模擬行で合格することを再現）; options: A=pass にして残件を別タスク起票, B=failed にして rework; chosen: B; not chosen: A; codex_consulted: true (Codex は B を推奨。理由: 基底名以外の非空白文字を含む入力が合格し AC-6 を満たさない / VERIFICATION はソース確認も要求するため明示シナリオの全合格だけでは pass にできない / AC-2 を既知の反例で fail にした前回判定と整合 / AC-6 は初回のため cap に達しない。リスク: 固定幅案も非アンカーなので既知の反例を含めた再検証が必要、次回も AC-6 失敗なら系譜 cap); opus_escalation: false; 推奨修正: ${border} ${escaped_base}[[:space:]]*${border} ${escaped_ext}（固定幅）"
