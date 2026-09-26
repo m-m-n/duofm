@@ -1,0 +1,12 @@
+schema_version: 1
+feature: fix-batch-cancel-cursor-flake
+records:
+  - question_id: verify.e2e-repeat-count
+    packet_id: null
+    answered_at: "2026-09-26T16:05:00+09:00"
+    source: batch-codex-consultation
+    answer_mode: freeform
+    selected_option_ids: []
+    freeform: "make test-e2e を合計 3 回、test_batch_cancel_cursor 単独を追加 20 回"
+    normalized_answer: "make test-e2e を合計 3 回、test_batch_cancel_cursor 単独を追加 20 回"
+    resolution_note: "gate: verify phase E2E repeat count (SPEC A-repeat-e2e, 回数は verify で決める); codex_consulted: true; options: 全体実行の回数のみ / 全体実行 + 対象テスト単独の反復; choice: 全体 3 回 + 単独 20 回（Codex 推奨を採用）; Codex の要点: GetMarkedFiles は表示順で返し非表示分は名前順にソートするため map 反復順による非決定性は実装上解消済み、E2E の反復は回帰確認の位置付け。全体 3 回で他テストへの影響、単独 20 回で対象操作と待機処理を集中的に確認する。統計的保証を狙った回数ではない; result: 全体 3 回とも 265/265 成功、単独 20 回で 100/100 アサーション成功、run-list check OK (123 entries)"
