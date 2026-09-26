@@ -125,7 +125,8 @@ tasks:
     - NFR2
     - NFR3
     - NFR4
-    status: pending
+    status: in_progress
+    branch: em-workflow/e2e-unregistered-test-file-guard/task0001
   task0002:
     title: E2E image runs the runner self-test before the suite
     plan: tasks/task0002.md
@@ -141,7 +142,8 @@ tasks:
     - NFR2
     - NFR3
     - NFR4
-    status: pending
+    status: in_progress
+    branch: em-workflow/e2e-unregistered-test-file-guard/task0002
 review:
   status: pending
   rounds_completed: 0
