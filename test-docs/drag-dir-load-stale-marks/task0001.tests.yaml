@@ -1,0 +1,32 @@
+task_id: task0001
+baseline_failures: []
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: [TestHandleMouse_DragSession_CancelledOnLoadCompleteForArmedPane]
+    red_confirmed: true
+    red_reason: "session after load complete = {armed:true active:false pane:0 anchor:2 baseline:map[]}, want neither armed nor active"
+  AC-2:
+    tests: [TestHandleMouse_DragSession_CancelledOnLoadCompleteKeepsCurrentMarks]
+    red_confirmed: true
+    red_reason: "session after load complete = {armed:true active:true pane:0 anchor:2 baseline:map[]}, want neither armed nor active"
+  AC-3:
+    tests: [TestHandleMouse_DragSession_UnaffectedByLoadCompleteForOtherPane]
+    red_confirmed: false
+    red_reason: "this criterion pins pre-existing, unchanged behavior (the handler already leaves a session belonging to a different pane untouched); the test passed against the handler both before and after the fix, since the fix is keyed on the completed pane matching the session's pane."
+  AC-4:
+    tests: [TestHandleMouse_DragSession_UnaffectedByLoadCompleteError]
+    red_confirmed: false
+    red_reason: "this criterion pins pre-existing, unchanged behavior (the handler's error path never touches the drag session, before or after the fix, since the fix only runs on the success path); the test passed unmodified."
+  AC-5:
+    tests: [TestHandleMouse_DragSession_UnaffectedByStaleLoadComplete]
+    red_confirmed: false
+    red_reason: "this criterion pins pre-existing, unchanged behavior (a stale completion returns before the success path runs, before and after the fix, since the fix is added only on the success path); the test passed unmodified."
+  AC-6:
+    tests: [TestHandleMouse_DragSession_CancelledOnLoadCompleteForArmedPane, TestHandleMouse_DragSession_CancelledOnLoadCompleteKeepsCurrentMarks]
+    red_confirmed: true
+    red_reason: "both AC-1 and AC-2 tests were run against the handler before the cancellation call was added and observed to fail with the session still armed (see AC-1/AC-2 red_reason); both pass after adding the cancellation call."
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: "verified by full-suite test run, gofmt -l (no diff) and go vet (no findings) after implementation; no red state was sought for this criterion since it is a whole-suite/tooling health check, not a single behavior with an observable failing state to induce beforehand."

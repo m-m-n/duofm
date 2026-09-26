@@ -489,6 +489,9 @@ func (m Model) handleDirectoryLoadComplete(msg directoryLoadCompleteMsg) (tea.Mo
 	}
 
 	m.updateDiskSpace()
+
+	m.cancelDragOnLoadComplete(msg.paneID)
+
 	return m, nil
 }
 

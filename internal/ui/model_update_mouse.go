@@ -163,6 +163,19 @@ func (m *Model) handleEntryPress(pane PanePosition, index int) tea.Cmd {
 	return nil
 }
 
+// cancelDragOnLoadComplete resets the drag session to its initial state when
+// it is armed and belongs to pane. It is called after a directory load
+// completion has replaced that pane's entries, so a later motion or release
+// no longer applies the stale anchor and baseline (captured against the old
+// list) to the new one. The pane's current mark set is left untouched. When
+// the session is not armed, or belongs to a different pane, this is a
+// no-op: the session is left unchanged, field for field.
+func (m *Model) cancelDragOnLoadComplete(pane PanePosition) {
+	if m.mouseDrag.armed && m.mouseDrag.pane == pane {
+		m.mouseDrag = dragSession{}
+	}
+}
+
 // updateDrag applies a motion or release row to the armed drag session. x is
 // never used, and the other pane is never touched.
 func (m *Model) updateDrag(y int) {
