@@ -5,12 +5,84 @@ status: in_progress
 generation: 1
 base_revision: 6b0c620a3597e96e41e3a4200e6ef1227a883538
 last_input_digest: sha256:36e1749dea1f40479c43137f6580553cbaa2923f7e13b875c3263ff9561baa79
-active_request_id: create-spec-run-0001
-packets: {}
-answers: {}
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-26T21:40:41+09:00'
+    questions:
+    - question_id: requirement.drag-cancel.pane-scope
+      status: answered
+    - question_id: requirement.drag-cancel.failed-load
+      status: answered
+    - question_id: requirement.drag-cancel.applied-marks
+      status: answered
+    - question_id: requirement.scope.other-list-replacements
+      status: answered
+    - question_id: design-step
+      status: answered
+answers:
+  requirement.drag-cancel.pane-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T21:40:41+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - same_pane_only
+    freeform: null
+    normalized_answer: 読み込みが完了したペインがドラッグ中のペインのときだけドラッグを解除する。もう一方のペインのドラッグは続く。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: same_pane_only / any_pane; chosen: same_pane_only; codex_consulted: true (codex entry, 2 turns; turn-2 on Q4 only); opus_escalation:
+      false; key points: Q1 アンカーと baseline はドラッグ中のペインの一覧にだけ対応するので、そのペインの一覧が置き換わったときだけ解除する。Q2 失敗時は restorePreviousPath で一覧を置き換えないので解除不要。Q3 既存のモーダル時の解除（TestHandleMouse_ArmedSessionDisarmedByModal）と同じく適用済みマークは保持。Q4
+      Codex は 1 ターン目で all_list_replacements を推したが、autoRefreshMsg は refreshRate 秒ごとに無条件で両ペインを再読み込みするため、一律解除だと長いドラッグが途中で切れる回帰になる点を 2 ターン目で提示し、load_complete_only に収束。自動更新等の経路は別タスクとして起票する。'
+  requirement.drag-cancel.failed-load:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T21:40:41+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - success_only
+    freeform: null
+    normalized_answer: 一覧を置き換える成功時だけ解除する。読み込み失敗時（一覧を置き換えない）はドラッグを続ける。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: success_only / success_and_failure; chosen: success_only; codex_consulted: true (codex entry, 2 turns; turn-2 on Q4 only); opus_escalation:
+      false; key points: Q1 アンカーと baseline はドラッグ中のペインの一覧にだけ対応するので、そのペインの一覧が置き換わったときだけ解除する。Q2 失敗時は restorePreviousPath で一覧を置き換えないので解除不要。Q3 既存のモーダル時の解除（TestHandleMouse_ArmedSessionDisarmedByModal）と同じく適用済みマークは保持。Q4
+      Codex は 1 ターン目で all_list_replacements を推したが、autoRefreshMsg は refreshRate 秒ごとに無条件で両ペインを再読み込みするため、一律解除だと長いドラッグが途中で切れる回帰になる点を 2 ターン目で提示し、load_complete_only に収束。自動更新等の経路は別タスクとして起票する。'
+  requirement.drag-cancel.applied-marks:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T21:40:41+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - keep_and_disarm
+    freeform: null
+    normalized_answer: 完了前にドラッグで付いたマークは保持し、ドラッグだけを解除する（mouseDrag を初期値に戻す）。以降の移動・解放では次の押下までマークしない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: keep_and_disarm / revert_to_baseline; chosen: keep_and_disarm; codex_consulted: true (codex entry, 2 turns; turn-2 on Q4 only);
+      opus_escalation: false; key points: Q1 アンカーと baseline はドラッグ中のペインの一覧にだけ対応するので、そのペインの一覧が置き換わったときだけ解除する。Q2 失敗時は restorePreviousPath で一覧を置き換えないので解除不要。Q3 既存のモーダル時の解除（TestHandleMouse_ArmedSessionDisarmedByModal）と同じく適用済みマークは保持。Q4
+      Codex は 1 ターン目で all_list_replacements を推したが、autoRefreshMsg は refreshRate 秒ごとに無条件で両ペインを再読み込みするため、一律解除だと長いドラッグが途中で切れる回帰になる点を 2 ターン目で提示し、load_complete_only に収束。自動更新等の経路は別タスクとして起票する。'
+  requirement.scope.other-list-replacements:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T21:40:41+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - load_complete_only
+    freeform: null
+    normalized_answer: 対象はディレクトリ読み込み完了（handleDirectoryLoadComplete）だけ。自動更新などの他の一覧置き換え経路は変更しない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: load_complete_only / all_list_replacements; chosen: load_complete_only; codex_consulted: true (codex entry, 2 turns; turn-2 on
+      Q4 only); opus_escalation: false; key points: Q1 アンカーと baseline はドラッグ中のペインの一覧にだけ対応するので、そのペインの一覧が置き換わったときだけ解除する。Q2 失敗時は restorePreviousPath で一覧を置き換えないので解除不要。Q3 既存のモーダル時の解除（TestHandleMouse_ArmedSessionDisarmedByModal）と同じく適用済みマークは保持。Q4
+      Codex は 1 ターン目で all_list_replacements を推したが、autoRefreshMsg は refreshRate 秒ごとに無条件で両ペインを再読み込みするため、一律解除だと長いドラッグが途中で切れる回帰になる点を 2 ターン目で提示し、load_complete_only に収束。自動更新等の経路は別タスクとして起票する。'
+  design-step:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-26T21:40:41+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - skip
+    freeform: null
+    normalized_answer: 設計ステップはスキップする（内部のマウス・ドラッグ状態の修正のみで、新しい表示要素・見た目の変更がない）。
+    resolution_note: 'gate: create-spec.design-step; policy decide_autonomously -> analyst recommendation skip adopted'
 worker_runs:
 - request_id: create-spec-run-0001
-  status: dispatched
+  status: needs_user_input
   input_digest: sha256:36e1749dea1f40479c43137f6580553cbaa2923f7e13b875c3263ff9561baa79
   output_digest: null
 artifacts: []
