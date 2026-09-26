@@ -1,21 +1,58 @@
 schema_version: 1
 feature: e2e-unregistered-test-file-guard
 phase: create-spec
-status: dispatching
+status: awaiting_answers
 generation: 1
-base_revision: 000f693864aef684d51723d3fc25d077cf44f3b2
+base_revision: 2c74864d16d7df089c0d9a3993191fc85e583b76
 last_input_digest: sha256:ab6dafc280138c19e9091b8ba2dab93d09b3fec04e3c28c2839a78e5d1ded87c
-active_request_id: create-spec-run-0001
-packets: {}
-answers: {}
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-27T01:12:44+09:00'
+    questions:
+    - question_id: requirement.fix-approach
+      status: answered
+    - question_id: requirement.regression-test-form
+      status: answered
+    - question_id: design-step.recommendation
+      status: obsolete
+answers:
+  requirement.fix-approach:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T01:12:44+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - count_undefined_and_flag_unregistered
+    freeform: null
+    normalized_answer: run_test は関数が未定義なら失敗 1 件として TESTS_RUN と TESTS_FAILED に数える。さらに run-list ガードが、tests/*.sh のうち TEST_FILES に無いファイルを全体実行と --check-list の両方で失敗としてファイル名つきで報告する。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: count_undefined_and_flag_unregistered / count_undefined_only / source_all_files; chosen: count_undefined_and_flag_unregistered;
+      codex_consulted: true (codex entry, 2 turns); opus_escalation: false; key points: turn1 で Codex は修正方針に count_undefined_only（変更最小）を推した。turn2 で、run-list ガード（--check-list と全体実行前のガード）は一覧と定義の不一致を tmux
+      実行前に静的に検出するためのもので、count_undefined_only だとガードは OK を出したまま全体実行だけが失敗し、原因も『未定義』としか出ない点を提示。Codex は、登録漏れをファイル名つきで両経路から検出できる点を変更量より重視し count_undefined_and_flag_unregistered に変更して収束。run_test の未定義計上は実行時の安全網として残す。再発テストは両ターンとも
+      self_test_in_make_e2e（Docker は要るが自己テスト自体は tmux/duofm を起動しない。リポジトリに CI 設定は無い）。'
+  requirement.regression-test-form:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T01:12:44+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - self_test_in_make_e2e
+    freeform: null
+    normalized_answer: bash の自己テストスクリプトを新しく作り、一時ディレクトリに複製したランナーで未登録ファイルのテストを FULL_RUN_LIST に置いた全体実行と --check-list を検証する。tmux と duofm は起動しない。make test-e2e の実行経路（コンテナ内）で毎回走らせる。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: self_test_in_make_e2e / self_test_separate_target / go_test_exec_bash; chosen: self_test_in_make_e2e; codex_consulted: true (codex
+      entry, 2 turns); opus_escalation: false; key points: turn1 で Codex は修正方針に count_undefined_only（変更最小）を推した。turn2 で、run-list ガード（--check-list と全体実行前のガード）は一覧と定義の不一致を tmux 実行前に静的に検出するためのもので、count_undefined_only
+      だとガードは OK を出したまま全体実行だけが失敗し、原因も『未定義』としか出ない点を提示。Codex は、登録漏れをファイル名つきで両経路から検出できる点を変更量より重視し count_undefined_and_flag_unregistered に変更して収束。run_test の未定義計上は実行時の安全網として残す。再発テストは両ターンとも self_test_in_make_e2e（Docker
+      は要るが自己テスト自体は tmux/duofm を起動しない。リポジトリに CI 設定は無い）。'
 worker_runs:
 - request_id: create-spec-run-0001
-  status: dispatched
+  status: needs_user_input
   input_digest: sha256:ab6dafc280138c19e9091b8ba2dab93d09b3fec04e3c28c2839a78e5d1ded87c
-  output_digest: null
+  output_digest: sha256:4e808436f4b9327b7ec4a59e7cc476650e5c53f33d3365cc529482ac315ad66f
 artifacts: []
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: null
+last_error: 'create-spec-run-0001: validate-worker-output.py gate_id error — questions[2] (create-spec.design-step) lacks option_id decide_autonomously; that question is marked obsolete and will be re-issued
+  by the next dispatch'
