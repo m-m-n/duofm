@@ -159,7 +159,8 @@ tasks:
     - FR2
     - NFR1
     - NFR2
-    status: pending
+    status: in_progress
+    branch: em-workflow/e2e-rename-initial-value-check/task0002
     provenance:
       source: verify
       source_ids:
