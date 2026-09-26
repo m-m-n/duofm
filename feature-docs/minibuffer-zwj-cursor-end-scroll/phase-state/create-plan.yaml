@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-zwj-cursor-end-scroll
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: fc46c857be483ff3ec5e9a1ca017dd3f3df88e2e
 last_input_digest: sha256:28d4083f784b5adcd9e6ddc3b375a062d507bde2e3749bc624ca5576c5483e70
@@ -22,7 +22,7 @@ artifacts:
   produced_by: create-plan-run-0001
 patches:
 - patch_id: minibuffer-zwj-cursor-end-scroll-create-plan-p0001
-  status: pending
+  status: applied
   base_input_digest: sha256:28d4083f784b5adcd9e6ddc3b375a062d507bde2e3749bc624ca5576c5483e70
   base_workflow_blob: ef28510daddcc661f9040d235fa3239dc8f71473
 progress_fingerprint: null
