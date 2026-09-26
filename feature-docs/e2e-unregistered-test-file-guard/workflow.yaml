@@ -1,0 +1,194 @@
+schema_version: 1
+feature: e2e-unregistered-test-file-guard
+created: '2026-09-27'
+base_branch: main
+goal: |
+  # E2E run_all_tests.sh で TEST_FILES 未登録ファイルのテストが集計から漏れる
+
+  Notion task: https://www.notion.so/3e63509ec8ee8133bd41db9f5aaf69c9 (種別: バグ)
+
+  ## 現象 (必須)
+  `run_all_tests.sh` の `run_all` は `TEST_FILES` に登録されたファイルだけを source する。一方、未定義エントリのガードは `tests/*.sh` の静的な名前集合で判定している。
+  `helpers.sh` の `run_test` は関数呼び出しの失敗（command not found）を集計しない。
+  そのため、`TEST_FILES` 未登録のファイルにあるテストを `FULL_RUN_LIST` に加えると、ガードは通るのに本実行では未定義のまま呼ばれ、Total にも Failed にも数えられず終了コード 0 で終わる。
+  現状は `tests/` の 14 ファイルすべてが `TEST_FILES` に載っているため潜在不具合。
+
+  ## 再現手順 (必須)
+  1. `test/e2e/scripts/tests/` に新しいテストファイルを追加し、テスト関数を定義する
+  2. そのファイルを `TEST_FILES` に登録せず、関数名だけを `FULL_RUN_LIST` に加える
+  3. `make test-e2e-build && make test-e2e` を実行する
+  4. 追加したテストが実行されず、失敗にも数えられずに終了コード 0 になる
+
+  ## 期待する挙動 (必須)
+  未登録ファイルのテストが実行一覧にある場合、実行されるか、失敗として数えられる。
+
+  ## 完了の定義 (必須)
+  - [ ] 再現手順で現象が起きない
+  - [ ] 再発を検出するテストがある
+
+  ## 該当箇所 (任意)
+  `test/e2e/scripts/run_all_tests.sh:363` / `test/e2e/scripts/helpers.sh` の `run_test`
+  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4 ）
+  レビュー指摘 f7ccb13cac7b0bdb
+
+  ## 実害・発生条件 (任意)
+  テストファイルを追加して `TEST_FILES` への登録を忘れたときだけ起きる。
+
+  ## 追加指示（起動引数）
+  - 実装完了後、integration ブランチを remote へ push し、base_branch への PR を gh pr create で作成する。integration ブランチはローカル・リモート両方に残す（base_branch へ自動マージしない）
+  - 不明点は Codex に相談し、比較的良いと判断した選択肢を採用する
+  - その議論内容を Notion に記録する
+parent_branch: em-workflow/e2e-unregistered-test-file-guard/integration
+tier: full
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.0
+      '1': 0.62
+      '2': 0.36
+      '3': 0.02
+  at: '2026-09-27T01:04:49+09:00'
+  reductions: []
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - REQUIREMENTS.md
+  - SPEC.md
+  status: completed
+  completed_at_commit: f2c580438b04c355346b5efef3aa5202abdedbbd
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: 変更対象は E2E のテストランナー (bash) と Dockerfile の既定コマンドだけで、UI や画面の設計を伴わないため（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: pending
+- id: implement
+  status: pending
+- id: review
+  status: pending
+- id: verify
+  status: pending
+  result: null
+  failed_items: []
+- id: retrospect
+  status: pending
+tasks: {}
+review:
+  status: pending
+  rounds_completed: 0
+requirements:
+  FR1:
+    title: run_test が未定義の関数を失敗 1 件として数える
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS-1
+    - TS-5
+  FR2:
+    title: run-list ガードが TEST_FILES 未登録のファイルを検出する
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS-1
+    - TS-2
+    - TS-3
+    - TS-4
+  FR3:
+    title: 全体実行で未登録ファイルを失敗として報告する
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS-1
+    - TS-3
+  FR4:
+    title: --check-list で未登録ファイルを報告する
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS-2
+    - TS-3
+    - TS-4
+  FR5:
+    title: 再発を検出する bash の自己テスト
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR6:
+    title: make test-e2e で自己テストを毎回走らせる
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR1:
+    title: 自己テストは tmux と duofm を起動しない
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR2:
+    title: 書き込み範囲
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR3:
+    title: 依存を増やさない
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR4:
+    title: 既存の CLI を保つ
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 0
+    failed_id_counts: {}
+  infra_resume:
+    rounds: 0
+    cap: 2
