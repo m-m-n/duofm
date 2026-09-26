@@ -1,16 +1,33 @@
 schema_version: 1
 feature: narrow-pane-render-panic
 phase: create-plan
-status: running
+status: applying_patch
 generation: 1
 base_revision: fdc9ae40802d980ac5e3adea1bf41f38145d5ef9
-last_input_digest: null
-active_request_id: create-plan-run-0001
+last_input_digest: sha256:9b1fda2540b06ca4b1223c0e364c95369068db83889a62fd47a36e05d7bed280
+active_request_id: null
 packets: {}
 answers: {}
-worker_runs: []
-artifacts: []
-patches: []
+worker_runs:
+- request_id: create-plan-run-0001
+  status: completed
+  input_digest: sha256:9b1fda2540b06ca4b1223c0e364c95369068db83889a62fd47a36e05d7bed280
+  output_digest: sha256:98d43936c313de2c48396c5ea21074c3a6e5d15ce88dbe1e747370f4a7adeb9f
+artifacts:
+- path: feature-docs/narrow-pane-render-panic/IMPLEMENTATION.md
+  sha256: sha256:98d43936c313de2c48396c5ea21074c3a6e5d15ce88dbe1e747370f4a7adeb9f
+  produced_by: create-plan-run-0001
+- path: feature-docs/narrow-pane-render-panic/VERIFICATION.md
+  sha256: sha256:951eafad15cd74040dd389843ec323fcef43d537660c4025972bec501c168557
+  produced_by: create-plan-run-0001
+- path: feature-docs/narrow-pane-render-panic/tasks/task0001.md
+  sha256: sha256:68b6522579c07e1c13adb39c9ee923bcdb6aad2d3426cd39d7baa7c46ef6fba9
+  produced_by: create-plan-run-0001
+patches:
+- patch_id: narrow-pane-render-panic-plan-p0001
+  status: applied
+  base_input_digest: sha256:9b1fda2540b06ca4b1223c0e364c95369068db83889a62fd47a36e05d7bed280
+  base_workflow_blob: a1f3d38c60bf0e8986e0af4b6b4198783cf225e2
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
