@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/sakura/duofm/internal/fs"
 )
 
 // Geometry shared by these tests: width=80, height=24 -> paneWidth=40,
@@ -1138,5 +1140,234 @@ func TestHandleMoveRight_BgSplitActivation_KeepsCurrentScrollBehavior(t *testing
 	}
 	if model.rightPane.scrollOffset != 5 {
 		t.Errorf("scrollOffset = %d, want 5", model.rightPane.scrollOffset)
+	}
+}
+
+// --- task0001: cancel the drag session on a successful directory load of
+// the drag pane ---
+//
+// newDragLoadTestModel builds the same fixture as newMouseTestModel, plus an
+// initialized disk space monitor: the success path of
+// handleDirectoryLoadComplete calls updateDiskSpace, which would otherwise
+// dereference a nil *DiskSpaceMonitor.
+
+func newDragLoadTestModel(t *testing.T, leftN, rightN int) Model {
+	t.Helper()
+	m := newMouseTestModel(t, leftN, rightN)
+	m.diskSpaceMonitor = NewDiskSpaceMonitor()
+	return m
+}
+
+// newLoadEntries builds n plain fs.FileEntry values named "<prefix><NN>",
+// none starting with a dot, so the success path's hidden-entry filter never
+// removes any of them and the resulting list's length is exactly n.
+func newLoadEntries(prefix string, n int) []fs.FileEntry {
+	entries := make([]fs.FileEntry, n)
+	for i := range entries {
+		entries[i] = fs.FileEntry{Name: fmt.Sprintf("%s%02d", prefix, i)}
+	}
+	return entries
+}
+
+// TS-1 / AC-1: a session armed by a press (no motion) is cancelled by a
+// successful completion for its own pane; a subsequent motion and release
+// leave the mark set exactly as it was right after the completion.
+func TestHandleMouse_DragSession_CancelledOnLoadCompleteForArmedPane(t *testing.T) {
+	model := newDragLoadTestModel(t, 20, 20)
+	const anchor = 2
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, rowFor(anchor, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	if !model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("session after press = %+v, want armed and not active", model.mouseDrag)
+	}
+
+	loadMsg := directoryLoadCompleteMsg{
+		paneID:   LeftPane,
+		panePath: model.leftPane.Path(),
+		entries:  newLoadEntries("new", 8),
+	}
+	updated, _ = model.Update(loadMsg)
+	model = updated.(Model)
+
+	if model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("session after load complete = %+v, want neither armed nor active", model.mouseDrag)
+	}
+
+	wantMarks := model.leftPane.snapshotMarks()
+
+	const motionIndex = 4
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	assertMarksEqual(t, model.leftPane.markedFiles, wantMarks)
+}
+
+// TS-2 / AC-2: a session made active by a press and a motion (an existing
+// marked range) is cancelled by a successful completion for its own pane;
+// the marks present immediately before the completion survive unchanged,
+// not reverted to the press-time baseline, and a subsequent motion and
+// release do not change them.
+func TestHandleMouse_DragSession_CancelledOnLoadCompleteKeepsCurrentMarks(t *testing.T) {
+	model := newDragLoadTestModel(t, 20, 20)
+	const anchor, motionA = 2, 5
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, rowFor(anchor, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionA, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	if !model.mouseDrag.active {
+		t.Fatal("session should be active after motion")
+	}
+
+	wantMarks := model.leftPane.snapshotMarks()
+	if len(wantMarks) == 0 {
+		t.Fatal("expected marks from anchor..motionA before completion")
+	}
+
+	loadMsg := directoryLoadCompleteMsg{
+		paneID:   LeftPane,
+		panePath: model.leftPane.Path(),
+		entries:  newLoadEntries("new", 8),
+	}
+	updated, _ = model.Update(loadMsg)
+	model = updated.(Model)
+
+	if model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("session after load complete = %+v, want neither armed nor active", model.mouseDrag)
+	}
+	assertMarksEqual(t, model.leftPane.markedFiles, wantMarks)
+
+	const motionB = 3
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionB, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionB, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	assertMarksEqual(t, model.leftPane.markedFiles, wantMarks)
+}
+
+// TS-3 / AC-3: a successful completion for the OTHER pane leaves an armed
+// left-pane session completely unchanged; a subsequent left-pane motion
+// marks exactly the range from the original anchor to the motion row.
+func TestHandleMouse_DragSession_UnaffectedByLoadCompleteForOtherPane(t *testing.T) {
+	model := newDragLoadTestModel(t, 20, 20)
+	const anchor = 2
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, rowFor(anchor, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	wantSession := model.mouseDrag
+	wantBaseline := model.mouseDrag.baseline
+
+	loadMsg := directoryLoadCompleteMsg{
+		paneID:   RightPane,
+		panePath: model.rightPane.Path(),
+		entries:  newLoadEntries("new", 8),
+	}
+	updated, _ = model.Update(loadMsg)
+	model = updated.(Model)
+
+	if !model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("left session changed by right-pane completion: %+v", model.mouseDrag)
+	}
+	if model.mouseDrag.pane != wantSession.pane || model.mouseDrag.anchor != wantSession.anchor {
+		t.Fatalf("left session pane/anchor changed: got %+v, want %+v", model.mouseDrag, wantSession)
+	}
+	assertMarksEqual(t, model.mouseDrag.baseline, wantBaseline)
+
+	const motionIndex = 6
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	var wantNames []string
+	for i := anchor; i <= motionIndex; i++ {
+		wantNames = append(wantNames, model.leftPane.entries[i].Name)
+	}
+	assertMarks(t, model.leftPane, wantNames...)
+}
+
+// TS-4 / AC-4: a completion for the left pane that carries an error leaves
+// the session unchanged; a subsequent motion marks exactly the range from
+// the original anchor to the motion row.
+func TestHandleMouse_DragSession_UnaffectedByLoadCompleteError(t *testing.T) {
+	model := newDragLoadTestModel(t, 20, 20)
+	const anchor = 3
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, rowFor(anchor, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	wantSession := model.mouseDrag
+	wantBaseline := model.mouseDrag.baseline
+
+	loadMsg := directoryLoadCompleteMsg{
+		paneID:        LeftPane,
+		panePath:      model.leftPane.Path(),
+		err:           errors.New("boom"),
+		attemptedPath: model.leftPane.Path(),
+	}
+	updated, _ = model.Update(loadMsg)
+	model = updated.(Model)
+
+	if !model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("session changed by error completion: %+v", model.mouseDrag)
+	}
+	if model.mouseDrag.pane != wantSession.pane || model.mouseDrag.anchor != wantSession.anchor {
+		t.Fatalf("session pane/anchor changed: got %+v, want %+v", model.mouseDrag, wantSession)
+	}
+	assertMarksEqual(t, model.mouseDrag.baseline, wantBaseline)
+
+	const motionIndex = 7
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionMotion))
+	model = updated.(Model)
+	updated, _ = model.Update(mouseMsg(mouseTestLeftX, rowFor(motionIndex, 0), tea.MouseButtonLeft, tea.MouseActionRelease))
+	model = updated.(Model)
+
+	var wantNames []string
+	for i := anchor; i <= motionIndex; i++ {
+		wantNames = append(wantNames, model.leftPane.entries[i].Name)
+	}
+	assertMarks(t, model.leftPane, wantNames...)
+}
+
+// TS-5 / AC-5: a stale completion (pane path differs from a non-empty
+// pending path) for the left pane leaves both the session and the left
+// pane's entry list unchanged.
+func TestHandleMouse_DragSession_UnaffectedByStaleLoadComplete(t *testing.T) {
+	model := newDragLoadTestModel(t, 20, 20)
+	const anchor = 1
+
+	updated, _ := model.Update(mouseMsg(mouseTestLeftX, rowFor(anchor, 0), tea.MouseButtonLeft, tea.MouseActionPress))
+	model = updated.(Model)
+	model.leftPane.pendingPath = "/some/other/pending/path"
+	wantSession := model.mouseDrag
+	wantBaseline := model.mouseDrag.baseline
+	wantEntries := append([]fs.FileEntry(nil), model.leftPane.entries...)
+
+	loadMsg := directoryLoadCompleteMsg{
+		paneID:   LeftPane,
+		panePath: "/does/not/match/pending",
+		entries:  newLoadEntries("new", 8),
+	}
+	updated, _ = model.Update(loadMsg)
+	model = updated.(Model)
+
+	if !model.mouseDrag.armed || model.mouseDrag.active {
+		t.Fatalf("session changed by stale completion: %+v", model.mouseDrag)
+	}
+	if model.mouseDrag.pane != wantSession.pane || model.mouseDrag.anchor != wantSession.anchor {
+		t.Fatalf("session pane/anchor changed: got %+v, want %+v", model.mouseDrag, wantSession)
+	}
+	assertMarksEqual(t, model.mouseDrag.baseline, wantBaseline)
+
+	if len(model.leftPane.entries) != len(wantEntries) {
+		t.Fatalf("entries changed: got %d, want %d", len(model.leftPane.entries), len(wantEntries))
+	}
+	for i, e := range wantEntries {
+		if model.leftPane.entries[i].Name != e.Name {
+			t.Fatalf("entries[%d].Name = %q, want %q", i, model.leftPane.entries[i].Name, e.Name)
+		}
 	}
 }
