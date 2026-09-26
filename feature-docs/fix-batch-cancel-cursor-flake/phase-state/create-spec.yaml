@@ -1,21 +1,38 @@
 schema_version: 1
 feature: fix-batch-cancel-cursor-flake
 phase: create-spec
-status: dispatching
+status: awaiting_answers
 generation: 1
 base_revision: 0d1d632e23c70dfcbd3150b749fd22896e522a12
 last_input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd5352cc8eedf55
-active_request_id: create-spec-run-0001
-packets: {}
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: issued
+    issued_at: '2026-09-26T14:52:00+09:00'
+    questions:
+    - question_id: requirement.fix-scope
+      status: issued
+    - question_id: requirement.unlisted-marks
+      status: issued
+    - question_id: requirement.e2e-hardening
+      status: issued
+    - question_id: design-step.recommendation
+      status: issued
 answers: {}
 worker_runs:
 - request_id: create-spec-run-0001
-  status: dispatched
+  status: failed
   input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd5352cc8eedf55
-  output_digest: null
+  output_digest: sha256:f30e3d1c3bd15c8181b004f2d95a3e5c07759f244bc5dcaa339f14f99e997fe5
+- request_id: create-spec-run-0002
+  status: needs_user_input
+  input_digest: sha256:582a87d24e36cd0de213fe7c131b8fabc98e534c38144e8cbcd5352cc8eedf55
+  output_digest: sha256:63b88e657199f33458fdd58a65b72438bfdd1ff9baa1e26aebeb3be691622852
 artifacts: []
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
-last_error: null
+last_error: 'create-spec-run-0001: validation layer 2 (gate_id option vocabulary for create-spec.design-step);
+  re-emitted as create-spec-run-0002'
