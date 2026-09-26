@@ -96,7 +96,7 @@ workflow:
   failed_items: []
   summary: 'build ok; go test ./... ok (TS-1..TS-5 included); gofmt no diff; go vet clean; E2E 265/265 passed (mouse_tests / mark_tests included). M-1 is manual and not run in batch; TS-1/TS-2 cover the reproduction.'
 - id: retrospect
-  status: pending
+  status: in_progress
 tasks:
   task0001:
     title: Cancel the drag session on a successful directory load of the drag pane
