@@ -115,7 +115,8 @@ tasks:
     - FR4
     - NFR1
     - NFR2
-    status: pending
+    status: in_progress
+    branch: em-workflow/minibuffer-zwj-cursor-end-scroll/task0001
 review:
   status: pending
   rounds_completed: 0
