@@ -1,0 +1,51 @@
+schema_version: 1
+feature: narrow-pane-render-panic
+tier: full
+rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full;
+  description_only P(0)=0.25, description_plus_code P(0)=0.01)'
+bases:
+- basis: description_only
+  probabilities:
+    '0': 0.25
+    '1': 0.75
+    '2': 0.0
+    '3': 0.0
+  expectation_clear: 0.85
+  observed_at: '2026-09-26T14:41:13+09:00'
+- basis: description_plus_code
+  probabilities:
+    '0': 0.01
+    '1': 0.91
+    '2': 0.08
+    '3': 0.0
+  expectation_clear: 0.81
+  observed_at: '2026-09-26T14:43:33+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/pane_render.go
+  - internal/ui/pane_render_test.go
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 120
+  new_functions_needed: 2
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: true
+  spillover_modules:
+  - internal/ui/minibuffer.go
+  work_still_required: true
+  notes: 'main の HEAD 7fa768d では未修正だよ
+
+    pane_render.go:62/496/613 の Repeat 回数を max(0, p.width-2) にする修正が必要だよ
+
+    model_update.go は端末幅を半分にしてそのまま渡し、model_view.go にも最小幅の確認がないよ
+
+    ヘッダ2行目の p.width-4、format.go:119 の名前幅 p.width-5、描画スタイルの p.width-2 も負になるけれど、固定された依存ライブラリの実装では
+    panic しないよ。ほかの Repeat は条件分岐や下限補正で保護されているよ
+
+    追加で、入力欄を表示する ViewWithMinibuffer 経路にも問題があるよ。minibuffer.go:207–223 は幅0〜4で「/: 」を表示すると切り出し範囲が不正になるため、入力領域が0以下の場合の処理も見積もりに含めたよ
+
+    描画テストは既存だけれど、幅0〜4の検証はヘッダ1行目だけで、ペイン全体を検証していないよ。通常・bg分割の選択あり／なし・dimmed・入力欄付きについて、空／非空データで再発検出テストを追加する想定だよ。新規関数2個はテスト関数で、本体の新規関数は不要だよ
+
+    静的調査のみで、ファイル変更もテスト実行もしていないよ'
+decided_at: '2026-09-26T14:44:30+09:00'
