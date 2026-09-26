@@ -2,30 +2,49 @@ schema_version: 1
 feature: narrow-pane-render-panic
 created: '2026-09-26'
 base_branch: main
-goal: |
-  # ペイン幅 0〜1 で区切り線描画が panic する
+goal: '# ペイン幅 0〜1 で区切り線描画が panic する
+
 
   ## 現象
-  ペイン幅が 0 または 1 のとき、ペインヘッダの区切り線描画で `strings.Repeat("─", p.width-2)` に負の回数が渡り、`strings: negative Repeat count` で panic する。
+
+  ペイン幅が 0 または 1 のとき、ペインヘッダの区切り線描画で `strings.Repeat("─", p.width-2)` に負の回数が渡り、`strings:
+  negative Repeat count` で panic する。
+
   レビュー指摘 stable_id: b0f6a17078ad3f74（medium、header-wrap-hittest の review round1 で未解決）
 
+
   ## 再現手順
+
   1. 端末幅を 3 以下にして duofm を起動する（ペイン幅 = 端末幅 / 2 で 0〜1 になる）
+
   2. ペインが描画される（通常表示・bg 出力分割表示・dimmed 表示のいずれか）
+
   3. 区切り線の描画で panic する
 
+
   ## 期待する挙動
+
   ペイン幅 0〜4 でペイン全体（通常表示・bg 出力分割表示・dimmed 表示）を描画しても panic しない。
 
+
   ## 完了の定義
+
   - 再現手順で現象が起きない
+
   - 再発を検出するテストがある
 
+
   ## 該当箇所
-  `internal/ui/pane_render.go:62`（viewInternal）/ `internal/ui/pane_render.go:496`（ViewWithBgOutput）/ `internal/ui/pane_render.go:613`（ViewDimmedWithDiskSpace）
+
+  `internal/ui/pane_render.go:62`（viewInternal）/ `internal/ui/pane_render.go:496`（ViewWithBgOutput）/
+  `internal/ui/pane_render.go:613`（ViewDimmedWithDiskSpace）
+
 
   ## 実害・発生条件
+
   端末幅が 3 以下のとき。`model_view.go` に最小サイズの確認が無い。header-wrap-hittest より前からある不具合。
+
+  '
 parent_branch: em-workflow/narrow-pane-render-panic/integration
 tier: full
 tier_decision:
@@ -57,9 +76,24 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
+        ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD"
+        -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w
+        .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -73,7 +107,8 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: 既存の描画関数で panic を防ぐ不具合修正で、新しい画面要素・レイアウト・見た目の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+  skipped_reason: 既存の描画関数で panic を防ぐ不具合修正で、新しい画面要素・レイアウト・見た目の変更がない（create-spec.design-step
+    = decide_autonomously で推奨 skip を採用）
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -86,7 +121,7 @@ workflow:
   base_commit: 7207ebf500b66e67f7af1e03ed3b74f9b3536ada
   completed_at_commit: 10c5cc2d15d693f5f07798ea3aa8503b4228353f
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
 - id: retrospect
@@ -118,8 +153,15 @@ tasks:
     status: merged
     branch: em-workflow/narrow-pane-render-panic/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: 区切り線の繰り返し回数を 0 未満にしない
