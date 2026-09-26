@@ -1,0 +1,66 @@
+schema_version: 2
+feature: e2e-rename-initial-value-check
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.01
+    confidence: 0.97
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.01
+      '1': 0.97
+      '2': 0.02
+      '3': 0.0
+  observed_at: '2026-09-27T01:16:26+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.0
+    confidence: 0.99
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.01
+      '1': 0.98
+      '2': 0.01
+      '3': 0.0
+  observed_at: '2026-09-27T01:16:26+09:00'
+pre_survey_estimate:
+  files_expected:
+  - test/e2e/scripts/tests/file_operation_tests.sh
+  - test/e2e/scripts/tests/history_tests.sh
+  changed_lines_approx: 6
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: HEAD ca6e3bee5850ccd8f650c12ffcabde3381774677 では修正が必要だよ。file_operation_tests.sh:195,439
+    は名前だけを照合し、helpers.sh:53–55,69–79 は画面全体を固定文字列検索するため、背景のファイル名でも通るよ。extension_rename_dialog.go:191–206
+    の入力枠と余白を含む「│ before_rename 」「│ navren_before 」への置換で、既存の判定関数を使って入力欄を照合できるよ。history_tests.sh:167–168
+    の testdata 判定も残っているので削除し、169–170 の否定判定を維持できるよ。変更対象は既存の3テスト関数で、関連する既存ファイルは helpers.sh
+    と実行登録済みの run_all_tests.sh の2つだよ。変わるのはテストの合否判定で、Go の変更は不要だよ。ファイル変更やE2E実行はしていないよ
+  test_change_kind: extend_existing_one_to_one
+  added_test_cases_approx: 0
+  body_change_kind: wording_or_rule_addition
+  change_containment: single_module
+  caller_and_dependency_count: 2
+  changes_external_contract: false
+  changes_behavior: true
+decided_at: '2026-09-27T01:16:26+09:00'
