@@ -1,11 +1,11 @@
 schema_version: 1
 feature: e2e-rename-initial-value-check
 phase: create-spec
-status: dispatching
+status: completed
 generation: 2
 base_revision: 2c52fb742d3156ad2cf41b7967707a55fc84af45
 last_input_digest: sha256:f94d61e9fa79a718a40ffbf783878dd9d4435a20852c668daa7786b5f82ec2f6
-active_request_id: create-spec-run-0005
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:

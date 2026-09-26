@@ -61,10 +61,7 @@ tier_decision:
       '2': 0.01
       '3': 0.0
   at: '2026-09-27T01:16:26+09:00'
-  reductions:
-  - REQUIREMENTS.md
-  - design step
-  - IMPLEMENTATION.md (single task / no shared files)
+  reductions: []
 project:
   license: MIT
   design_system:
@@ -95,14 +92,16 @@ project:
 workflow:
 - id: create-spec
   artifacts:
+  - REQUIREMENTS.md
   - SPEC.md
-  status: in_progress
-  completed_at_commit: 627ac2b297c8919d397ed870bccfb636d6c035c4
+  status: completed
+  completed_at_commit: 490062ed51c848b9e6ba56115c7f8ff333943610
 - id: design
   artifacts:
   - DESIGN.md
   - design/
-  status: pending
+  status: skipped
+  skipped_reason: The feature changes only E2E test shell scripts; it has no user interface or visual change.
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -171,7 +170,7 @@ review:
   needs_rework: false
 requirements:
   FR1:
-    title: test_rename_file の初期値照合を入力欄に限定する
+    title: Restrict the initial-value check in test_rename_file to the input field, with strict matching
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -181,7 +180,7 @@ requirements:
     - TS-1
     - TS-2
   FR2:
-    title: test_navigation_after_rename の初期値照合を入力欄に限定する
+    title: Restrict the initial-value check in test_navigation_after_rename to the input field, with strict matching
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -191,7 +190,7 @@ requirements:
     - TS-1
     - TS-2
   FR3:
-    title: history_tests.sh の常に通る testdata チェックを削除する
+    title: Remove the always-passing testdata check from history_tests.sh
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -200,7 +199,7 @@ requirements:
     tests:
     - TS-3
   NFR1:
-    title: Go のソース（*.go）は変更しない。
+    title: Go source files (*.go) are not changed.
     status: ok
     tbd_reason: null
     excluded_reason: null
@@ -209,7 +208,7 @@ requirements:
     tests:
     - TS-4
   NFR2:
-    title: helpers.sh の既存の assert_contains / assert_not_contains の挙動は変えない（全 E2E テストが使っている）。
+    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh is not changed.
     status: ok
     tbd_reason: null
     excluded_reason: null
