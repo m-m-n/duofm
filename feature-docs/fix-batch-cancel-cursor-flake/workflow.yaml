@@ -121,7 +121,8 @@ workflow:
   base_commit: 7fa768d2849a27b7c68d83998b3c7f984b739f58
   completed_at_commit: c73daacaa605de00dbbf45d1b1a0e2448327febf
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 02a87d41026d6db27ffd942e9d150d1bb712a21b
 - id: verify
   status: pending
   result: null
@@ -154,7 +155,7 @@ tasks:
     status: merged
     branch: em-workflow/fix-batch-cancel-cursor-flake/task0001
 review:
-  status: in_progress
+  status: completed
   plan:
     floor:
     - comprehensive
@@ -162,8 +163,11 @@ review:
     - spec
     discretionary: []
     cross_validation: false
-  rounds_completed: 0
-  perspectives: {}
+  rounds_completed: 1
+  perspectives:
+    comprehensive: completed
+    security: completed
+    spec: completed
   residual_critical_high: 0
   needs_rework: false
 requirements:
