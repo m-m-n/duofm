@@ -110,28 +110,29 @@ workflow:
   status: completed
   completed_at_commit: d8dd599cadc9c6585cbfbe6a6d8df17aaf65ce07
 - id: verify
-  status: failed
-  result: fail
-  failed_items:
-  - id: TS-19
-    category: comprehensive
-    note: 'Regression (round 2): go test ./... passes, but full E2E has 29 failing assertions
-      (217 total / 187 pass), the identical 29 failures recorded on base cb86593 in round 1
-      (archive dialog tests x22, rename x2, batch delete marked files, sort dialog q cancel,
-      help shows shell command, bookmark dialog, history forward cleared). No regression
-      from this feature, but the expected result (every pre-existing E2E test passes) is
-      not met. Codex consulted (option A: record as failed; option B pass-by-intent not
-      chosen). Second occurrence of TS-19 -> batch lineage cap reached; no further rework.'
+  status: completed
+  completed_at_commit: 11e303d0fedc37d416b83160509eab5cee6bfc9d
+  result: pass
+  round: 3
+  failed_items: []
   passed_items:
-  - Build (build_command, round 2)
-  - Unit tests TS-1..TS-18 (go test ./... all ok, round 2)
-  - 'CQ-FORMAT: format_command (gofmt -w .) produced no diff (fixed by task0003)'
-  - E2E TS-20, TS-21, TS-22 (Mouse Tests all pass, round 2)
-  - 'NFR5: cmd/duofm/main.go unchanged since base cb86593; NFR2: no change under internal/fs'
+  - Build (build_command, round 3)
+  - Unit tests TS-1..TS-18 (go test ./... all ok, round 3)
+  - 'CQ-FORMAT: format_command (gofmt -w .) produced no diff (round 3)'
+  - 'TS-19: full E2E 262/262 pass after merging main (a01ffa8); every pre-existing
+    E2E test passes (round 3)'
+  - E2E TS-20, TS-21, TS-22 (Mouse Tests all pass, round 3)
+  - 'NFR5: cmd/duofm/main.go unchanged since base cb86593; NFR2: no change under internal/fs
+    (round 3)'
   not_performed:
   - 'Manual Testing in a real terminal emulator (headless batch run): click, pane
     activation, drag marking, double-click on directory/file, A->B->A, wheel/right/middle,
     odd terminal width'
+  history:
+  - round: 2
+    result: fail
+    failed_items: [TS-19]
+    note: 29 pre-existing E2E failures, fixed on main by feature fix-e2e-failures
 - id: retrospect
   status: completed
   completed_at_commit: d185ffe6a863e0781dd4cd557adf873281a3e191

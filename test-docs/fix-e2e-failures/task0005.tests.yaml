@@ -1,0 +1,119 @@
+task_id: task0005
+baseline_failures: []          # go test ./... (project_commands.test) was fully green before and after
+final_failures: []
+acceptance_tests:
+  AC-1:
+    tests: [test_help_shows_shell_command]
+    red_confirmed: false
+    red_reason: >
+      Cannot execute duofm's tmux-driven E2E suite inside this implementer
+      worktree - it requires Docker (test/e2e/Dockerfile), which the task
+      plan's own Test Notes say is unavailable here. Verified statically
+      instead: the rewritten test opens help ('?'), asserts a first-page
+      indicator matching the app's own "[%d/%d]" format
+      (internal/ui/help_dialog.go:117), pages forward with Space (bound to
+      the dialog-reported total page count, so it cannot loop forever - the
+      same key the dialog's own footer advertises at help_dialog.go:141 and
+      handles at help_dialog.go:54), and asserts the literal
+      "execute shell command" (internal/ui/help_dialog.go:173). The old
+      bare "!" assertion was removed. bash -n syntax check passes.
+  AC-2:
+    tests: [test_bookmark_dialog_opens]
+    red_confirmed: false
+    red_reason: >
+      Same Docker constraint as AC-1. Verified statically: the previous
+      assertion expected "D:Delete", which does not appear anywhere in
+      internal/ui (the actual footer at internal/ui/bookmark_dialog.go:216
+      is "j/k/↑/↓:Move  Enter:Jump  d:Delete  e:Edit  Esc:Close", lowercase
+      d). Replaced the expectation with "d:Delete", confirmed present at
+      that exact source line. The other three hint checks in this test
+      (Bookmarks title at bookmark_dialog.go:159, Enter:Jump and Esc:Close
+      at bookmark_dialog.go:216, file1.txt from test/e2e/Dockerfile) were
+      left untouched. bash -n syntax check passes.
+  AC-3:
+    tests: [test_history_forward_cleared]
+    red_confirmed: false
+    red_reason: >
+      Same Docker constraint as AC-1. Rewritten to navigate only
+      /testdata/dir1 (A) and /testdata/dir2 (B), both confirmed enterable
+      in test/e2e/Dockerfile (no chmod 000 applied to either directory
+      itself - only /testdata/dir1/subdir and /testdata/no_access get
+      `chmod 000`). Navigation now reaches each directory by name via the
+      incremental-search convention already used elsewhere in this test
+      suite ("/" + name + Enter to filter, then a separate Enter to open),
+      never by counting cursor rows, per IMPLEMENTATION.md's
+      "Locate by name, not position" convention. Arrival is asserted after
+      each move: entering A (header path "/testdata/dir1",
+      internal/ui/pane_render.go renderHeaderLine1/formatPath), going back
+      to /testdata (assert_contains "testdata" plus
+      assert_not_contains "/testdata/dir1" so the check can actually fail
+      if back-navigation did not occur), and entering B (header path
+      "/testdata/dir2"). After the final "]" it asserts B's content
+      ("another.txt", from test/e2e/Dockerfile) is still shown AND that A's
+      distinguishing content ("subdir", the only child entry of
+      /testdata/dir1 per test/e2e/Dockerfile) is NOT shown, proving the
+      forward history was cleared rather than merely unobserved.
+      bash -n syntax check passes.
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Not independently executable without Docker; verified by reading the
+      diff. Every assertion added or kept in the three edited tests uses
+      assert_contains / assert_not_contains (which always increment
+      TESTS_RUN together with exactly one of TESTS_PASSED/TESTS_FAILED) or
+      the project's documented inline-check convention (manual
+      TESTS_RUN/TESTS_PASSED/TESTS_FAILED increments, used for the two new
+      checks in test_help_shows_shell_command that read the page indicator
+      and search for "execute shell command" across bounded paging). Each
+      check targets a literal or pattern tied to real, source-verified app
+      behavior (AC-6), so each is capable of failing when that behavior is
+      wrong; none of them is a check that always passes.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Static invariant, not a red/green behavioral test - checked directly.
+      grep confirms the only test_-prefixed functions in the three files
+      are unchanged: shell_tests.sh keeps its 6
+      (test_shell_command_mode_enter, test_shell_command_input,
+      test_shell_command_empty_enter, test_shell_command_ignored_with_dialog,
+      test_shell_command_ignored_during_search, test_help_shows_shell_command),
+      bookmark_tests.sh keeps its 3 (test_bookmark_dialog_opens,
+      test_add_bookmark_dialog, test_bookmark_empty_state), history_tests.sh
+      keeps its 8 (test_history_back, test_history_forward,
+      test_history_multiple_levels, test_history_no_history,
+      test_history_independent_from_previous, test_history_forward_cleared,
+      test_history_parent_navigation, test_history_home_navigation). `bash
+      -n` passed for all three edited files. shellcheck is not installed in
+      this environment, so that part of the check does not apply (nothing
+      to report).
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Literal-to-source table for every literal the three edited tests
+      expect on screen. shell_tests.sh/test_help_shows_shell_command:
+      page-indicator pattern "[N/M]" <- internal/ui/help_dialog.go:117
+      (fmt.Sprintf("[%d/%d]", currentPage, totalPages)); "execute shell
+      command" <- internal/ui/help_dialog.go:173; the Space paging key <-
+      internal/ui/help_dialog.go:54 (case " ", "ctrl+d", "pgdown") and its
+      footer label at help_dialog.go:141.
+      bookmark_tests.sh/test_bookmark_dialog_opens: "Bookmarks" <-
+      internal/ui/bookmark_dialog.go:159; "Enter:Jump", "d:Delete",
+      "Esc:Close" <- internal/ui/bookmark_dialog.go:216 (footer string
+      "j/k/↑/↓:Move  Enter:Jump  d:Delete  e:Edit  Esc:Close"); "file1.txt"
+      <- test/e2e/Dockerfile (`echo "file1 content" >
+      /testdata/file1.txt`). history_tests.sh/test_history_forward_cleared:
+      "/testdata/dir1", "/testdata/dir2" <- header path is p.path verbatim
+      via internal/ui/pane_render.go formatPath/renderHeaderLine1 (no git
+      branch under /testdata, no home-dir prefix to substitute), combined
+      with directory names created at test/e2e/Dockerfile
+      (`mkdir -p /testdata/dir1`, `mkdir -p /testdata/dir2`); "testdata" <-
+      same header-path source, substring of "/testdata..."; "another.txt"
+      <- test/e2e/Dockerfile (`echo "another file" >
+      /testdata/dir2/another.txt`); "subdir" <- test/e2e/Dockerfile
+      (`mkdir -p /testdata/dir1/subdir`), listed as a directory entry
+      within /testdata/dir1 regardless of subdir's own `chmod 000` (that
+      chmod blocks entering/reading subdir's contents, not listing its name
+      from the parent).

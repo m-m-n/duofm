@@ -132,15 +132,48 @@ records:
   selected_option_ids:
   - A
   freeform: null
-  normalized_answer: Record TS-19 as a verify failed_item again (literal reading of the
-    expected result); lineage cap reached, verify stays failed, run proceeds to retrospect.
-  resolution_note: 'fail-closed-route resolution during verify round 2 (no gate_id). Options:
-    A record TS-19 failed again (lineage cap reached, follow-up for pre-existing E2E failures,
-    PR notes verify failed) / B judge TS-19 pass by intent (failure set identical to base
-    cb86593), verify completed -> chose A (not chosen B). Codex consulted: yes (1 turn,
-    harness codex, readonly). Key points: TS-19 / AC6 / NFR1 state that every existing test
-    passes, and 29 remaining failures do not meet it; matching the base only shows no regression,
-    it does not change the pass condition; file a separate task for the pre-existing failures
-    and state the failure and base comparison in the PR. Flip condition: an explicitly approved
-    criteria change that judges only new regressions. Opus escalation: no; orchestrator judgement:
+  normalized_answer: Record TS-19 as a verify failed_item again (literal reading of
+    the expected result); lineage cap reached, verify stays failed, run proceeds to
+    retrospect.
+  resolution_note: 'fail-closed-route resolution during verify round 2 (no gate_id).
+    Options: A record TS-19 failed again (lineage cap reached, follow-up for pre-existing
+    E2E failures, PR notes verify failed) / B judge TS-19 pass by intent (failure
+    set identical to base cb86593), verify completed -> chose A (not chosen B). Codex
+    consulted: yes (1 turn, harness codex, readonly). Key points: TS-19 / AC6 / NFR1
+    state that every existing test passes, and 29 remaining failures do not meet it;
+    matching the base only shows no regression, it does not change the pass condition;
+    file a separate task for the pre-existing failures and state the failure and base
+    comparison in the PR. Flip condition: an explicitly approved criteria change that
+    judges only new regressions. Opus escalation: no; orchestrator judgement: agrees.'
+- question_id: develop.completion-worktree-untracked
+  packet_id: null
+  answered_at: '2026-09-26T14:25:00+09:00'
+  source: batch-codex-consultation
+  answer_mode: single_select
+  selected_option_ids:
+  - B
+  freeform: null
+  normalized_answer: do not touch untracked .config/go/telemetry/; attempt git worktree
+    remove without --force; on failure keep worktree and branch and abort Step C (completion_aborted)
+  resolution_note: 'unlisted-gate fallback (Step C, no gate_id). Options A gio trash
+    .config/ then remove / B leave it, treat remove failure as Step C abort / C other
+    -> chose B (not chosen A, C). Codex consulted: yes (1 turn, readonly). Key points:
+    moving .config/ to trash is an operation outside the Step C procedure even if
+    recoverable; the explicit rule is to keep worktree and branch and report on remove
+    failure. Opus escalation: no; orchestrator judgement: agrees.'
+- question_id: develop.completion-pr-exists
+  packet_id: null
+  answered_at: '2026-09-26T14:25:00+09:00'
+  source: batch-codex-consultation
+  answer_mode: single_select
+  selected_option_ids:
+  - A
+  freeform: null
+  normalized_answer: 'reuse existing PR #2 (https://github.com/m-m-n/duofm/pull/2);
+    push updated it; report it as reused, not newly created'
+  resolution_note: 'unlisted-gate fallback (Step C --pr, no gate_id). Options A reuse
+    existing PR #2 / B treat "PR already exists" as Step C abort -> chose A (not chosen
+    B). Codex consulted: yes (1 turn, readonly). Key points: PR #2 already reflects
+    this run''s changes after the push, so a duplicate-create failure is not a reason
+    to abort; report the URL as reused. Opus escalation: no; orchestrator judgement:
     agrees.'

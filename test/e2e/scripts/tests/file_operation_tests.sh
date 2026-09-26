@@ -163,6 +163,9 @@ test_create_new_directory() {
 # Test: Rename file with r key
 # ===========================================
 test_rename_file() {
+    # Remove leftover fixture names before starting
+    rm -f /testdata/user_owned/before_rename.txt /testdata/user_owned/after_rename.txt
+
     start_duofm "$CURRENT_SESSION"
 
     # Navigate to user_owned directory (writable)
@@ -176,7 +179,7 @@ test_rename_file() {
     send_keys "$CURRENT_SESSION" "F5"
     sleep 0.5
 
-    # Navigate to the file
+    # Navigate to the file by name
     send_keys "$CURRENT_SESSION" "/" "b" "e" "f" "o" "r" "e" "_" "r" "e" "n" "Enter"
     sleep 0.3
 
@@ -184,17 +187,28 @@ test_rename_file() {
     send_keys "$CURRENT_SESSION" "r"
     sleep 0.3
 
-    # Should show input dialog
-    assert_contains "$CURRENT_SESSION" "Rename to:" \
-        "Rename dialog appears"
+    # Should show the extension-preserving rename dialog, pre-filled with
+    # the base name only
+    assert_contains "$CURRENT_SESSION" "Rename (extension: .txt):" \
+        "Extension-preserving rename dialog appears with extension in title"
 
-    # Type new name
-    send_keys "$CURRENT_SESSION" "a" "f" "t" "e" "r" "_" "r" "e" "n" "a" "m" "e" "." "t" "x" "t"
+    assert_contains "$CURRENT_SESSION" "before_rename" \
+        "Rename dialog is pre-filled with the base name"
+
+    # Clear the input and type only the new base name (extension is fixed)
+    send_keys "$CURRENT_SESSION" "C-u"
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "a" "f" "t" "e" "r" "_" "r" "e" "n" "a" "m" "e"
     sleep 0.2
 
     # Confirm with Enter
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
+
+    # Clear the search filter (still "before_ren") so the full listing shows:
+    # reopen search with "/" and confirm an empty pattern with Enter
+    send_keys "$CURRENT_SESSION" "/" "Enter"
+    sleep 0.3
 
     # Old name should be gone, new name should appear
     assert_not_contains "$CURRENT_SESSION" "before_rename.txt" \
@@ -203,10 +217,21 @@ test_rename_file() {
     assert_contains "$CURRENT_SESSION" "after_rename.txt" \
         "New filename appears in listing"
 
-    # Cleanup
-    rm -f /testdata/user_owned/after_rename.txt
+    # On disk, the target exists and the source does not
+    if [ -f /testdata/user_owned/after_rename.txt ] && [ ! -f /testdata/user_owned/before_rename.txt ]; then
+        echo -e "${GREEN}✓${NC} after_rename.txt exists on disk and before_rename.txt does not"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Rename did not update the file on disk as expected"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
 
     stop_duofm "$CURRENT_SESSION"
+
+    # Cleanup regardless of outcome
+    rm -f /testdata/user_owned/before_rename.txt /testdata/user_owned/after_rename.txt
 }
 
 # ===========================================
@@ -382,6 +407,9 @@ test_navigation_after_dir_creation() {
 # Test: Navigation works after rename
 # ===========================================
 test_navigation_after_rename() {
+    # Remove leftover fixture names before starting
+    rm -f /testdata/user_owned/navren_before.txt /testdata/user_owned/navren_after.txt
+
     start_duofm "$CURRENT_SESSION"
 
     # Navigate to user_owned directory (writable)
@@ -395,7 +423,7 @@ test_navigation_after_rename() {
     send_keys "$CURRENT_SESSION" "F5"
     sleep 0.5
 
-    # Navigate to the file
+    # Navigate to the file by name
     send_keys "$CURRENT_SESSION" "/" "n" "a" "v" "r" "e" "n" "_" "b" "e" "f" "o" "r" "e" "Enter"
     sleep 0.3
 
@@ -403,20 +431,41 @@ test_navigation_after_rename() {
     send_keys "$CURRENT_SESSION" "r"
     sleep 0.3
 
-    # Type new name
-    send_keys "$CURRENT_SESSION" "n" "a" "v" "r" "e" "n" "_" "a" "f" "t" "e" "r" "." "t" "x" "t"
+    # Should show the extension-preserving rename dialog, pre-filled with
+    # the base name only
+    assert_contains "$CURRENT_SESSION" "Rename (extension: .txt):" \
+        "Extension-preserving rename dialog appears with extension in title"
+
+    assert_contains "$CURRENT_SESSION" "navren_before" \
+        "Rename dialog is pre-filled with the base name"
+
+    # Clear the input and type only the new base name (extension is fixed)
+    send_keys "$CURRENT_SESSION" "C-u"
+    sleep 0.2
+    send_keys "$CURRENT_SESSION" "n" "a" "v" "r" "e" "n" "_" "a" "f" "t" "e" "r"
     sleep 0.2
 
     # Confirm with Enter
     send_keys "$CURRENT_SESSION" "Enter"
     sleep 0.5
 
+    # On disk, the target exists and the source does not
+    if [ -f /testdata/user_owned/navren_after.txt ] && [ ! -f /testdata/user_owned/navren_before.txt ]; then
+        echo -e "${GREEN}✓${NC} navren_after.txt exists on disk and navren_before.txt does not"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+    else
+        echo -e "${RED}✗${NC} Rename did not update the file on disk as expected"
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+    fi
+
     # Test navigation still works - try to quit
     send_keys "$CURRENT_SESSION" "q"
     sleep 0.5
 
     # Cleanup
-    rm -f /testdata/user_owned/navren_after.txt
+    rm -f /testdata/user_owned/navren_after.txt /testdata/user_owned/navren_before.txt
 
     # Session should be gone (q key worked)
     if tmux has-session -t "${SESSION_PREFIX}_${CURRENT_SESSION}" 2>/dev/null; then
@@ -551,11 +600,12 @@ test_delete_confirmation_y_key_works() {
         echo -e "${RED}✗${NC} Y key should delete file"
         TESTS_RUN=$((TESTS_RUN + 1))
         TESTS_FAILED=$((TESTS_FAILED + 1))
-        # Cleanup
-        rm -f /testdata/user_owned/test_y_delete.txt
     fi
 
     stop_duofm "$CURRENT_SESSION"
+
+    # Cleanup regardless of outcome
+    rm -f /testdata/user_owned/test_y_delete.txt
 }
 
 # Execute tests when run directly
