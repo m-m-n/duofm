@@ -197,13 +197,14 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 }
 
 // runeDisplayWidths returns, for each rune in runes, that rune's own display
-// width as measured by lipgloss (the single basis for width in this file;
-// see Conventions/D1 in feature-docs/minibuffer-wide-prompt-wrap). A
-// zero-width combining rune contributes 0; measuring rune-by-rune (rather
-// than by grapheme cluster) is deliberately conservative: joining runes into
-// a cluster can only keep or shrink the rendered width relative to the sum
-// of their individual widths, never grow it, so a window chosen to fit this
-// per-rune budget also fits the cluster-aware rendered width (D2).
+// width as measured by lipgloss. This is used only to pick an initial
+// candidate window; it is NOT a reliable upper bound on the rendered width
+// of the resulting grapheme clusters. Some combining sequences (e.g. a
+// rune followed by U+FE0F, variation selector-16) render wider than the sum
+// of their individual rune widths, so any window chosen from this per-rune
+// budget must still be verified (and shrunk if necessary) by measuring the
+// actually assembled string with lipgloss.Width (see the shrink loop in
+// View).
 func runeDisplayWidths(runes []rune) []int {
 	widths := make([]int, len(runes))
 	for i, r := range runes {
@@ -278,11 +279,17 @@ func (m *Minibuffer) View() string {
 
 	case promptWidth >= contentWidth:
 		// FR3: remaining width <= 0. Truncate the prompt to the content
-		// width, dropping any straddling character (D3); input and the
-		// cursor block are not rendered.
+		// width; input and the cursor block are not rendered. The
+		// per-rune budget only picks a starting candidate: combining
+		// sequences (e.g. a rune followed by VS16) can render wider than
+		// the sum of their individual rune widths, so shrink further, one
+		// trailing rune at a time, using the actually rendered width.
 		promptRuneWidths := runeDisplayWidths(promptRunes)
 		promptPrefix := widthPrefixSums(promptRuneWidths)
 		end := maxRunesWithinWidth(promptPrefix, contentWidth)
+		for end > 0 && lipgloss.Width(string(promptRunes[:end])) > contentWidth {
+			end--
+		}
 		promptToRender = string(promptRunes[:end])
 		displayStart, displayEnd = 0, 0
 
@@ -333,42 +340,49 @@ func (m *Minibuffer) View() string {
 		}
 	}
 
-	displayRunes := runes[displayStart:displayEnd]
+	// buildLine renders the given rune slice with the cursor (at curPos,
+	// relative to the start of dr) highlighted, including the trailing
+	// block cursor when curPos sits just past the last rune.
+	buildLine := func(dr []rune, curPos int) string {
+		var b strings.Builder
+		for i, r := range dr {
+			if i == curPos {
+				b.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
+			} else {
+				b.WriteRune(r)
+			}
+		}
+		if curPos >= 0 && curPos >= len(dr) {
+			b.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
+		}
+		return b.String()
+	}
 
-	// Build cursor display
-	var result strings.Builder
-	for i, r := range displayRunes {
-		if i == cursorDisplayPos {
-			// Highlight cursor position
-			result.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
+	// D2: the per-rune budget above only picks a starting candidate
+	// window; it is not a reliable bound on the rendered width, since
+	// combining sequences (e.g. a rune followed by VS16) can render wider
+	// than the sum of their individual rune widths. Shrink the window,
+	// one whole rune at a time from the side farther from the cursor (so
+	// the cursor stays visible), using the actually rendered width, until
+	// the assembled line fits contentWidth.
+	for contentWidth > 0 && displayEnd > displayStart {
+		dr := runes[displayStart:displayEnd]
+		line := promptToRender + buildLine(dr, cursorDisplayPos)
+		if lipgloss.Width(line) <= contentWidth {
+			break
+		}
+		leftDist := cursorDisplayPos
+		rightDist := (displayEnd - displayStart) - cursorDisplayPos
+		if rightDist >= leftDist {
+			displayEnd--
 		} else {
-			result.WriteRune(r)
+			displayStart++
+			cursorDisplayPos--
 		}
 	}
-	// If cursor is at end, show a block cursor
-	if cursorDisplayPos >= 0 && cursorDisplayPos >= len(displayRunes) {
-		result.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
-	}
 
-	contentLine := promptToRender + result.String()
-
-	// D2: guarantee the assembled line fits contentWidth by actual
-	// measurement, not just by the budget arithmetic above. This is a
-	// deliberate belt-and-braces check: reversing a single rune in the
-	// middle of a multi-rune grapheme cluster can, in principle, change
-	// how the assembled string's escape codes interact with grapheme
-	// segmentation. Should that ever push the measured width past budget,
-	// fall back to the plain (unstyled-cursor) rendering of the same rune
-	// range, which by construction fits within contentWidth.
-	if contentWidth > 0 && lipgloss.Width(contentLine) > contentWidth {
-		var plain strings.Builder
-		plain.WriteString(promptToRender)
-		plain.WriteString(string(displayRunes))
-		if cursorDisplayPos >= 0 && cursorDisplayPos >= len(displayRunes) {
-			plain.WriteByte(' ')
-		}
-		contentLine = plain.String()
-	}
+	displayRunes := runes[displayStart:displayEnd]
+	contentLine := promptToRender + buildLine(displayRunes, cursorDisplayPos)
 
 	// Style the whole minibuffer line
 	style := lipgloss.NewStyle().
