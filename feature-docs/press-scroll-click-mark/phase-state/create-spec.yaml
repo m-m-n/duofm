@@ -1,11 +1,11 @@
 schema_version: 1
 feature: press-scroll-click-mark
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: b32348205e2d5a2cfac6871dd0d00d7eb80e4537
 last_input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -51,7 +51,17 @@ worker_runs:
   status: completed
   input_digest: sha256:362b1c22b3d59e6faebd165ad10ee8aa5f7fe63f37020258c8c117a2f16c2009
   output_digest: sha256:ff8405bfd13ab7d8002715584111c27853debfb6e17cf46208a5033b38bd5084
-artifacts: []
+- request_id: create-spec-run-0003
+  status: completed
+  input_digest: sha256:aae8fced3daeadcdcd4c9248daaf96f66d2c44354a2472107bf03fc478d6af59
+  output_digest: sha256:e9cf64af4e7606188592dadc946e365e13a926c041e6da13142614cdbef4df16
+artifacts:
+- path: feature-docs/press-scroll-click-mark/REQUIREMENTS.md
+  sha256: sha256:911bc2debc55a6a549aac708648899e2d7f5111d40be268c218833086703386b
+  produced_by: create-spec-run-0003
+- path: feature-docs/press-scroll-click-mark/SPEC.md
+  sha256: sha256:df86fd25d696bfc6d5716462504ff616c86755ba206f3b27649412a80703fbb7
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
