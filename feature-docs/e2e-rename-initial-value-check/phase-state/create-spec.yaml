@@ -1,7 +1,7 @@
 schema_version: 1
 feature: e2e-rename-initial-value-check
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: 94e227e23418db9ce564c0ce1daab9905c0fc7c1
 last_input_digest: sha256:2fab2db772e5a7786318872341f3b30ba680765a7eb62b5c421a855606b40356
