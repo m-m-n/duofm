@@ -133,7 +133,7 @@ workflow:
     test-docs/narrow-pane-render-panic/task0001.tests.yaml の red_confirmed で確認; 既存 E2E 262/262 pass;
     手動確認: 端末幅 3 の tmux で起動・インクリメンタル検索・シェルコマンドモードを操作し panic なし（exit 0）'
 - id: retrospect
-  status: pending
+  status: in_progress
 tasks:
   task0001:
     title: Prevent narrow-width render panics in pane and minibuffer views
