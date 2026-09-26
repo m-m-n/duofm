@@ -90,7 +90,7 @@ workflow:
   base_commit: 81bfaf12179eee5f5aeb3d0c30d4318fabf26f77
   completed_at_commit: 5fb18f436eff78cf2ea5a7a755809a862c93cb24
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
 - id: retrospect
@@ -121,8 +121,15 @@ tasks:
     status: merged
     branch: em-workflow/press-scroll-click-mark/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: Same-row press/release adds no marks
