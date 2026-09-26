@@ -1,0 +1,12 @@
+schema_version: 1
+feature: e2e-rename-initial-value-check
+records:
+  - question_id: verify.ac2-judgment
+    packet_id: null
+    answered_at: "2026-09-27T02:45:00+09:00"
+    source: batch-codex-consultation
+    answer_mode: select_or_freeform
+    selected_option_ids: [B]
+    freeform: "verify を failed（AC-2）にして自動 rework を回す"
+    normalized_answer: "verify failed on AC-2; auto-rework via tier upgrade reduced -> full"
+    resolution_note: "gate: verify 判定（AC-2 の成否が review 未解決 medium 指摘 bafbaecc072f4a07 / d4573a9aef53ae65 と食い違う）; options: A=pass 維持して残件を別タスク起票, B=failed にして rework; chosen: B; not chosen: A; codex_consulted: true (2 回。1 回目: カーソルは反転表示のみで独立文字は出ない internal/ui/text_input.go:198,205、厳密一致式でも TS-1 は壊れないと grep で確認し B を推奨。2 回目: reduced tier の verify failed は full への昇格を伴い費用が大きいと追加提示したが、既知の反例がある成功条件を pass にするのは検証の取り繕いになるとして B を維持); opus_escalation: false; 推奨式: ${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}"
