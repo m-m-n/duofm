@@ -1,0 +1,12 @@
+schema_version: 1
+feature: minibuffer-zwj-cursor-end-scroll
+records:
+  - question_id: develop.completion-pr-base
+    packet_id: null
+    answered_at: "2026-09-26T22:10:00+09:00"
+    source: batch-safe-default
+    answer_mode: freeform
+    selected_option_ids: []
+    freeform: "PR の base を main にする"
+    normalized_answer: "PR の base を main にする"
+    resolution_note: "gate: Step C PR 作成時の base_branch 不在（em-workflow/minibuffer-wide-prompt-wrap/integration は PR #9 で main にマージ済み・削除済み）; options: A) base を main にする / B) 旧 base を復元して push しそこへ PR / C) PR を作らず停止; choice: A; codex_consulted: true（旧 base の内容は main に統合済みで main が実質的な後継。B は役目を終えたブランチの復元が要り、C は事実から判断できる状況で停止することになる）; opus_escalation: false"
