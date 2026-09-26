@@ -1,0 +1,143 @@
+schema_version: 1
+feature: fix-e2e-failures
+phase: create-spec
+status: completed
+generation: 1
+base_revision: 9ca2bab45fa92c910d838a676d0e03603211d31b
+last_input_digest: sha256:0309a7ef7a3f168f80bb6cd1e8218a692692c2428b12ca3071178b3466a77d41
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-25T20:57:00+09:00'
+    questions:
+    - question_id: requirement.fix-direction
+      status: answered
+    - question_id: requirement.sort-q-cancel
+      status: answered
+    - question_id: requirement.runner-coverage
+      status: answered
+    - question_id: requirement.entrypoint
+      status: answered
+    - question_id: requirement.assertion-scope
+      status: answered
+    - question_id: design-step.decision
+      status: answered
+answers:
+  requirement.fix-direction:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - update_tests_only
+    freeform: null
+    normalized_answer: 'Update tests only: Update the E2E scripts to match current app behavior. No Go
+      changes. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen update_tests_only;
+      not chosen [''change_app_where_reasonable'']; codex reason: 6群の失敗は操作手順・表示・実行環境に対するテストの前提と実装の不一致で説明できるため、アプリの動作を変えずテストを修正するのが適切だよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.sort-q-cancel:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - invert_q_tests
+    freeform: null
+    normalized_answer: 'Test that q does nothing: Rewrite both tests to assert that ''q'' does not close
+      the dialog, which pins the current behavior. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen invert_q_tests;
+      not chosen [''remove_q_tests'', ''add_q_to_app'']; codex reason: キャンセルキー統一の既存要件にqの削除が明記されているため、通常時と選択肢の展開時の両方でqが無効なことを検証すれば、仕様に沿って再発を検出できるよ;
+      orchestrator mapping judgement: adopts codex over worker tentative position; orchestrator verified:
+      doc/tasks/cancel-key-unification/SPEC.md FR2 explicitly removes q from SortDialog, so q being ignored
+      is intended'
+  requirement.runner-coverage:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - fix_list_and_guard
+    freeform: null
+    normalized_answer: 'Fix the list and add checks: Keep the explicit run list and fix it. Count calls
+      to undefined functions as failures. Fail the run when a defined test is not in the list. [recorded
+      as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen fix_list_and_guard;
+      not chosen [''fix_list_only'', ''auto_discover'']; codex reason: 既存の実行順を維持しながら未定義関数の呼び出しと登録漏れを失敗として検出できるため、変更範囲を抑えて実行漏れの再発を検出できるよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  requirement.entrypoint:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - leave_to_mouse_support
+    freeform: null
+    normalized_answer: 'Leave it to mouse-support: Do not touch the Dockerfile or run_tests.sh in this
+      feature. Apply runner fixes to run_all_tests.sh only. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen leave_to_mouse_support;
+      not chosen [''cmd_to_run_all_remove_copy'', ''cmd_to_run_all_keep_copy'']; codex reason: 実物のrun_tests.shはコピーではなくrun_all_tests.shへの追跡済みシンボリックリンクなので、実行経路に修正を反映でき、別PRとの変更重複も避けられるよ;
+      orchestrator mapping judgement: adopts codex over worker tentative position; orchestrator verified:
+      test/e2e/scripts/run_tests.sh is a tracked symlink (mode 120000) to run_all_tests.sh, so the current
+      CMD already runs run_all_tests.sh; the worker''s ''copy'' premise was wrong'
+  requirement.assertion-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - touched_tests_only
+    freeform: null
+    normalized_answer: 'Edited tests only: In the tests being edited, strengthen always-passing assertions
+      and make sure no files are left behind. [recorded as assumption]'
+    resolution_note: 'gate create-spec.requirement-clarification (policy codex_consultation, record_as_assumption);
+      codex consulted: yes (1 turn, harness codex, converged); Opus escalation: no; chosen touched_tests_only;
+      not chosen [''failing_only_minimal'', ''broad_hardening'']; codex reason: 修正するテストの誤った成功判定と残存ファイルによる後続テストへの影響を解消すれば、対象を広げすぎず再発を検出できるよ;
+      orchestrator mapping judgement: agrees (matches worker tentative position)'
+  design-step.decision:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-25T21:02:00+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: 'Accept recommendation: design step skipped (E2E scripts/runner only, no UI change)'
+    resolution_note: batch-policies.yaml create-spec.design-step -> decide_autonomously; analyst recommendation
+      'skip' accepted
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:5efdbd1b8bdc3365a05b1619985bf666bf79e1dc11ecbde3db2e5de0e59f3f51
+  output_digest: sha256:4f90e6952c8c2a0791628a49e94152b880608b71973fbff3ec1bbd72e651a420
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:181fff47501af97ffb49f650d02952063576880d2ae87e263b136a090ba7c1bf
+  output_digest: sha256:17972f1f70cddf4f6be9a6aeab054e598f48527822665282744ae7d0ab621497
+- request_id: create-spec-run-0003
+  status: completed
+  input_digest: sha256:0309a7ef7a3f168f80bb6cd1e8218a692692c2428b12ca3071178b3466a77d41
+  output_digest: sha256:543e6a086ff781579ed533ce3f3f31db2d142b5dc424f95172c490a18348fde1
+artifacts:
+- path: feature-docs/fix-e2e-failures/REQUIREMENTS.md
+  sha256: sha256:47ce5868f6d09f693517737679293e73e11f107a3e6f711f3e8dab885f419274
+  produced_by: create-spec-run-0003
+- path: feature-docs/fix-e2e-failures/SPEC.md
+  sha256: sha256:dbc49f7631241c5eecff2e38a3ba1ef7476ac0f8604fe46c8dc9cdf4034342c3
+  produced_by: create-spec-run-0003
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache:
+  design_system_candidates:
+    generation_digest: sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945
+    resolved_at_generation: 1
+    paths: []
+    digests: {}
+    truncated: false
+last_error: null

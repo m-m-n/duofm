@@ -1,0 +1,108 @@
+task_id: task0001
+baseline_failures: []          # go test ./... (project_commands.test) before any change: all packages ok
+final_failures: []             # no Go source touched; only test/e2e/scripts/run_all_tests.sh changed
+notes: >
+  No unit-test framework covers test/e2e/scripts/run_all_tests.sh (bash, no
+  Docker in this worktree). Per the task plan's Test Notes, AC-2 through AC-5
+  are verified with scratch copies of test/e2e/scripts under the worktree's
+  gitignored tmp/ (never under the repository tree), edited and run with
+  --check-list, comparing against a scratch copy of the pre-task script
+  (via `git show HEAD:...`) for red confirmation. The full-run counting
+  parts of AC-3/AC-4 that need real tmux+duofm interaction are deferred to
+  the verify phase per the plan; the counting mechanism itself (guard
+  contributes exactly +1 Total/+1 Failed per problem, entry not invoked)
+  was confirmed end-to-end through the real run_all()/main("") code path
+  using a scratch copy with a truncated FULL_RUN_LIST (see AC-3 below).
+acceptance_tests:
+  AC-1:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Pre-task script's Sort group contained test_sort_dialog_hl_navigation,
+      test_sort_dialog_jk_navigation, test_sort_dialog_confirm (no matching
+      test_ function in sort_tests.sh) and omitted 7 defined sort tests plus
+      2 defined file_operation tests (110 run entries total, not 120).
+      New script's FULL_RUN_LIST verified by: (1) grep confirms none of the
+      3 forbidden names appear; (2) grep confirms all 9 newly-added names
+      appear; (3) `--check-list` on the committed scripts reports
+      "OK: run list matches defined tests (120 entries)", i.e. FULL_RUN_LIST
+      has exactly the 120-name frozen definition set, each once; (4) group
+      heading extraction from the array shows the original 14 headings in
+      original order, unchanged.
+  AC-2:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Pre-task script run with `--check-list`: falls through to run_category,
+      prints "Error: Unknown category '--check-list'" and exits 1 (the
+      option did not exist). New script: `run_all_tests.sh --check-list` on
+      the committed scripts prints "OK: run list matches defined tests
+      (120 entries)" and exits 0; no tmux/duofm invocation occurs (check_list
+      only sources files to define functions).
+  AC-3:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Scratch copy of test/e2e/scripts with an undefined name
+      ("test_this_name_is_not_defined_anywhere") inserted into the run
+      list: pre-task script has no --check-list concept at all (red by
+      absence, same as AC-2). New script: `--check-list` prints "Undefined
+      run-list entry: test_this_name_is_not_defined_anywhere" and exits 1.
+      Full-run counting: ran the real `main("")` -> run_all() path twice on
+      scratch copies with FULL_RUN_LIST truncated (to isolate the guard
+      arithmetic without needing tmux/duofm fixtures) -- an empty-list
+      baseline reported Total=120/Failed=120 (all 120 real defined tests
+      flagged "missing", none invoked), and a single-undefined-entry copy
+      reported Total=121/Failed=121, with no "command not found" for the
+      entry (confirming it was never invoked) and exit code 1. Delta is
+      exactly +1 Total / +1 Failed for the one undefined entry, matching
+      the contract; per the task plan's Test Notes the full real-fixture
+      confirmation (with the actual 120-entry list and real duofm/tmux) is
+      deferred to the verify phase (VERIFICATION.md TS2/TS3).
+  AC-4:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Scratch copy with test_ctrlc_quit removed from the run list: pre-task
+      script has no --check-list concept (red by absence). New script:
+      `--check-list` prints "Missing from run list: test_ctrlc_quit
+      (basic_tests.sh)" and exits 1. The per-entry counting contract
+      (+1 Total/+1 Failed per missing entry, none double- or under-counted)
+      was confirmed generically by the AC-3 truncated full-run test, where
+      120 independent "missing" entries each contributed exactly 1 to both
+      counters (Total=120, Failed=120, no interaction effects). The
+      real-fixture full run with the actual 120-entry list is deferred to
+      the verify phase per the task plan's Test Notes.
+  AC-5:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Scratch copy with a new tests/extra_tests.sh (not in TEST_FILES map)
+      defining test_extra_not_in_category_map(): pre-task script has no
+      --check-list concept and no file-scanning definition set (red by
+      absence -- category mode would never see this file at all). New
+      script: `--check-list` sources all tests/*.sh via glob (not just the
+      category map) and its definition set is built the same way, so it
+      prints "Missing from run list: test_extra_not_in_category_map
+      (extra_tests.sh)" and exits 1.
+  AC-6:
+    tests: []
+    red_confirmed: true
+    red_reason: >
+      Pre-task `--help` output has no --check-list line (grep -q would
+      fail). New script: `--help` lists "--check-list  Check the run list
+      against defined tests without running them" and the Usage line now
+      includes --check-list. `diff` between pre-task and new script's
+      `--list` output is empty (category list unchanged). `diff` between
+      pre-task and new script's behavior for an unknown category argument
+      (error message + exit code) is empty (unchanged).
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      Structural/static criterion, not behavior to red-green: `git diff
+      --stat` against the parent branch shows exactly one file changed
+      (test/e2e/scripts/run_all_tests.sh). `bash -n` on the new script
+      passes. shellcheck is not installed in this environment, so that part
+      of the criterion could not be exercised (no findings to report either
+      way); left false because there was nothing to observe red on.

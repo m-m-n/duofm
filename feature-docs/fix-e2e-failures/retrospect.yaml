@@ -1,0 +1,38 @@
+feature: fix-e2e-failures
+collected_at: "2026-09-26T00:24:30+09:00"
+session_ids: [01a0d929-98e6-741a-b34e-587d30b8f090]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures:
+    - id: TS1
+      category: spec
+      note: 'verify round 1: Total 259 / Passed 255 / Failed 4. All 4 failures in Archive Tests test_multifile_compress; the test marked files with "m" (KeyMove) instead of Space (KeyMark). Resolved by rework task0006; round 2 passed 259/259.'
+    - id: TS10
+      category: spec
+      note: 'verify round 1: category run "archive" alone Failed 4 (same test_multifile_compress assertions as TS1). Resolved by rework task0006.'
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: 'unconditional row: no threshold member declared (decided_by threshold_rows:full; both readings: P(0)=0.0)'
+    bases:
+      - basis: description_only
+        probabilities: {'0': 0.0, '1': 0.25, '2': 0.75, '3': 0.0}
+        expectation_clear: 0.8
+      - basis: description_plus_code
+        probabilities: {'0': 0.0, '1': 0.39, '2': 0.61, '3': 0.0}
+        expectation_clear: 0.86
+    pre_survey_estimate:
+      changed_lines_approx: 250
+      new_functions_needed: 0
+      new_files_needed: 0
+      new_dependencies_needed: 2
+      covering_tests_exist: true
+      work_still_required: true
+follow_up_drafts: []
+lessons_candidates:
+  - 'pre-survey had flagged m (move) vs Space (mark) for multi-select, yet task0002 left test_multifile_compress using m; caught only at verify round 1'
+  - 'review left 2 medium findings unresolved (f7ccb13cac7b0bdb run_all_tests.sh undefined-function path, 537ddc2b5d008e78 rename initial-value check always passes)'
+  - 'verify noted pre-existing flake cursor_preserve_tests.sh test_batch_cancel_cursor (map iteration order) and gofmt drift in internal/ui/pane_test.go on main; out of scope'
