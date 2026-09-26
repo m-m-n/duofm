@@ -2,34 +2,58 @@ schema_version: 1
 feature: press-scroll-click-mark
 created: '2026-09-26'
 base_branch: main
-goal: |
-  # マウス押下時にスクロール位置が変わると、動かさないクリックが範囲マークになる
+goal: '# マウス押下時にスクロール位置が変わると、動かさないクリックが範囲マークになる
+
 
   種別: バグ
+
   Notion タスク: https://www.notion.so/3e63509ec8ee811a9a48c3144d2c4d1d
 
+
   ## 現象 (必須)
+
   マウス押下時にスクロール位置が変わると、動かさずに離しただけのクリックが範囲マークになる。
+
   `handleEntryPress` は anchor を index で記録するが、移動・解放行は `updateDrag` から呼ばれる `clampedEntryIndex` がその時点の scrollOffset で index に変換する。押下処理中に `EnsureCursorVisible` / `switchToPane` で scrollOffset が変わると、同じ Y で離しても範囲マークになる。
+
   レビュー指摘 stable_id: 8437fbef4aeea580（medium、mouse-support の review round1 で未解決。switchToPane 側の前提は未確認）
+
   ## 再現手順 (必須)
+
   1. 押下によってスクロール位置が変わる状態を作る（例: 非アクティブペインのクリック）
+
   2. 同じ行で押して、動かさずに離す
+
   3. マークが増える
+
   ## 期待する挙動 (必須)
+
   動かさないクリックではマークが増えない。
+
   ## 完了の定義 (必須)
+
   - [ ] 再現手順で現象が起きない
+
   - [ ] 再発を検出するテストがある
+
   ## 該当箇所 (任意)
+
   `internal/ui/model_update_mouse.go:125`
+
   ## 実害・発生条件 (任意)
+
   \<誰が何に困るか / 特定バージョン・データのときだけ 等\>
 
+
   ## 追加指示
+
   Once the implementation is finished, push the integration branch to the remote and create a Pull Request against base_branch with gh pr create. Keep the integration branch both locally and on the remote (do not auto-merge it into base_branch).
+
   Consult Codex on any unclear points and adopt the option judged to be comparatively better.
+
   Record the content of that discussion in Notion.
+
+  '
 parent_branch: em-workflow/press-scroll-click-mark/integration
 tier: full
 tier_decision:
@@ -93,7 +117,11 @@ workflow:
   status: completed
   completed_at_commit: e471fcf8c8b3edf6df3229d26c84662913b2c4a4
 - id: verify
-  status: in_progress
+  status: completed
+  result: pass
+  failed_items: []
+  summary: 'build OK; go test ./... OK; gofmt -w . 差分なし; go vet ./... 指摘なし; E2E 262/262 pass (mouse_tests.sh / mark_tests.sh 含む); TS-1〜TS-8, TS-10 の単体テスト pass; TS-11: model.go / pane.go は差分なし; 手動確認 2 項目は実端末が無いため未実施（TS-1/TS-8 の単体テストで代替）'
+  completed_at_commit: 9ec1023dcd79c0312ab07b7e9b95759a61fb14f7
 - id: retrospect
   status: pending
 tasks:
