@@ -1,0 +1,65 @@
+round: 1
+executed_at: "2026-09-27T02:15:22+09:00"
+scope:
+  review_mode: diff
+  base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
+  head_commit: 55c3638af1605e33339af2fed7d6035756394ced
+  changed_files:
+  - test-docs/e2e-rename-initial-value-check/task0001.tests.yaml
+  - test/e2e/scripts/tests/file_operation_tests.sh
+  - test/e2e/scripts/tests/history_tests.sh
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: bafbaecc072f4a07
+  severity: medium
+  category: comprehensive
+  file: test/e2e/scripts/tests/file_operation_tests.sh
+  line: 50
+  title: "初期値の検査が、ベース名の前後に余分な1文字がある値でも合格してしまう"
+  description: "assert_input_field_value の照合パターンはベース名の前後に `[^[:space:]]?` を置いているため、空白でない任意の1文字がカーソルとして通る。`│ before_rename.     │ .txt`、`│ xbefore_rename │ .txt`、`│ before_renamex │ .txt` が合格することを grep で再現。RenderWithCursor はカーソルを反転表示でしか描かず、capture-pane -p では独立した文字として出ないため、この許容は検査を弱めるだけ。拡張子除去が末尾にピリオドを残す等の誤りを見逃す。"
+  suggestion: "ベース名前後の `[^[:space:]]?` を2つとも削除する（例: `${border}[[:space:]]+${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}`）。ヘルパー冒頭のコメントと LC_ALL=C.utf8 を強制する理由のコメントも直す。1文字多い値を入れると検査が不合格になることも一時的な変更で確かめる。"
+  sources: ["codex:comprehensive"]
+  confidence: 100
+  resolution: unresolved
+  resolution_reason: "medium のため自動修正の候補外（critical/high のみ対象）"
+- stable_id: d4573a9aef53ae65
+  severity: medium
+  category: spec
+  file: test/e2e/scripts/tests/file_operation_tests.sh
+  line: 50
+  title: "期待するベース名と1文字違う初期値でも検査が通り、AC-2 を満たさない"
+  description: "SPEC の FR1 / FR2 と AC-2 は、入力欄の初期値が期待するベース名と異なるとき両テストの初期値検査が失敗することを求める。50行目のパターンは前後に `[^[:space:]]?` を許すため、`before_rename.`、`xbefore_rename`、`before_renamex`（navren_before も同様）でも合格する。空と拡張子付きの値は正しく不合格になる。"
+  suggestion: "任意の1文字を許さずに、ベース名を罫線の間の空白以外の唯一の内容として完全一致させる。先頭または末尾に余分な1文字が付いた初期値でも両テストが失敗することを一時的な変更で示す。"
+  sources: ["codex:spec"]
+  confidence: 100
+  resolution: unresolved
+  resolution_reason: "medium かつ spec のため自動修正の候補外"
+evaluation:
+  round_summary: "comprehensive#0 と spec#1 が file_operation_tests.sh 50行目の照合パターンについて medium の指摘を独立に出した。evaluator が grep で再現を確認（前後に1文字余分な値が合格、空と拡張子付きは不合格）。カーソルは反転表示のみで capture-pane -p では文字として出ないため、任意の1文字を許す理由は無いと判断。FR3・NFR1・NFR2 は満たされている。critical/high 無し、指示の注入の試み無し。security / comprehensive / spec いずれも corroborated（spec#0 はレート制限で skipped、spec#1 が完了）。"
+  recommended_action: rework
+  action_rationale: "2件とも medium で自動修正の候補外だが、機能の目的（入力欄の初期値を正確に検査すること）を一部損ない、2観点が独立に同じ箇所を指摘している。修正は照合パターン1行とコメント、一時的な変更による確認の追加で済む。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-e2e-rename-initial-value-check-20260926T171528Z.md
