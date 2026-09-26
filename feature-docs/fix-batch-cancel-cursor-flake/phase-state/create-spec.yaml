@@ -1,11 +1,11 @@
 schema_version: 1
 feature: fix-batch-cancel-cursor-flake
 phase: create-spec
-status: dispatching
+status: applying_patch
 generation: 1
 base_revision: 0d1d632e23c70dfcbd3150b749fd22896e522a12
 last_input_digest: sha256:618dd2b69c667755630e892865ab0d37ac820c69681063f06f4665a27a441d41
-active_request_id: create-spec-run-0004
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -91,10 +91,16 @@ worker_runs:
   input_digest: sha256:1891d5843ea1ef670f17d00f183f7553bc9f6184390e5b2c83394bc1dcebb9d0
   output_digest: sha256:f24f105bc1b9419bf1d8c87d814d4f9e382aa1860bebcf66e505e12b15ef3f35
 - request_id: create-spec-run-0004
-  status: dispatched
+  status: completed
   input_digest: sha256:618dd2b69c667755630e892865ab0d37ac820c69681063f06f4665a27a441d41
-  output_digest: null
-artifacts: []
+  output_digest: sha256:e2742eca66382ec074c510bad4fbd0a43bcdfa792becb61f6c24e444fd4ab1cd
+artifacts:
+- path: feature-docs/fix-batch-cancel-cursor-flake/REQUIREMENTS.md
+  sha256: sha256:e0eb553a133cccd6c30934ed0ccd8520da666a97dbbc7956538b943a43464b77
+  produced_by: create-spec-run-0004
+- path: feature-docs/fix-batch-cancel-cursor-flake/SPEC.md
+  sha256: sha256:a8cb2d4bfae4837d08d5b1569ce2138384b34c23361df7f61f350d2e05d8be7b
+  produced_by: create-spec-run-0004
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
