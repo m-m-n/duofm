@@ -1,0 +1,61 @@
+round: 1
+executed_at: "2026-09-27T02:01:01+09:00"
+scope:
+  review_mode: diff
+  base_commit: 57f2c92e63bf9654be8d4c2adabbd866e4d9e645
+  head_commit: 725c4ad4053f484db74f2c4e94c2f0f6dd5136cb
+  changed_files:
+  - test/e2e/Dockerfile
+  - test/e2e/scripts/helpers.sh
+  - test/e2e/scripts/run_all_tests.sh
+  - test/e2e/scripts/runner_self_test.sh
+  - test-docs/e2e-unregistered-test-file-guard/task0001.tests.yaml
+  - test-docs/e2e-unregistered-test-file-guard/task0002.tests.yaml
+plan:
+  floor: [comprehensive, security, performance, architecture, spec]
+  discretionary: []
+  cross_validation: true
+perspective_runs:
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "performance#0", perspective: performance, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "performance#1", perspective: performance, role: primary, source: codex, status: completed}
+- {run_id: "architecture#0", perspective: architecture, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "architecture#1", perspective: architecture, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+- {run_id: "vulnerability#tool", perspective: vulnerability, role: tool, source: tool, status: skipped, skip_reason: "not selected: diff touches no dependency manifest"}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: 78ba4f8a81887623
+  severity: medium
+  category: spec
+  file: test/e2e/scripts/runner_self_test.sh
+  line: 100
+  title: "apply_fixture_lists creates its scratch files outside SELF_TMPDIR, which violates NFR2"
+  description: "SPEC NFR2 says the self-test may write only under the temporary directory it creates itself with mktemp. At lines 100 and 107, apply_fixture_lists calls `mktemp` with no template, creating a file directly in ${TMPDIR:-/tmp}, outside SELF_TMPDIR. awk writes the rewritten runner there, then `mv` moves it into the fixture dir. If awk fails, the tmp file is left behind outside the EXIT trap's cleanup. The header comment at line 17 is also inaccurate. Practical impact is small: /testdata and /e2e/scripts are never touched."
+  suggestion: "Pass a template under SELF_TMPDIR to both calls, e.g. tmp=\"$(mktemp \"${SELF_TMPDIR}/runner.XXXXXX\")\"."
+  sources: [codex:spec]
+  confidence: 90
+  resolution: unresolved
+  resolution_reason: "medium severity: outside the auto-fix candidate gate (critical/high only, category != spec)"
+evaluation:
+  round_summary: "Round 1 (diff mode, cross_validation=true). Completed runs: comprehensive#0, security#0, performance#1, architecture#1, spec#1; performance#0/architecture#0/spec#0 skipped (rate_limited) with completed codex hops. No critical/high reported. Evaluator verified all 3 reported sites; 2 comprehensive findings (helpers.sh:205 declare -f without --, unreachable from current callers; runner_self_test.sh:27 unchecked mktemp -d, fails closed unless root) were demoted to low and dropped by the R3b severity gate. The spec NFR2 finding (runner_self_test.sh:100/107) stays medium. FR1-FR6 otherwise satisfied. No injection attempt detected. Coverage: all five perspectives corroborated."
+  recommended_action: auto_fix
+  action_rationale: "3 small local hardening changes, none critical/high. (Advice only: R4 candidate gate admits critical/high only, so no auto-fix loop ran.)"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-e2e-unregistered-test-file-guard-20260926T170101Z.md
