@@ -1,0 +1,62 @@
+schema_version: 2
+feature: drag-dir-load-stale-marks
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.01
+    confidence: 0.99
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.99
+      '2': 0.01
+      '3': 0.0
+  observed_at: '2026-09-26T21:33:02+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.05
+    confidence: 0.95
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  observed_at: '2026-09-26T21:34:57+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/model_update.go
+  - internal/ui/model_update_mouse_test.go
+  changed_lines_approx: 70
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: model_update.go:424のhandleDirectoryLoadCompleteは465行でentriesを置き換えるけど、mouseDragを解除していないよ。model_update_mouse.go:157で保存したanchorとbaselineが、186行で新しいentriesに適用される状態だよ。既存テストには通常のドラッグとモーダル表示時の解除があるけど、読み込み完了を挟む回帰テストはないよ。成功時に一覧を置き換える対象とmouseDrag.paneが一致する場合に状態を解除する修正を勧めるよ。行数とテスト数は、左右それぞれで押下直後・ドラッグ進行中の読み込み完了を検証する4ケースの概算だよ。新規関数数は本体のみ、呼び出し関係数は対象関数の直接の呼び出し元1件と呼び出し先11件を数えているよ。ファイル変更とテスト実行はしていないよ
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 4
+  body_change_kind: new_logic
+  change_containment: single_function
+  caller_and_dependency_count: 12
+  changes_external_contract: false
+  changes_behavior: true
+decided_at: '2026-09-26T21:34:57+09:00'
