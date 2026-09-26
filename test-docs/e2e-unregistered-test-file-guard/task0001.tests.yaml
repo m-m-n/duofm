@@ -1,0 +1,32 @@
+task_id: task0001
+baseline_failures: []          # `go test ./...` via project_commands.test was all green before any change
+final_failures: []             # re-run after implementation: all green, unchanged from baseline
+acceptance_tests:
+  AC-1:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts5]
+    red_confirmed: true
+    red_reason: "Against the pre-fix helpers.sh, scenario_ts5 (run_test given an undefined name) failed: expected RUN=1 PASSED=0 FAILED=1, got RUN=0 PASSED=0 FAILED=0; the run also printed a shell 'command not found' diagnostic for the undefined name. After adding the declare -f guard in run_test, the scenario passes and the diagnostic is gone."
+  AC-2:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts1]
+    red_confirmed: true
+    red_reason: "Against the pre-fix scripts, scenario_ts1 (TS-1 fixture, full run) failed: exit status was 0 instead of non-zero, counts were Total=1 Passed=1 Failed=0 instead of Total=3 Passed=1 Failed=2, and neither the unregistered-file line for b_tests.sh nor the undefined-function line for test_pass_b was present."
+  AC-3:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts2, test/e2e/scripts/runner_self_test.sh::scenario_ts4]
+    red_confirmed: true
+    red_reason: "Against the pre-fix scripts: scenario_ts2 (--check-list, TS-2) failed with exit status 0 and an unexpected OK line instead of exit 1 with the unregistered-file line; scenario_ts4 (--check-list, TS-4) failed by missing the unregistered-file line for b_tests.sh even though the pre-existing 'Missing from run list' line was already present."
+  AC-4:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts3]
+    red_confirmed: false
+    red_reason: "scenario_ts3 (TS-3: everything registered/listed) already passed against the pre-fix scripts (observed PASS in the same red-state run that produced FAIL for TS-1/TS-2/TS-4/TS-5), because the fully-registered case is unaffected by this fix -- run_guard_checks' pre-existing UNDEFINED/MISSING logic already handled it correctly. The real-repository --check-list run (15 files under test/e2e/scripts/tests/) has no pre-fix counterpart to compare against either; it was run only post-fix and printed the OK line with exit 0. No implementation-dependent behavior change exists for this criterion, so no red state could be produced."
+  AC-5:
+    tests: [test/e2e/scripts/runner_self_test.sh]
+    red_confirmed: true
+    red_reason: "Run directly against the pre-fix run_all_tests.sh/helpers.sh (with the self-test's own file-copy permission handled): TS-1, TS-2, TS-4 and TS-5 printed FAIL and TS-3 printed PASS, overall exit status 1 -- exactly the AC-5 pre-fix expectation."
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: "No existing test in the repository (searched by path and basename under test/, feature-docs/, test-docs/, the Makefile and the Dockerfile) exercises this property, and it is not asserted by shipped, automated code: it was verified manually by running runner_self_test.sh with recording stand-in 'tmux'/'duofm' scripts placed first on PATH (the resulting call log contained only 'kill-session' calls and zero duofm calls) and by comparing `git status --porcelain` before/after the run (no untracked or modified files appeared beyond the task's own edits). This property held from the first working version of the fixture design (fixture test functions only touch counters, never call start_duofm/stop_duofm), so no red state was ever observed for it."
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: "No existing test in the repository (searched by path and basename) exercises this property. show_usage(), list_categories() and run_category() are untouched by this task's diff, so there was never a state where --help/--list output differed or category runs skipped a test_ function; verified manually via `diff` of `--help`/`--list` output against `git show HEAD:test/e2e/scripts/run_all_tests.sh` (byte-identical) and by counting '--- Running:' lines against `grep -c '^test_'` for the basic category (9 == 9), plus `git diff --stat -- test/e2e/scripts/tests/` showing no changes."

@@ -16,8 +16,9 @@
 #
 # --check-list validates the full-run list against the tests actually
 # defined under tests/*.sh: it flags run-list entries with no matching
-# test_ function (undefined entries) and defined test_ functions absent
-# from the run list (missing entries). It never starts tmux or duofm.
+# test_ function (undefined entries), defined test_ functions absent
+# from the run list (missing entries), and tests/*.sh files not registered
+# in TEST_FILES (unregistered files). It never starts tmux or duofm.
 
 set -e
 
@@ -276,17 +277,39 @@ build_defined_tests() {
 }
 
 # Run-list guard: compares FULL_RUN_LIST against the definition set built by
-# build_defined_tests. Populates the global arrays GUARD_UNDEFINED (run-list
-# names with no matching test_ function) and GUARD_MISSING (defined test_
-# functions absent from the run list, formatted as "name (file)").
+# build_defined_tests, and compares the tests/*.sh files on disk against the
+# TEST_FILES registry. Populates the global arrays GUARD_UNDEFINED (run-list
+# names with no matching test_ function), GUARD_MISSING (defined test_
+# functions absent from the run list, formatted as "name (file)"), and
+# GUARD_UNREGISTERED (basenames of tests/*.sh files whose basename matches
+# no value of TEST_FILES, sorted for deterministic output).
 # Used by both the full run and --check-list so they cannot drift apart.
 # Returns 0 when there are no problems, 1 otherwise; never aborts the
 # caller under `set -e` because it is always invoked as an if/while condition.
 run_guard_checks() {
     GUARD_UNDEFINED=()
     GUARD_MISSING=()
+    GUARD_UNREGISTERED=()
 
     build_defined_tests
+
+    local -A registered_files=()
+    local registered
+    for registered in "${TEST_FILES[@]}"; do
+        registered_files["$registered"]=1
+    done
+
+    local file file_basename
+    for file in "${RUNNER_DIR}"/tests/*.sh; do
+        [ -f "$file" ] || continue
+        file_basename="$(basename "$file")"
+        if [ -z "${registered_files[$file_basename]+x}" ]; then
+            GUARD_UNREGISTERED+=("$file_basename")
+        fi
+    done
+    if [ ${#GUARD_UNREGISTERED[@]} -gt 0 ]; then
+        mapfile -t GUARD_UNREGISTERED < <(printf '%s\n' "${GUARD_UNREGISTERED[@]}" | sort)
+    fi
 
     local -A in_list=()
     local entry name
@@ -305,7 +328,7 @@ run_guard_checks() {
         fi
     done
 
-    if [ ${#GUARD_UNDEFINED[@]} -eq 0 ] && [ ${#GUARD_MISSING[@]} -eq 0 ]; then
+    if [ ${#GUARD_UNDEFINED[@]} -eq 0 ] && [ ${#GUARD_MISSING[@]} -eq 0 ] && [ ${#GUARD_UNREGISTERED[@]} -eq 0 ]; then
         return 0
     fi
     return 1
@@ -322,16 +345,22 @@ report_undefined_entry() {
     echo -e "${RED}✗${NC} Run-list entry has no matching test_ function: $name"
 }
 
-# Report every defined test_ function absent from the run list. Each one
-# counts as exactly one failure.
-report_missing_tests() {
-    if [ ${#GUARD_MISSING[@]} -eq 0 ]; then
+# Report tests/*.sh files not registered in TEST_FILES, and every defined
+# test_ function absent from the run list. Each unregistered file and each
+# missing test counts as exactly one failure.
+report_run_list_guard() {
+    if [ ${#GUARD_UNREGISTERED[@]} -eq 0 ] && [ ${#GUARD_MISSING[@]} -eq 0 ]; then
         return 0
     fi
 
     echo ""
     echo "=== Run List Guard ==="
     local item
+    for item in "${GUARD_UNREGISTERED[@]}"; do
+        TESTS_RUN=$((TESTS_RUN + 1))
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        echo -e "${RED}✗${NC} Test file not registered in TEST_FILES: $item"
+    done
     for item in "${GUARD_MISSING[@]}"; do
         TESTS_RUN=$((TESTS_RUN + 1))
         TESTS_FAILED=$((TESTS_FAILED + 1))
@@ -372,7 +401,7 @@ run_all() {
         fi
     done
 
-    report_missing_tests
+    report_run_list_guard
 }
 
 # Check the run list against the definition set without running any test,
@@ -389,7 +418,10 @@ check_list() {
         return 0
     fi
 
-    local name item
+    local name item file_basename
+    for file_basename in "${GUARD_UNREGISTERED[@]}"; do
+        echo "Test file not registered in TEST_FILES: $file_basename"
+    done
     for name in "${GUARD_UNDEFINED[@]}"; do
         echo "Undefined run-list entry: $name"
     done
