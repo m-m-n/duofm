@@ -1,0 +1,64 @@
+schema_version: 2
+feature: minibuffer-shrink-loop-linear
+tier: full
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.15
+    confidence: 0.85
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.85
+      '2': 0.15
+      '3': 0.0
+  observed_at: '2026-09-27T14:43:18+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.18
+    confidence: 0.81
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.8200000000000001
+      '2': 0.18
+      '3': 0.0
+  observed_at: '2026-09-27T14:45:51+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 0
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: []
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: internal/ui/minibuffer.go:377 の縮小ループは、379–380行で残り全体を組み立てて実測し、386–389行で1文字ずつ縮めているため、二次時間になる経路が残っているよ。internal/ui/minibuffer_test.go:571
+    と :662 には結合文字や絵文字の表示テストがあるけれど、大量の結合文字による処理時間の退行を検出するテストはないよ。書記素の境界と幅を一度計算する修正と性能の回帰テスト追加は、feature-docs/minibuffer-wide-prompt-wrap/reviews/round1.yaml:56
+    にも提案されているよ。再現条件には注意が必要で、端末幅80ではペイン幅は40になり（internal/ui/model_update.go:391）、その幅がミニバッファへ渡されるよ（internal/ui/model.go:397）。Minibuffer.SetWidth(80)とは条件が異なるよ。ファイル変更とテスト実行はしていないよ。変更行数・追加関数数・追加テスト数は未確定で、対応する数値の0は変更不要という判定ではないよ
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 0
+  body_change_kind: new_logic
+  change_containment: single_module
+  caller_and_dependency_count: 7
+  changes_external_contract: false
+  changes_behavior: true
+decided_at: '2026-09-27T14:46:07+09:00'
