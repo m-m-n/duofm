@@ -2,9 +2,11 @@ package ui
 
 import (
 	"strings"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/rivo/uniseg"
 )
 
 // Minibuffer is a single-line text input area displayed at the bottom of the pane
@@ -196,75 +198,67 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 	return false
 }
 
-// widthUnit is a width unit per IMPLEMENTATION.md CD2: a maximal run of
-// runes that starts with a rune whose own width is positive and continues
-// through every immediately following rune whose own width is zero (or, at
-// the very start of a segment, a leading run of zero-width runes). start/end
-// are rune offsets into the ORIGINAL rune slice the segment came from (see
-// partitionUnits' offset parameter), so a unit's bounds can be sliced
-// directly without further translation. width is the unit's own text
-// measured with the width basis exactly once.
+// widthUnit is a grapheme cluster: a maximal run of runes that
+// github.com/rivo/uniseg groups as a single user-perceived character (e.g.
+// a ZWJ-joined emoji sequence, or a base rune followed by a combining mark
+// or variation selector). start/end are rune offsets into the ORIGINAL rune
+// slice the segment came from (see partitionUnits' offset parameter), so a
+// unit's bounds can be sliced directly without further translation. width is
+// the unit's own text measured with the width basis exactly once.
 type widthUnit struct {
 	start, end int
 	width      int
 }
 
-// ownWidths returns, for each rune in runes, that rune's own display width
-// as measured by lipgloss (the width basis; Conventions). Each rune is
-// measured exactly once. This is used only to find width-unit boundaries
-// (CD2); a unit's own estimated width is measured separately, on the unit's
-// full text, not derived by summing rune widths -- combining sequences
-// (e.g. a rune followed by U+FE0F, variation selector-16) can render wider
-// than the sum of their individual rune widths (CD4), so any estimate built
-// from unit sums must still be verified (and shrunk if necessary) against
-// the actually assembled string (see guardFit).
-func ownWidths(runes []rune) []int {
-	widths := make([]int, len(runes))
-	for i, r := range runes {
-		widths[i] = lipgloss.Width(string(r))
-	}
-	return widths
-}
-
-// partitionUnits groups seg into width units (CD2), using the precomputed
-// own widths ow (aligned with seg, one entry per rune -- see ownWidths).
-// offset is seg's starting position in the original rune slice the caller
-// will index into, so the returned units' start/end are absolute indices
-// there (sliceable directly, no further translation needed). Single pass
-// over seg; each unit's own width is measured (via the width basis, on the
-// unit's full text) exactly once.
-func partitionUnits(seg []rune, ow []int, offset int) []widthUnit {
-	n := len(seg)
-	if n == 0 {
+// partitionUnits splits seg into grapheme clusters (width units) using
+// github.com/rivo/uniseg's grapheme-cluster boundaries -- the same
+// splitting the width basis (lipgloss, via charmbracelet/x/ansi) uses
+// internally, so a unit boundary is always a boundary the width basis
+// itself would place a cursor at; a joined sequence is therefore never
+// split mid-cluster by the scroll logic below. offset is seg's starting
+// position in the original rune slice the caller will index into, so the
+// returned units' start/end are absolute indices there (sliceable directly,
+// no further translation needed). Single pass over seg; each unit's own
+// width is measured (via the width basis, on the unit's full text) exactly
+// once -- combining sequences (e.g. a rune followed by U+FE0F, variation
+// selector-16) can render wider than the sum of their individual runes'
+// widths, so any estimate built from unit sums must still be verified (and
+// shrunk if necessary) against the actually assembled string (see
+// guardFit).
+func partitionUnits(seg []rune, offset int) []widthUnit {
+	if len(seg) == 0 {
 		return nil
 	}
-	units := make([]widthUnit, 0, n)
-	i := 0
-	if ow[0] == 0 {
-		j := 1
-		for j < n && ow[j] == 0 {
-			j++
-		}
+	units := make([]widthUnit, 0, len(seg))
+	str := string(seg)
+	runePos := 0
+	for len(str) > 0 {
+		cluster, rest, _, _ := uniseg.FirstGraphemeClusterInString(str, -1)
+		n := utf8.RuneCountInString(cluster)
 		units = append(units, widthUnit{
-			start: offset,
-			end:   offset + j,
-			width: lipgloss.Width(string(seg[0:j])),
+			start: offset + runePos,
+			end:   offset + runePos + n,
+			width: lipgloss.Width(cluster),
 		})
-		i = j
-	}
-	for i < n {
-		start := i
-		i++
-		for i < n && ow[i] == 0 {
-			i++
-		}
-		units = append(units, widthUnit{
-			start: offset + start,
-			end:   offset + i,
-			width: lipgloss.Width(string(seg[start:i])),
-		})
+		runePos += n
+		str = rest
 	}
 	return units
+}
+
+// unitIndexContaining returns the index into units of the unit whose rune
+// range [start, end) contains pos. units must be partitionUnits' result for
+// a rune slice that itself contains pos at some position -- i.e. units
+// cover [0, N) contiguously and pos < N -- so the first unit whose end
+// exceeds pos is guaranteed to also satisfy start <= pos. Single pass,
+// bounded by len(units).
+func unitIndexContaining(units []widthUnit, pos int) int {
+	for i, u := range units {
+		if pos < u.end {
+			return i
+		}
+	}
+	return len(units) - 1
 }
 
 // unitsTotalWidth sums every unit's estimated width. Single pass.
@@ -400,14 +394,14 @@ func (m *Minibuffer) View() string {
 	case promptWidth >= contentWidth:
 		// FR3: remaining width <= 0. Truncate the prompt to the content
 		// width; input and the cursor block are not rendered. Partition the
-		// prompt into width units (CD2) in one pass, keep the longest unit
-		// prefix whose estimated width is at most contentWidth, then apply
-		// the guard (CD4): the estimate can undershoot the actual rendered
-		// width for sequences joined across positive-width runes, so the
-		// kept prefix is re-measured and, if necessary, shrunk by whole
-		// trailing units; it finally falls back to an empty prompt.
-		promptOwnWidths := ownWidths(promptRunes)
-		units := partitionUnits(promptRunes, promptOwnWidths, 0)
+		// prompt into width units (grapheme clusters) in one pass, keep the
+		// longest unit prefix whose estimated width is at most contentWidth,
+		// then apply the guard (CD4): the estimate can undershoot the
+		// actual rendered width for sequences joined across positive-width
+		// runes, so the kept prefix is re-measured and, if necessary,
+		// shrunk by whole trailing units; it finally falls back to an
+		// empty prompt.
+		units := partitionUnits(promptRunes, 0)
 		keep := unitsPrefixCount(units, contentWidth)
 
 		render := func() string {
@@ -453,15 +447,19 @@ func (m *Minibuffer) View() string {
 			break
 		}
 
-		ow := ownWidths(runes)
+		// Step 2: partition the whole input into grapheme clusters (units)
+		// in one pass. Every window below is expressed in terms of this
+		// single list -- when the cursor sits mid-input, the before- and
+		// after-cursor slices are cut FROM this list, never re-partitioned,
+		// so every boundary picked below is one of these units' boundaries
+		// (FR1, FR2).
+		units := partitionUnits(runes, 0)
 
 		switch {
 		case cursorAtEnd:
-			// Step 2: scroll so the cursor block (1 column) sits at the
-			// right edge. Partition the whole input into units and keep
-			// the longest unit suffix whose estimated width is at most
-			// remaining-1.
-			units := partitionUnits(runes, ow, 0)
+			// Step 3: scroll so the cursor block (1 column) sits at the
+			// right edge. Keep the longest unit suffix whose estimated
+			// width is at most remaining-1.
 			n := unitsSuffixCount(units, remaining-1)
 			kept := units[len(units)-n:]
 
@@ -496,104 +494,114 @@ func (m *Minibuffer) View() string {
 				cursorDisplayPos = -1
 			}
 
-		case ow[m.cursorPos] > remaining:
-			// Step 3 (CD3): the cursor's own character does not fit within
-			// the remaining width even alone; do not render it.
-			displayStart, displayEnd = m.cursorPos, m.cursorPos
-
 		default:
-			// CD3: units are computed per segment around the cursor -- the
-			// input before the cursor rune, and the input after it -- since
-			// the cursor's own rune is handled separately.
-			beforeUnits := partitionUnits(runes[:m.cursorPos], ow[:m.cursorPos], 0)
-			beforeWidth := unitsTotalWidth(beforeUnits)
-			cursorWidth := ow[m.cursorPos]
+			// Steps 4-6: locate the cursor's own grapheme (unit) in the
+			// shared units list and split that list around it -- the
+			// cursor's grapheme is excluded from both the before- and
+			// after-cursor slices, so it is never itself trimmed away by
+			// guardFit below.
+			cIdx := unitIndexContaining(units, m.cursorPos)
+			cursorUnit := units[cIdx]
+			cursorWidth := cursorUnit.width
 
-			if beforeWidth+cursorWidth <= remaining {
-				// Step 4: the whole before-cursor segment plus the cursor
-				// fit; extend right over the longest unit prefix of the
-				// after-cursor segment that fits the leftover width.
-				afterUnits := partitionUnits(runes[m.cursorPos+1:], ow[m.cursorPos+1:], m.cursorPos+1)
-				leftover := remaining - beforeWidth - cursorWidth
-				nAfter := unitsPrefixCount(afterUnits, leftover)
-				afterKept := afterUnits[:nAfter]
-				beforeKept := beforeUnits
+			switch {
+			case cursorWidth > remaining:
+				// Step 4: the cursor's own grapheme does not fit within the
+				// remaining width even alone; do not render it.
+				displayStart, displayEnd = cursorUnit.start, cursorUnit.start
 
-				displayStart = 0
-				cursorDisplayPos = m.cursorPos
-				if nAfter > 0 {
-					displayEnd = afterKept[nAfter-1].end
-				} else {
-					displayEnd = m.cursorPos + 1
-				}
+			default:
+				beforeUnits := units[:cIdx]
+				afterUnits := units[cIdx+1:]
+				beforeWidth := unitsTotalWidth(beforeUnits)
 
-				render := func() string {
-					return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
-				}
-				// CD4: the side away from the cursor is tried right first
-				// (the greedily-extended after-cursor part), then left.
-				shrink := func(excess int) bool {
-					if len(afterKept) > 0 {
-						afterKept = trimUnitsBack(afterKept, excess)
-						if len(afterKept) > 0 {
-							displayEnd = afterKept[len(afterKept)-1].end
-						} else {
-							displayEnd = m.cursorPos + 1
-						}
-						return true
+				if beforeWidth+cursorWidth <= remaining {
+					// Step 5: the whole before-cursor segment plus the
+					// cursor's grapheme fit; extend right over the longest
+					// unit prefix of the after-cursor segment that fits the
+					// leftover width.
+					leftover := remaining - beforeWidth - cursorWidth
+					nAfter := unitsPrefixCount(afterUnits, leftover)
+					afterKept := afterUnits[:nAfter]
+					beforeKept := beforeUnits
+
+					displayStart = 0
+					cursorDisplayPos = m.cursorPos
+					if nAfter > 0 {
+						displayEnd = afterKept[nAfter-1].end
+					} else {
+						displayEnd = cursorUnit.end
 					}
-					if len(beforeKept) > 0 {
-						beforeKept = trimUnitsFront(beforeKept, excess)
+
+					render := func() string {
+						return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+					}
+					// CD4: the side away from the cursor is tried right
+					// first (the greedily-extended after-cursor part), then
+					// left.
+					shrink := func(excess int) bool {
+						if len(afterKept) > 0 {
+							afterKept = trimUnitsBack(afterKept, excess)
+							if len(afterKept) > 0 {
+								displayEnd = afterKept[len(afterKept)-1].end
+							} else {
+								displayEnd = cursorUnit.end
+							}
+							return true
+						}
 						if len(beforeKept) > 0 {
-							displayStart = beforeKept[0].start
+							beforeKept = trimUnitsFront(beforeKept, excess)
+							if len(beforeKept) > 0 {
+								displayStart = beforeKept[0].start
+							} else {
+								displayStart = cursorUnit.start
+							}
+							cursorDisplayPos = m.cursorPos - displayStart
+							return true
+						}
+						return false
+					}
+
+					if _, fits := guardFit(contentWidth, render, shrink); !fits {
+						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
+						cursorDisplayPos = -1
+					}
+				} else {
+					// Step 6: scroll so the cursor's grapheme sits at the
+					// right edge of the window; start at the longest unit
+					// suffix of the before-cursor segment that fits.
+					n := unitsSuffixCount(beforeUnits, remaining-cursorWidth)
+					kept := beforeUnits[len(beforeUnits)-n:]
+
+					displayEnd = cursorUnit.end
+					if len(kept) > 0 {
+						displayStart = kept[0].start
+					} else {
+						displayStart = cursorUnit.start
+					}
+					cursorDisplayPos = m.cursorPos - displayStart
+
+					render := func() string {
+						return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+					}
+					shrink := func(excess int) bool {
+						if len(kept) == 0 {
+							return false
+						}
+						kept = trimUnitsFront(kept, excess)
+						if len(kept) > 0 {
+							displayStart = kept[0].start
 						} else {
-							displayStart = m.cursorPos
+							displayStart = cursorUnit.start
 						}
 						cursorDisplayPos = m.cursorPos - displayStart
 						return true
 					}
-					return false
-				}
 
-				if _, fits := guardFit(contentWidth, render, shrink); !fits {
-					displayStart, displayEnd = m.cursorPos, m.cursorPos
-					cursorDisplayPos = -1
-				}
-			} else {
-				// Step 5: scroll so the cursor's character sits at the
-				// right edge of the window; start at the longest unit
-				// suffix of the before-cursor segment that fits.
-				n := unitsSuffixCount(beforeUnits, remaining-cursorWidth)
-				kept := beforeUnits[len(beforeUnits)-n:]
-
-				displayEnd = m.cursorPos + 1
-				if len(kept) > 0 {
-					displayStart = kept[0].start
-				} else {
-					displayStart = m.cursorPos
-				}
-				cursorDisplayPos = m.cursorPos - displayStart
-
-				render := func() string {
-					return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
-				}
-				shrink := func(excess int) bool {
-					if len(kept) == 0 {
-						return false
+					if _, fits := guardFit(contentWidth, render, shrink); !fits {
+						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
+						cursorDisplayPos = -1
 					}
-					kept = trimUnitsFront(kept, excess)
-					if len(kept) > 0 {
-						displayStart = kept[0].start
-					} else {
-						displayStart = m.cursorPos
-					}
-					cursorDisplayPos = m.cursorPos - displayStart
-					return true
-				}
-
-				if _, fits := guardFit(contentWidth, render, shrink); !fits {
-					displayStart, displayEnd = m.cursorPos, m.cursorPos
-					cursorDisplayPos = -1
 				}
 			}
 		}

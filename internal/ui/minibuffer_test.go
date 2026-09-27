@@ -1150,3 +1150,247 @@ func TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs(t *testing.T) {
 	}
 	checkVS16PairingIntact(t, visible)
 }
+
+// --- task0001 (minibuffer-grapheme-scroll-boundary, AC-1..AC-7): the
+// remaining-width>=1 scroll path must place displayStart/displayEnd on
+// grapheme-cluster boundaries, never mid-cluster, so a ZWJ-joined sequence
+// is always shown whole or not at all.
+
+// familyEmoji is the ZWJ-joined family emoji sequence (U+1F468 U+200D
+// U+1F469 U+200D U+1F467 U+200D U+1F466): 7 runes, display width 2.
+const familyEmoji = "\U0001F468‍\U0001F469‍\U0001F467‍\U0001F466"
+
+// scrollBoundaryInput is the task plan's fixture: "aaaaa" + familyEmoji +
+// "bbbbb". 17 runes; familyEmoji sits at rune positions 5-11 (inclusive) and
+// has display width 2; the input's actual display width is 12.
+const scrollBoundaryInput = "aaaaa" + familyEmoji + "bbbbb"
+
+// checkScrollBoundaryFixture is the task plan's premise check (AC-4): it
+// verifies, before any other assertion in the AC-1/AC-2/AC-3/AC-6 tests
+// below, that searchPrompt's display width is 10, scrollBoundaryInput has
+// 17 runes, its actual display width is 12, and familyEmoji's display width
+// is 2. It stops the test immediately (fatal), naming the item, the
+// expected value and the observed value, on the first one that has
+// drifted -- same shape as checkFamilyEmojiFixture/checkVS16Premises above.
+func checkScrollBoundaryFixture(t *testing.T) {
+	t.Helper()
+	if got := lipgloss.Width(searchPrompt); got != 10 {
+		t.Fatalf("test fixture assumption broken: prompt display width = %d, want 10", got)
+	}
+	runes := []rune(scrollBoundaryInput)
+	if got := len(runes); got != 17 {
+		t.Fatalf("test fixture assumption broken: input rune count = %d, want 17", got)
+	}
+	if got := lipgloss.Width(scrollBoundaryInput); got != 12 {
+		t.Fatalf("test fixture assumption broken: input actual display width = %d, want 12", got)
+	}
+	if got := lipgloss.Width(familyEmoji); got != 2 {
+		t.Fatalf("test fixture assumption broken: family emoji display width = %d, want 2", got)
+	}
+}
+
+// assertWholeOrNone is the task plan's "whole or none" check (AC-3, AC-5):
+// visible (an already ANSI-stripped display string) must either contain seq
+// in full, or contain none of seq's runes at all -- anything in between
+// means seq was split across the display window's boundary. Reports a
+// non-fatal failure (so a table test's other subtests still run) when
+// neither holds.
+func assertWholeOrNone(t *testing.T, visible, seq string) {
+	t.Helper()
+	if strings.Contains(visible, seq) {
+		return
+	}
+	for _, r := range seq {
+		if strings.ContainsRune(visible, r) {
+			t.Errorf("sequence %q split at display boundary: got %q", seq, visible)
+			return
+		}
+	}
+}
+
+// TestMinibufferView_ScrollBoundary_CursorAtEnd_KeepsWholeFamilyEmoji is
+// AC-1 (FR1, FR4 / SPEC AC1, TS-1): m.width 24, cursor at the end -- the
+// visible text must contain familyEmoji immediately followed by "bbbbb",
+// and the result must satisfy the single-line condition.
+func TestMinibufferView_ScrollBoundary_CursorAtEnd_KeepsWholeFamilyEmoji(t *testing.T) {
+	checkScrollBoundaryFixture(t)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(searchPrompt)
+	mb.SetWidth(24)
+	mb.SetInput(scrollBoundaryInput)
+	mb.SetCursorPos(len([]rune(scrollBoundaryInput)))
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 24, result)
+
+	visible := stripANSI(result)
+	want := familyEmoji + "bbbbb"
+	if !strings.Contains(visible, want) {
+		t.Errorf("expected visible text to contain %q, got %q", want, visible)
+	}
+}
+
+// TestMinibufferView_ScrollBoundary_CursorAtStart_KeepsWholeFamilyEmoji is
+// AC-2 (FR2, FR4 / SPEC AC2, TS-2): m.width 24, cursor at position 0 -- the
+// visible text must contain "aaaaa" immediately followed by familyEmoji,
+// and the result must satisfy the single-line condition.
+func TestMinibufferView_ScrollBoundary_CursorAtStart_KeepsWholeFamilyEmoji(t *testing.T) {
+	checkScrollBoundaryFixture(t)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(searchPrompt)
+	mb.SetWidth(24)
+	mb.SetInput(scrollBoundaryInput)
+	mb.SetCursorPos(0)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 24, result)
+
+	visible := stripANSI(result)
+	want := "aaaaa" + familyEmoji
+	if !strings.Contains(visible, want) {
+		t.Errorf("expected visible text to contain %q, got %q", want, visible)
+	}
+}
+
+// TestMinibufferView_ScrollBoundary_AllWidthsAndCursors_WholeOrNone is AC-3
+// (FR1, FR2, FR3, FR4 / SPEC AC3, TS-3): for every m.width 15-27 and every
+// cursor position 0-17 (including positions inside familyEmoji, 5-11), the
+// visible text must either contain familyEmoji whole or not at all, and the
+// result must satisfy the single-line condition.
+func TestMinibufferView_ScrollBoundary_AllWidthsAndCursors_WholeOrNone(t *testing.T) {
+	checkScrollBoundaryFixture(t)
+
+	runes := []rune(scrollBoundaryInput)
+	for width := 15; width <= 27; width++ {
+		for pos := 0; pos <= len(runes); pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(searchPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(scrollBoundaryInput)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+
+				visible := stripANSI(result)
+				assertWholeOrNone(t, visible, familyEmoji)
+			})
+		}
+	}
+}
+
+// TestMinibufferView_ScrollBoundary_OtherJoinedGraphemes_WholeOrNone is AC-5
+// (FR1, FR2 / SPEC Edge Cases): the same whole-or-none property, for a
+// regional-indicator flag (U+1F1EF U+1F1F5, the JP flag) and a
+// skin-tone-modified emoji (U+1F44D U+1F3FD), each embedded as "aaaaa" +
+// seq + "bbbbb" with prompt searchPrompt, across m.width 15-27 and every
+// cursor position 0-12.
+//
+// Deviation from the task plan's literal premise (recorded in the task
+// report): the plan requires both sequences' per-rune width sum to exceed
+// their joined width. Measured in this codebase's width basis
+// (lipgloss.Width, backed by github.com/rivo/uniseg): flag sum=4 > joined=2
+// (holds), but skin-tone sum=2 == joined=2 (does not hold) -- U+1F3FD
+// (EMOJI MODIFIER FITZPATRICK TYPE-4) has grapheme property Extend, which
+// uniseg's width algorithm always measures as width 0, both standalone and
+// joined to a base emoji, so no single-base-plus-single-modifier pair can
+// ever satisfy "sum > joined" here. sumExceedsJoined below records the
+// per-sequence expectation actually observed; where false, the mismatch is
+// logged (not asserted fatal), and the whole-or-none grid still runs as a
+// regression guard.
+func TestMinibufferView_ScrollBoundary_OtherJoinedGraphemes_WholeOrNone(t *testing.T) {
+	sequences := []struct {
+		name             string
+		seq              string
+		sumExceedsJoined bool
+	}{
+		{"flag", "\U0001F1EF\U0001F1F5", true},       // regional indicators J, P -> JP flag
+		{"skin-tone", "\U0001F44D\U0001F3FD", false}, // thumbs up + medium skin tone modifier
+	}
+
+	for _, s := range sequences {
+		t.Run(s.name, func(t *testing.T) {
+			joined := lipgloss.Width(s.seq)
+			if joined != 2 {
+				t.Fatalf("test fixture assumption broken: %s joined display width = %d, want 2", s.name, joined)
+			}
+			sum := 0
+			for _, r := range s.seq {
+				sum += lipgloss.Width(string(r))
+			}
+			if s.sumExceedsJoined {
+				if sum <= joined {
+					t.Fatalf("test fixture assumption broken: %s per-rune width sum = %d, want > %d", s.name, sum, joined)
+				}
+			} else {
+				t.Logf("%s: per-rune width sum = %d, joined width = %d (no understatement gap for this pair in this codebase's width basis; see deviation note on this test)", s.name, sum, joined)
+			}
+
+			input := "aaaaa" + s.seq + "bbbbb"
+			runes := []rune(input)
+
+			for width := 15; width <= 27; width++ {
+				for pos := 0; pos <= len(runes); pos++ {
+					t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+						mb := NewMinibuffer()
+						mb.SetPrompt(searchPrompt)
+						mb.SetWidth(width)
+						mb.SetInput(input)
+						mb.SetCursorPos(pos)
+						mb.Show()
+
+						result := mustNotPanic(t, "Minibuffer.View", mb.View)
+						assertBoundedSingleLine(t, width, result)
+
+						visible := stripANSI(result)
+						assertWholeOrNone(t, visible, s.seq)
+					})
+				}
+			}
+		})
+	}
+}
+
+// TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInput
+// is AC-6 (FR3): m.width 15 (remaining width 1), cursor at each rune
+// position inside familyEmoji (5-11) -- the part of the visible text after
+// the prompt must contain no non-space character (the input is not shown
+// at all), and the result must satisfy the single-line condition. The
+// check looks only at the part after the prompt because the prompt itself
+// ("(search): ") contains an 'a'.
+func TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInput(t *testing.T) {
+	checkScrollBoundaryFixture(t)
+
+	for pos := 5; pos <= 11; pos++ {
+		t.Run(fmt.Sprintf("cursor=%d", pos), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(searchPrompt)
+			mb.SetWidth(15)
+			mb.SetInput(scrollBoundaryInput)
+			mb.SetCursorPos(pos)
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, 15, result)
+
+			visible := stripANSI(result)
+			idx := strings.Index(visible, searchPrompt)
+			if idx < 0 {
+				t.Fatalf("prompt not found in visible text: %q", visible)
+			}
+			after := visible[idx+len(searchPrompt):]
+			for _, r := range after {
+				if r != ' ' {
+					t.Errorf("cursor=%d: expected nothing but spaces after the prompt, got %q (full: %q)", pos, after, visible)
+					break
+				}
+			}
+		})
+	}
+}
