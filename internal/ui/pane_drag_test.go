@@ -187,3 +187,84 @@ func markedNames(marks map[string]bool) []string {
 	}
 	return names
 }
+
+// --- AC-7: snapshotDisplayedNames, displayedNamesMatch, existingMarks ---
+
+func TestSnapshotDisplayedNames_IncludesParentAndIsIndependentOfLaterChanges(t *testing.T) {
+	pane := newFilesPane(t, LeftPane, 3, 40, 22, true) // entries: "..", f00, f01, f02
+
+	snapshot := pane.snapshotDisplayedNames()
+
+	want := []string{"..", pane.entries[1].Name, pane.entries[2].Name, pane.entries[3].Name}
+	if len(snapshot) != len(want) {
+		t.Fatalf("snapshot = %v, want %v", snapshot, want)
+	}
+	for i, name := range want {
+		if snapshot[i] != name {
+			t.Errorf("snapshot[%d] = %q, want %q", i, snapshot[i], name)
+		}
+	}
+
+	// Later replacement of the pane's entries must not change the snapshot.
+	pane.entries = []fs.FileEntry{{Name: "different"}}
+	if len(snapshot) != len(want) || snapshot[0] != ".." {
+		t.Error("snapshot changed after replacing pane.entries")
+	}
+}
+
+func TestDisplayedNamesMatch(t *testing.T) {
+	pane := newFilesPane(t, LeftPane, 3, 40, 22, true) // entries: "..", f00, f01, f02
+	original := pane.snapshotDisplayedNames()
+
+	if !pane.displayedNamesMatch(original) {
+		t.Error("identical sequence should match")
+	}
+
+	shorter := original[:len(original)-1]
+	if pane.displayedNamesMatch(shorter) {
+		t.Error("different length should not match")
+	}
+
+	renamed := append([]string(nil), original...)
+	renamed[1] = "different-name"
+	if pane.displayedNamesMatch(renamed) {
+		t.Error("different name at one position should not match")
+	}
+
+	reordered := append([]string(nil), original...)
+	reordered[1], reordered[2] = reordered[2], reordered[1]
+	if pane.displayedNamesMatch(reordered) {
+		t.Error("same names in a different order should not match")
+	}
+
+	// The pane's own entries must be unaffected by any of the above.
+	if !pane.displayedNamesMatch(original) {
+		t.Error("pane entries were mutated by displayedNamesMatch")
+	}
+}
+
+func TestExistingMarks_DropsVanishedKeepsFilterHiddenLeavesInputUnchanged(t *testing.T) {
+	pane := newFilesPane(t, LeftPane, 2, 40, 22, true) // allEntries: "..", f00, f01
+	baseline := map[string]bool{
+		pane.allEntries[1].Name: true, // f00: still exists, still displayed below
+		pane.allEntries[2].Name: true, // f01: still exists, hidden by the filter below
+		"vanished":              true, // absent from allEntries
+	}
+	baselineCopy := make(map[string]bool, len(baseline))
+	for k, v := range baseline {
+		baselineCopy[k] = v
+	}
+
+	// Simulate a filter that hides allEntries[2] (f01) while it stays listed
+	// in allEntries -- the same relationship RefreshDirectoryPreserveCursor's
+	// vanished-mark pruning uses.
+	pane.entries = []fs.FileEntry{pane.allEntries[0], pane.allEntries[1]}
+
+	result := pane.existingMarks(baseline)
+
+	assertMarksEqual(t, result, map[string]bool{
+		pane.allEntries[1].Name: true,
+		pane.allEntries[2].Name: true,
+	})
+	assertMarksEqual(t, baseline, baselineCopy)
+}
