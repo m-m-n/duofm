@@ -1,7 +1,7 @@
 schema_version: 1
 feature: runner-self-test-tmpfile-scope
 phase: create-spec
-status: in_progress
+status: completed
 generation: 1
 base_revision: 08ae97f9512a5b752e921bac389352cd7ac153ae
 last_input_digest: sha256:573351798f4883701fda2c07a26f26945c3db733063715362b6bd34bedff9f5a
@@ -13,7 +13,14 @@ worker_runs:
   status: completed
   input_digest: sha256:573351798f4883701fda2c07a26f26945c3db733063715362b6bd34bedff9f5a
   output_digest: null
-artifacts: []
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: null
+  output_digest: null
+artifacts:
+- path: feature-docs/runner-self-test-tmpfile-scope/SPEC.md
+  sha256: sha256:298a64185fcc32eb2830e7357200e71b408da933ec7308bd1391aa2ad9984595
+  produced_by: create-spec-run-0002
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
