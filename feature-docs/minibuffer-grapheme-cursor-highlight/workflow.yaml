@@ -89,7 +89,8 @@ workflow:
   base_commit: 2697ba82561bbd62a9aa27c98d47033e566af469
   completed_at_commit: b5bd616bc6f08351736ae368949fbcf9c85302a2
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 871393655e508edaf0a6e0cc3edc760077a25aa0
 - id: verify
   status: pending
 - id: retrospect
@@ -123,8 +124,11 @@ tasks:
     branch: em-workflow/minibuffer-grapheme-cursor-highlight/task0001
     notes: null
 review:
-  status: pending
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
+  perspectives: [comprehensive, security, architecture, spec, license, vulnerability]
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor: [comprehensive, security, architecture, spec]
     discretionary:

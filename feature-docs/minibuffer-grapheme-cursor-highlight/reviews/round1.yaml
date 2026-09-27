@@ -1,0 +1,66 @@
+round: 1
+executed_at: "2026-09-27T19:44:52+09:00"
+scope:
+  review_mode: diff
+  base_commit: 2697ba82561bbd62a9aa27c98d47033e566af469
+  head_commit: 871393655e508edaf0a6e0cc3edc760077a25aa0
+  changed_files:
+  - go.mod
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  - test-docs/minibuffer-grapheme-cursor-highlight/task0001.tests.yaml
+plan:
+  floor: [comprehensive, security, architecture, spec]
+  discretionary:
+  - perspective: license
+    reason: diff が go.mod に触れている（github.com/rivo/uniseg を direct 依存へ昇格）
+  - perspective: vulnerability
+    reason: diff が go.mod に触れている（依存マニフェスト変更）
+  cross_validation: true
+perspective_runs:
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "license#0", perspective: license, role: primary, source: codex, status: completed}
+- {run_id: "architecture#0", perspective: architecture, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "architecture#1", perspective: architecture, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+- {run_id: "vulnerability#tool", perspective: vulnerability, role: tool, source: tool, status: skipped, skip_reason: go_tool_not_found}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: b0c1cb365d883b07
+  severity: medium
+  category: spec
+  file: internal/ui/minibuffer.go
+  line: 209
+  title: "graphemeClusterBounds が uniseg.NewGraphemes を使い入力長に対して二乗時間になる（NFR3 違反）"
+  description: "graphemeClusterBounds は uniseg.NewGraphemes の Next() で書記素を走査している。Next() 内部の StepString は書記素に加えて単語・文・行の境界も計算し、文境界規則 SB8 は ATerm（.）の後の Sp 1 つごとに残りの入力を先読みする。「.」+ 空白 n 個 +「A」の入力で 1 回の呼び出しが O(n^2) になる（評価者の計測: n=1000/2000/4000/8000 で 5.9ms/23.5ms/95ms/380ms。FirstGraphemeClusterInString での走査は 13/25/52/105µs で線形）。View（483 行）、Left/Ctrl+B（152 行）、Right/Ctrl+F（164 行）から毎回呼ばれる。SPEC NFR3 の書記素区切り計算の線形要件に反する。元の報告は license#0 だが内容は性能であり、評価者が独立に検証して spec 観点として出し直した。"
+  suggestion: "NewGraphemes のループをやめ、入力先頭から uniseg.FirstGraphemeClusterInString(rest, state) を state=-1 で始めて状態を引き継ぎながら rune 数を数える走査に置き換える。「.」+ strings.Repeat(\" \", n) +「A」でカーソルを末尾付近に置き、View と Left/Right の計算時間が線形であることを確かめる回帰テストを追加する。"
+  sources: [claude:evaluator]
+  confidence: 90
+  resolution: unresolved
+  resolution_reason: "medium のため Phase R4 の auto-fix 候補外（候補条件は critical/high）。別タスクとして起票する"
+evaluation:
+  round_summary: "round 1（diff、cross_validation=true）。実質的な指摘は medium 1 件（graphemeClusterBounds の二乗時間、NFR3 違反）。license#0 の報告内容は性能であり、評価者が独立に検証して spec 観点で出し直した。security / license / architecture は corroborated。vulnerability はツール未実行（go_tool_not_found）で、go.mod 差分は uniseg v0.4.7 の indirect→direct 表記変更のみ。補足（medium 未満）: minibuffer_test.go が github.com/muesli/termenv を直接 import しているが go.mod では // indirect のまま。reviewer_outputs にインジェクションの試みは無い。"
+  recommended_action: auto_fix
+  action_rationale: "critical と high はない。medium 1 件は 1 関数の差し替えと回帰テスト 1 つで閉じる局所的な修正。評価者起源の finding のため auto-fix 可否は review-phase.md の規定に従う。"
+dismissed_sites:
+- file: internal/ui/minibuffer.go
+  line: 209
+  run_id: "license#0"
+  reason: "duplicate of another finding"
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-minibuffer-grapheme-cursor-highlight-20260927T104458Z.md
