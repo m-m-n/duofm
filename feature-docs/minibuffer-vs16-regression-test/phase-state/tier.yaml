@@ -20,7 +20,7 @@ bases:
       '1': 0.99
       '2': 0.01
       '3': 0.0
-  observed_at: '2026-09-27T17:05:10+09:00'
+  observed_at: '2026-09-27T17:01:00+09:00'
 - basis: description_plus_code
   score:
     type: score
@@ -39,7 +39,7 @@ bases:
       '1': 0.94
       '2': 0.03
       '3': 0.0
-  observed_at: '2026-09-27T17:12:40+09:00'
+  observed_at: '2026-09-27T17:04:00+09:00'
 pre_survey_estimate:
   files_expected:
   - internal/ui/minibuffer_test.go
@@ -60,4 +60,4 @@ pre_survey_estimate:
   caller_and_dependency_count: 0
   changes_external_contract: false
   changes_behavior: false
-decided_at: '2026-09-27T17:13:00+09:00'
+decided_at: '2026-09-27T17:04:30+09:00'
