@@ -1,0 +1,84 @@
+feature: runner-self-test-tmpfile-scope
+collected_at: '2026-09-27T20:40:00+09:00'
+session_ids:
+- 01a0e299-fab4-75a6-a53a-a04dd8ed24e6
+- 01a0e2a6-694c-77c3-8d73-5017c3eab584
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses:
+  - task: task0001
+    files:
+    - test-docs/runner-self-test-tmpfile-scope/task0001.tests.yaml
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: reduced
+    rationale: description_plus_code の最終読みで bucket 1 が 0.94（score 1.06）となり、変更は runner_self_test.sh
+      単一ファイルの修正と回帰テスト 1 件に閉じるため reduced を採用
+    bases:
+    - basis: description_only
+      score:
+        type: score
+        score: 1.0
+        confidence: 0.99
+        legend:
+          '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+          '1': A rule addition combined with a test addition, or a small change spread
+            across a few files together with a small test change.
+          '2': New logic, a change reaching across several modules, or a change to
+            an external contract.
+          '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+            or a change to the architecture.'
+        probabilities:
+          '0': 0.0
+          '1': 1.0
+          '2': 0.0
+          '3': 0.0
+      observed_at: '2026-09-27T19:49:00+09:00'
+    - basis: description_plus_code
+      score:
+        type: score
+        score: 1.06
+        confidence: 0.93
+        legend:
+          '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+          '1': A rule addition combined with a test addition, or a small change spread
+            across a few files together with a small test change.
+          '2': New logic, a change reaching across several modules, or a change to
+            an external contract.
+          '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+            or a change to the architecture.'
+        probabilities:
+          '0': 0.0
+          '1': 0.94
+          '2': 0.06
+          '3': 0.0
+      observed_at: '2026-09-27T19:51:30+09:00'
+    pre_survey_estimate:
+      files_expected:
+      - test/e2e/scripts/runner_self_test.sh
+      changed_lines_approx: 2
+      new_functions_needed: 0
+      new_files_needed: 0
+      new_dependencies_needed: []
+      covering_tests_exist: false
+      spillover_modules: []
+      work_still_required: true
+      work_still_required_evidence: main HEAD 17f60d9 の test/e2e/scripts/runner_self_test.sh:100、:107
+        に引数なしの mktemp が残っている。:27 で SELF_TMPDIR を作成し、:29 の削除対象もそのディレクトリだけ。既存テストに作成先の検証はなく、test-docs/e2e-unregistered-test-file-guard/task0001.tests.yaml:26
+        でも該当項目の tests は空。変更行数2・新規関数数0は本体修正のみを指し、回帰テストの実装量は未確定。呼び出し元・依存数9は同スクリプト:147、:193、:233、:280
+        の4関数と、apply_fixture_lists 内の外部コマンド5種類。ファイル変更・テスト実行はしていない
+      test_change_kind: new_behavior_tests
+      added_test_cases_approx: 1
+      body_change_kind: new_logic
+      change_containment: single_module
+      caller_and_dependency_count: 9
+      changes_external_contract: false
+      changes_behavior: true
+follow_up_drafts: []
+lessons_candidates:
+- file_prediction_misses の task0001 は、implementer 報告が残っていないため integration の差分（base_commit..merge）から、計画の
+  files に無い test-docs/…/task0001.tests.yaml を検出して記録した。test-docs の登録ファイルは e2e-unregistered-test-file-guard
+  由来で、計画側の files 予測に含めるべき候補

@@ -104,7 +104,8 @@ workflow:
   summary: build / go test / gofmt (no diff) / runner self-test TS-1..TS-6 PASS / MUT-1 both sites FAIL+exit1 then restored / whole-run write scope empty / E2E 264 passed 0 failed with TS-6 in container / NFR2 & NFR3 inspection OK
   completed_at_commit: 89e2a0bfa08d88a0c66ae309b7316a5e5c41c7e4
 - id: retrospect
-  status: pending
+  status: completed
+  completed_at_commit: e97165c4d60d500344d1dd7d521961d2d4bfcac6
 tasks:
   task0001:
     title: Keep runner self-test temporary files inside SELF_TMPDIR and add regression scenario TS-6
