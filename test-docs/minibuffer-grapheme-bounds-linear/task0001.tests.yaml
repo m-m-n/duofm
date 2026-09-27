@@ -1,0 +1,32 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (4a)
+final_failures: []             # go test ./... fully green after implementation (re-run)
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferView_PeriodThenSpaces_LinearTime]
+    red_confirmed: true
+    red_reason: "runViewTimed: \"Minibuffer.View did not return within 10s\" against the pre-change (uniseg.NewGraphemes-based) locator"
+  AC-2:
+    tests: [TestMinibufferHandleKey_PeriodThenSpaces_LeftLike_LinearTime]
+    red_confirmed: true
+    red_reason: "runHandleKeyTimed: \"Minibuffer.HandleKey(left) did not return within 10s\" and \"Minibuffer.HandleKey(ctrl+b) did not return within 10s\" against the pre-change locator"
+  AC-3:
+    tests: [TestMinibufferHandleKey_PeriodThenSpaces_RightLike_LinearTime]
+    red_confirmed: true
+    red_reason: "runHandleKeyTimed: \"Minibuffer.HandleKey(right) did not return within 10s\" and \"Minibuffer.HandleKey(ctrl+f) did not return within 10s\" against the pre-change locator"
+  AC-4:
+    tests: [TestMinibufferView_PeriodThenSpaces_LinearTime, TestMinibufferHandleKey_PeriodThenSpaces_LeftLike_LinearTime, TestMinibufferHandleKey_PeriodThenSpaces_RightLike_LinearTime]
+    red_confirmed: true
+    red_reason: "All three AC-1..AC-3 tests, run against the unmodified locator with the fixture at the full 100000-space size, failed by exceeding linearTimeLimit (10s each, ~50s total for the 5 sub-cases) rather than completing quickly; the fixture size was not reduced"
+  AC-5:
+    tests: [TestGraphemeClusterBounds_ThreeRegionalIndicatorsPlusLetter, TestGraphemeClusterBounds_ZWJFamilySequencePlusLetters, TestGraphemeClusterBounds_OutOfRangeP]
+    red_confirmed: false
+    red_reason: "Ran these three tests against the pre-change locator (uniseg.NewGraphemes) before implementing the fix: all passed already. The locator's contract (FR2) requires the result set to be unchanged, and uniseg.NewGraphemes and uniseg.FirstGraphemeClusterInString apply the same underlying Unicode segmentation rules, so the pre-change locator already produced the same bounds for regional-indicator pairing, the ZWJ sequence, and out-of-range p. This criterion is a refactor with no observable behavior change; no red state occurred or was possible for it."
+  AC-6:
+    tests: [TestMinibufferHandleKey_GraphemeMovement_FamilyEmoji, TestMinibufferHandleKey_GraphemeMovement_TableDriven, TestMinibufferHandleKey_GraphemeMovement_SetCursorInsideCluster, TestMinibufferHandleKey_GraphemeMovement_EmptyInput, TestMinibufferView_FamilyEmoji_SingleReversedRunWholeCluster, TestMinibufferView_InsertionLeavesCursorInsideCluster_ReversesWholeCluster, TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth, TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth, TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth, TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth, TestMinibufferView_TS7_JoinedSequenceGuard]
+    red_confirmed: false
+    red_reason: "These are the pre-existing equivalence-oracle tests named in the task plan's Test Notes (grapheme movement, whole-cluster reverse, TS1-4, TS7), left unmodified per the task plan. They were already green before this task's implementation (baseline_failures is empty) and are required to remain green after (final_failures is empty); there is no meaningful pre-implementation red state for a non-regression guard over unmodified tests."
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: "AC-7 is a final static/build gate (go test ./..., go vet ./..., gofmt -l ., go.mod/go.sum unchanged) over the completed change, not a feature with a pre-implementation red state to observe. Verified after implementation: go build ./... succeeded, go vet ./... reported nothing, gofmt -l . listed no file, and git status shows only internal/ui/minibuffer.go and internal/ui/minibuffer_test.go modified (go.mod/go.sum untouched)."
