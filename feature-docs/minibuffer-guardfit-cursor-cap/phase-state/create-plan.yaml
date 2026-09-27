@@ -1,11 +1,11 @@
 schema_version: 1
 feature: minibuffer-guardfit-cursor-cap
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: 6b5f93f8124d171570a2fedb962335d0fc6bd2c9
 last_input_digest: sha256:259c634a4301d395c557cb50e392e037c7208f6ee94e83d08fb0b3a4df8d9047
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
