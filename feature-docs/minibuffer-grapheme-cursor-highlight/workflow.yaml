@@ -1,0 +1,191 @@
+schema_version: 1
+feature: minibuffer-grapheme-cursor-highlight
+created: '2026-09-27'
+base_branch: main
+goal: |
+  # ミニバッファのカーソルが書記素の途中にあると結合文字列が分かれて描画される
+
+  Notion タスク: https://www.notion.so/3e73509ec8ee8184bccee4950aecc8d5 （種別: バグ）
+
+  ## 現象 (必須)
+  ミニバッファのカーソルが書記素（ZWJ 連結の絵文字など）の途中の rune にあるとき、カーソル位置の rune だけを反転表示するため、結合文字列が分かれて描画される。結合が分かれると描画幅も増えるため、収まっていた入力が縮小ループで切り詰められることもある。
+  minibuffer-zwj-cursor-end-scroll（PR #10）では、カーソル位置の rune だけを反転表示する既存の描画は変えないことにした（SPEC の前提 a4）。
+
+  ## 再現手順 (必須)
+  1. ミニバッファを開く
+  2. 家族の絵文字（U+1F468 U+200D U+1F469 U+200D U+1F467 U+200D U+1F466）を入力する
+  3. カーソルを左へ 1 つずつ動かし、絵文字を構成する rune の途中に置く
+
+  ## 期待する挙動 (必須)
+  カーソルは書記素単位で移動するか、書記素の途中にあっても書記素全体を 1 つのまとまりとして反転表示し、結合文字列を分けて描画しない。
+
+  ## 完了の定義 (必須)
+  - [ ] 再現手順で現象が起きない
+  - [ ] 再発を検出するテストがある
+
+  ## 該当箇所 (任意)
+  `internal/ui/minibuffer.go`（カーソル移動と View のカーソル位置の反転表示）
+
+  ## 実害・発生条件 (任意)
+  入力に ZWJ 連結などの結合文字列が含まれ、カーソルをその内部に移動したとき。
+
+  ## 追加指示（起動引数）
+  - 実装完了後、integration ブランチを remote に push し、gh pr create で base_branch への PR を作成する。integration ブランチはローカル・remote 両方に残す（base_branch へ自動マージしない）
+  - 不明点は Codex に相談し、比較して良いと判断した案を採用する
+  - その議論内容を Notion に記録する
+parent_branch: em-workflow/minibuffer-grapheme-cursor-highlight/integration
+tier: full
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.0
+      '1': 0.72
+      '2': 0.27
+      '3': 0.01
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.0
+      '1': 0.64
+      '2': 0.35
+      '3': 0.01
+  at: '2026-09-27T18:40:03+09:00'
+  reductions: []
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: make build
+      test_command: go test ./...
+      format_command: gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - REQUIREMENTS.md
+  - SPEC.md
+  status: completed
+  completed_at_commit: ab67c3236484195afdd9c2fb61d0608fc16a3be6
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: 既存の反転表示（lipgloss Reverse）を使う不具合修正で、新しい見た目の要素を加えない（create-spec.design-step = decide_autonomously の推奨 skip）
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: pending
+- id: implement
+  status: pending
+- id: review
+  status: pending
+- id: verify
+  status: pending
+- id: retrospect
+  status: pending
+tasks: {}
+review:
+  status: pending
+  rounds_completed: 0
+requirements:
+  FR1:
+    title: 書記素単位のカーソル移動
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS1
+    - TS2
+    - TS3
+    - TS4
+    - TS5
+    - TS10
+  FR2:
+    title: カーソルを含む書記素全体の反転表示
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS5
+    - TS10
+  FR3:
+    title: 収まる入力の非切り詰め
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS6
+  FR4:
+    title: スクロール時のカーソルの書記素
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS7
+    - TS10
+  FR5:
+    title: 編集操作は変えない
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS9
+    - TS10
+  NFR1:
+    title: 1 行・幅上限
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS8
+    - TS9
+    - TS10
+  NFR2:
+    title: 表示幅と書記素区切りの基準
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS9
+    - TS10
+  NFR3:
+    title: 計算量
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS9
+    - TS10
+  NFR4:
+    title: 依存
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests:
+    - TS9
+    - TS10
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 0
+    failed_id_counts: {}
+  infra_resume:
+    rounds: 0
+    cap: 2
