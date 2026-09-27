@@ -111,19 +111,15 @@ workflow:
   status: completed
   completed_at_commit: 8397575cd3abad215f412f215e10cab8b673d59e
 - id: verify
-  status: in_progress
-  result: fail
-  failed_items:
-  - id: AC-6
-    category: spec
-    note: assert_input_field_value の照合式 '│[[:space:]]*base[[:space:]]*│[[:space:]]*\.txt' が行内の任意の │ から一致を始めるため、入力値が
-      x│before_rename / │before_rename（navren_before も同様）でも合格する（模擬行で再現）。AC-6（入力欄内で基底名の前後に空白以外の余分な文字を許さない）を満たさない。review
-      round2 の未解決 medium 指摘 7f5017c72dd1dcab / 4db551c190612b80 と同根
-  summary: 'round 2 (after rework task0002): build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
+  status: completed
+  completed_at_commit: 2ed9d6b4ad04532e9a65afebc4b6a039d298e1cb
+  result: pass
+  failed_items: []
+  summary: 'round 3 (after rework task0003): build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
     --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) / TS-2 (a)(b) and TS-5 (a)(b)(c)
-    mutations each fail exactly both initial-value checks / TS-4 no *.go or helpers.sh diff / AC-6 source inspection
-    fails: an input value containing a border character before the base name (x│before_rename) is accepted. Excluded
-    requirements: none'
+    mutations each fail exactly both initial-value checks / TS-4 no *.go or helpers.sh diff / TS-6 simulated-row
+    script: base name passes, all 12 border/extra-character/empty/full-name values fail for both base names, counters
+    +1 each / AC-1, AC-6 source inspection pass (pattern anchored at row start and end). Excluded requirements: none'
 - id: retrospect
   status: pending
 tasks:
