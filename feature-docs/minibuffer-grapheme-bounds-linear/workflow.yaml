@@ -119,7 +119,7 @@ tasks:
     - NFR1
     - NFR2
     - NFR3
-    status: in_progress
+    status: merged
     branch: em-workflow/minibuffer-grapheme-bounds-linear/task0001
     notes: null
 review:
