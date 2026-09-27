@@ -1,11 +1,11 @@
 schema_version: 1
 feature: minibuffer-grapheme-scroll-boundary
 phase: create-plan
-status: initialized
+status: dispatching
 generation: 1
 base_revision: 00f512fe1fb62cdc517a9c73f4201e0ff0ae73d1
-last_input_digest: null
-active_request_id: null
+last_input_digest: sha256:279f879afa54ae08b36649b4dd50a680ab7f13262a53d5ae43ef1378af45bb07
+active_request_id: create-plan-run-0001
 packets: {}
 answers: {}
 worker_runs: []
