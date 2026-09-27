@@ -96,7 +96,7 @@ workflow:
   base_commit: ff215f7a8b8a737ddf1ca633e720d00e3ad02a63
   completed_at_commit: a06175f6a1e493354dd337afb5a71ba2b848228d
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
 - id: retrospect
@@ -124,7 +124,16 @@ tasks:
     branch: em-workflow/minibuffer-grapheme-bounds-linear/task0001
     notes: null
 review:
-  status: pending
+  status: in_progress
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary:
+    - perspective: performance
+      reason: 差分の目的が書記素区切り計算の計算量（二乗→線形）の修正であり、線形時間の回帰テストの妥当性も含めて性能観点の確認が必要なため
+    cross_validation: false
 requirements:
   FR1:
     title: 線形走査による書記素区切り
