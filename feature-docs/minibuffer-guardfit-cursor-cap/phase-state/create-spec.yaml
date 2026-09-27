@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-guardfit-cursor-cap
+phase: create-spec
+status: in_progress
+generation: 1
+base_revision: f268f55b081bee16563cf580200e7e05fd562999
+last_input_digest: sha256:e72b7488962dbd62feae603797c9a9ad2028c62140a5c84f6e607345ac73485b
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: running
+  input_digest: sha256:e72b7488962dbd62feae603797c9a9ad2028c62140a5c84f6e607345ac73485b
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
