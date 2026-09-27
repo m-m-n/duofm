@@ -204,14 +204,24 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 // sequences), so re-segmenting a sub-slice could disagree with the whole
 // input's clustering. Precondition: 0 <= p < len(runes) (the end position
 // has no cluster; callers never ask about it). This is a single forward
-// pass that stops as soon as the containing cluster is found, so it is
-// linear in the input length (GD5); byte offsets never leave this
-// function.
+// pass over uniseg.FirstGraphemeClusterInString's grapheme-cluster-only
+// stepping (the same function partitionUnits uses), carrying the returned
+// state into the next step -- never resetting it to the "unknown" value
+// between clusters -- so context-dependent clustering matches whole-input
+// segmentation exactly as before. The combined-boundary iterator
+// (uniseg.NewGraphemes), which also computes word/sentence/line boundaries
+// on every step and made this function quadratic on inputs like "." + many
+// spaces + a letter, is no longer used here. The scan stops as soon as the
+// containing cluster is found, so it is linear in the input length (GD5);
+// byte offsets never leave this function.
 func graphemeClusterBounds(runes []rune, p int) (start, end int) {
-	gr := uniseg.NewGraphemes(string(runes))
+	rest := string(runes)
 	pos := 0
-	for gr.Next() {
-		clusterLen := len(gr.Runes())
+	state := -1
+	for len(rest) > 0 {
+		var cluster string
+		cluster, rest, _, state = uniseg.FirstGraphemeClusterInString(rest, state)
+		clusterLen := utf8.RuneCountInString(cluster)
 		if p < pos+clusterLen {
 			return pos, pos + clusterLen
 		}
