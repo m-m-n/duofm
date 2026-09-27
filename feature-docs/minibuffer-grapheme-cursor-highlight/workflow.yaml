@@ -125,6 +125,14 @@ tasks:
 review:
   status: pending
   rounds_completed: 0
+  plan:
+    floor: [comprehensive, security, architecture, spec]
+    discretionary:
+    - perspective: license
+      reason: diff が go.mod に触れている（github.com/rivo/uniseg を direct 依存へ昇格）
+    - perspective: vulnerability
+      reason: diff が go.mod に触れている（依存マニフェスト変更）
+    cross_validation: true
 requirements:
   FR1:
     title: 書記素単位のカーソル移動
