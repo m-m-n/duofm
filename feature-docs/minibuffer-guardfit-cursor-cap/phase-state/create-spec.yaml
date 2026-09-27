@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-guardfit-cursor-cap
 phase: create-spec
-status: in_progress
+status: completed
 generation: 1
 base_revision: f268f55b081bee16563cf580200e7e05fd562999
 last_input_digest: sha256:599670e8c58ae8e7520fd252f16fe33c5acb5c189c87820f6a2f51e92a3a7c57

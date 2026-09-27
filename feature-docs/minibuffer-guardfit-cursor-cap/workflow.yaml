@@ -1,0 +1,156 @@
+schema_version: 1
+feature: minibuffer-guardfit-cursor-cap
+created: '2026-09-28'
+base_branch: main
+goal: |
+  # ミニバッファの guardFit が再計測上限に達すると、単独なら収まるカーソルまで消える
+
+  Notion タスク: https://www.notion.so/3e83509ec8ee81a7ae62e70d1b56dae5 （種別: バグ）
+
+  ## 現象 (必須)
+  ミニバッファの表示範囲を決める guardFit が、組み立てた行の再計測上限（3 回）で幅に収まらないとき、単独なら収まるカーソル文字／カーソルブロックまで非表示になる。
+  minibuffer-shrink-loop-linear の review round1 で未解決のまま残った medium 指摘（stable_id `9925cb2f380c82a9`）。SPEC FR3・IMPLEMENTATION.md CD4（カーソルの可視性を維持する）からの逸脱。
+  PR: https://github.com/m-m-n/duofm/pull/14
+
+  ## 再現手順 (必須)
+  1. 幅の見積もりが実測より小さくなる文字（ZWJ 絵文字や VS16 付き絵文字など）を多く含む入力をミニバッファに入れる
+  2. guardFit の補正が 3 回で収束しない状態にする
+
+  ## 期待する挙動 (必須)
+  再計測上限に達した場合でも、カーソル単独で幅に収まるならカーソルは表示される。
+
+  ## 完了の定義 (必須)
+  - [ ] 再現手順で現象が起きない
+  - [ ] 再発を検出するテストがある
+
+  ## 該当箇所 (任意)
+  `internal/ui/minibuffer.go:558` 付近（`internal/ui/minibuffer.go:493` / `:558` / `:594` の 3 経路）
+
+  ## 実害・発生条件 (任意)
+  幅の見積もりと実測が大きくずれる文字を含む入力のときだけ起きる。
+
+  ## 追加指示
+  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作成する。integration ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）。
+  - 不明点は Codex に相談し、相対的に良いと判断した案を採用する。その議論内容を Notion に記録する。
+parent_branch: em-workflow/minibuffer-guardfit-cursor-cap/integration
+tier: reduced
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.0
+      '1': 0.97
+      '2': 0.03
+      '3': 0.0
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  at: '2026-09-28T07:56:11+09:00'
+  reductions:
+  - REQUIREMENTS.md
+  - design step
+  - IMPLEMENTATION.md (only when no two tasks declare the same file)
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - SPEC.md
+  status: completed
+  completed_at_commit: 6f83deec50f0a655910b1ce337630632b99b8110
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: reduced tier で design step を削減。加えて既存のミニバッファ描画の縮退処理の不具合修正で、画面要素や見た目の追加・変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: pending
+- id: implement
+  status: pending
+- id: review
+  status: pending
+- id: verify
+  status: pending
+- id: retrospect
+  status: pending
+tasks: {}
+review:
+  status: pending
+  rounds_completed: 0
+requirements:
+  FR1:
+    title: 再計測上限に達したときはカーソル単独に縮める
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR2:
+    title: カーソル単独でも収まらないときは入力を表示しない
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR3:
+    title: 既存の事後条件の維持
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR4:
+    title: 再発を検出するテスト
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR1:
+    title: 変更範囲
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR2:
+    title: 線形時間の維持
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR3:
+    title: 既存テストの維持
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 0
+    failed_id_counts: {}
+  infra_resume:
+    rounds: 0
+    cap: 2
