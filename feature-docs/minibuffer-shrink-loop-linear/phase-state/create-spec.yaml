@@ -1,11 +1,11 @@
 schema_version: 1
 feature: minibuffer-shrink-loop-linear
 phase: create-spec
-status: in_progress
+status: completed
 generation: 1
 base_revision: 9ad9ab8b4ba0d1dda0304937da051c32a2286221
-last_input_digest: sha256:512eba8a03030a3eefed7e67e76dae7a8e434cc596cc600f65e5a3911fd1d4cf
-active_request_id: create-spec-run-0003
+last_input_digest: sha256:b0cc84b00b488a90a161e73ac5c61f87df1b484b34e6cbbbe2e09cbd1c7d294f
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
@@ -81,6 +81,16 @@ answers:
     freeform: null
     normalized_answer: requirements-analyst の design_step_recommendation（skip）を採用する。View 内部の表示範囲の計算量の修正で、画面要素や見た目の追加・変更がない。
     resolution_note: 'gate: create-spec.design-step; batch policy decide_autonomously'
+  create-spec.design-system:
+    packet_id: null
+    answered_at: '2026-09-27T14:59:10+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - top_candidate_or_none
+    freeform: null
+    normalized_answer: 'project.design_system を kind: project_native、paths: [internal/ui/theme.go] に確定する（候補は theme.go の 1 件）。'
+    resolution_note: 'gate: create-spec.design-system; batch policy top_candidate_or_none; design step は skipped だが候補が 1 件あるため 11a の例外に当たらず policy を適用'
 worker_runs:
 - request_id: create-spec-run-0001
   status: needs_user_input
@@ -90,7 +100,17 @@ worker_runs:
   status: completed
   input_digest: sha256:512eba8a03030a3eefed7e67e76dae7a8e434cc596cc600f65e5a3911fd1d4cf
   output_digest: sha256:a6c5bfad04ca9c22a3e16f4591c84735243e70d96ed5cd08c73f6a930ac8aa78
-artifacts: []
+- request_id: create-spec-run-0003
+  status: completed
+  input_digest: sha256:b0cc84b00b488a90a161e73ac5c61f87df1b484b34e6cbbbe2e09cbd1c7d294f
+  output_digest: null
+artifacts:
+- path: feature-docs/minibuffer-shrink-loop-linear/REQUIREMENTS.md
+  sha256: sha256:3482d42dc2d72dbf73f5f5b4b734a10b4d0e20b6a2cbbddab8d6f9ecfccffdcc
+  produced_by: create-spec-run-0003
+- path: feature-docs/minibuffer-shrink-loop-linear/SPEC.md
+  sha256: sha256:ccd7d893550d7fc8d0bd9cc32fcf577d973c789eb9aa5ba04d87c18a4f68ae37
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
