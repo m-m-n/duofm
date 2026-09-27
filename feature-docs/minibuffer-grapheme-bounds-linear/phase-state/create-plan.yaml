@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-grapheme-bounds-linear
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: d3259ba1c078a5d91e96ad1e9786a8825de55c36
+last_input_digest: sha256:eb472721c964f5ba3cc6158e0516e443ad26ced380e6ed3b8e58bc743786d015
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:eb472721c964f5ba3cc6158e0516e443ad26ced380e6ed3b8e58bc743786d015
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
