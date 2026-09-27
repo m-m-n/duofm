@@ -1,20 +1,56 @@
 schema_version: 1
 feature: minibuffer-shrink-loop-linear
 phase: create-plan
-status: dispatching
+status: applying_patch
 generation: 1
 base_revision: e331ede326ad74b5b1127847e4c7f353067ec3f5
 last_input_digest: sha256:059fe65383d1c8979a3918fffb0f97998e0610ee035be5add0dc45a09c7e07e7
 active_request_id: create-plan-run-0001
 packets: {}
-answers: {}
+answers:
+  plan.grapheme-unit-approach:
+    packet_id: null
+    answered_at: '2026-09-27T15:24:17+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - width_units_with_guard
+    freeform: null
+    normalized_answer: 幅単位（正の幅の rune + 後続の幅 0 rune）で見積もり、組み立てた行を lipgloss.Width で 1 回実測し、はみ出したら最大 3 回まで削って再実測する。go.mod は変更しない。
+    resolution_note: 'gate: create-plan planner assumption (IMPLEMENTATION.md CD2/CD4); options: A 幅単位の見積もり+lipgloss.Width で1回実測+最大3回の補正（go.mod 変更なし） / B rivo/uniseg を直接 import して UAX#29 書記素で1パス（go.mod
+      の indirect が外れる）; chosen: A; codex_consulted: true (1 turn); opus_escalation: false; key points: Codex は NFR1（変更範囲は minibuffer.go と minibuffer_test.go）を守るなら A と判断。B は書記素分割の精度で優れるが NFR1 の改訂が必要。A も単位ごとの計測1回・行全体の再計測を定数回に制限すれば線形。はみ出しは組み立て後の実測で防げ、B
+      でもプロンプトとの接合やカーソル装飾後の実測は要る。残るリスク: ZWJ 絵文字などの過大評価による表示欠け、3回の補正に収束の証明がないこと、カーソルのみへの縮退で周辺表示を失うこと。全文が収まる場合の保持と最後の退避結果まで幅・カーソル可視性をテストで確かめる。'
+  plan.nfr2-threshold:
+    packet_id: null
+    answered_at: '2026-09-27T15:24:17+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - two_seconds
+    freeform: null
+    normalized_answer: NFR2 の検証目安は -race で TS-1..TS-4 の各 View 所要時間 2 秒以下。失敗の期限は 10 秒のまま。
+    resolution_note: 'gate: create-plan planner assumption (IMPLEMENTATION.md Open Questions, NFR2); options: -race で各 TS-1..TS-4 の View 所要時間 2 秒以下 / 別の値; chosen: 2 秒以下（上限 10 秒の 1/5）; codex_consulted: true
+      (1 turn); opus_escalation: false; key points: Codex は 5 倍の余裕を取る検証目安として妥当と判断。対象は各ケースの View 所要時間でビルドやテスト全体の時間ではない。未実測のため、環境と複数回の実測値を記録し、失敗の期限は SPEC どおり 10 秒に保つ。2 秒以内の結果だけでは線形性の証明にならない。'
 worker_runs:
 - request_id: create-plan-run-0001
-  status: dispatched
+  status: completed
   input_digest: sha256:059fe65383d1c8979a3918fffb0f97998e0610ee035be5add0dc45a09c7e07e7
-  output_digest: null
-artifacts: []
-patches: []
+  output_digest: sha256:f5f868b639d9cb55df00b165aeb7d49cacb645a60fd4b23f19209651c976d37c
+artifacts:
+- path: feature-docs/minibuffer-shrink-loop-linear/IMPLEMENTATION.md
+  sha256: sha256:fb954a4531b988062b8cf9adf9d5dd2c4f8b2453dd4a03838a50dac2d84e7d16
+  produced_by: create-plan-run-0001
+- path: feature-docs/minibuffer-shrink-loop-linear/VERIFICATION.md
+  sha256: sha256:196519f5f67adde369a8b318d9d2e53c1caa0fe44384c2ac7cfcc39db78ca44d
+  produced_by: create-plan-run-0001
+- path: feature-docs/minibuffer-shrink-loop-linear/tasks/task0001.md
+  sha256: sha256:82315c707969de8b09a9627d9a00300f7428b62106e04714e3eef3be09fc27cd
+  produced_by: create-plan-run-0001
+patches:
+- patch_id: create-plan-p0001
+  status: validated
+  base_input_digest: sha256:059fe65383d1c8979a3918fffb0f97998e0610ee035be5add0dc45a09c7e07e7
+  base_workflow_blob: 683dd4098c08a7c347c24da39f2881e19047f2df
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
