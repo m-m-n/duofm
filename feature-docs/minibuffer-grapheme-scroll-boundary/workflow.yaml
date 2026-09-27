@@ -118,7 +118,7 @@ tasks:
     - FR4
     - NFR1
     - NFR2
-    status: in_progress
+    status: merged
     notes: null
     branch: em-workflow/minibuffer-grapheme-scroll-boundary/task0001
 review:
