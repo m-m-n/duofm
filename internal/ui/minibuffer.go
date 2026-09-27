@@ -196,16 +196,29 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 	return false
 }
 
-// runeDisplayWidths returns, for each rune in runes, that rune's own display
-// width as measured by lipgloss. This is used only to pick an initial
-// candidate window; it is NOT a reliable upper bound on the rendered width
-// of the resulting grapheme clusters. Some combining sequences (e.g. a
-// rune followed by U+FE0F, variation selector-16) render wider than the sum
-// of their individual rune widths, so any window chosen from this per-rune
-// budget must still be verified (and shrunk if necessary) by measuring the
-// actually assembled string with lipgloss.Width (see the shrink loop in
-// View).
-func runeDisplayWidths(runes []rune) []int {
+// widthUnit is a width unit per IMPLEMENTATION.md CD2: a maximal run of
+// runes that starts with a rune whose own width is positive and continues
+// through every immediately following rune whose own width is zero (or, at
+// the very start of a segment, a leading run of zero-width runes). start/end
+// are rune offsets into the ORIGINAL rune slice the segment came from (see
+// partitionUnits' offset parameter), so a unit's bounds can be sliced
+// directly without further translation. width is the unit's own text
+// measured with the width basis exactly once.
+type widthUnit struct {
+	start, end int
+	width      int
+}
+
+// ownWidths returns, for each rune in runes, that rune's own display width
+// as measured by lipgloss (the width basis; Conventions). Each rune is
+// measured exactly once. This is used only to find width-unit boundaries
+// (CD2); a unit's own estimated width is measured separately, on the unit's
+// full text, not derived by summing rune widths -- combining sequences
+// (e.g. a rune followed by U+FE0F, variation selector-16) can render wider
+// than the sum of their individual rune widths (CD4), so any estimate built
+// from unit sums must still be verified (and shrunk if necessary) against
+// the actually assembled string (see guardFit).
+func ownWidths(runes []rune) []int {
 	widths := make([]int, len(runes))
 	for i, r := range runes {
 		widths[i] = lipgloss.Width(string(r))
@@ -213,39 +226,149 @@ func runeDisplayWidths(runes []rune) []int {
 	return widths
 }
 
-// widthPrefixSums returns cumulative sums of widths, with a leading 0, so
-// that prefix[i] is the display width of the first i runes.
-func widthPrefixSums(widths []int) []int {
-	prefix := make([]int, len(widths)+1)
-	for i, w := range widths {
-		prefix[i+1] = prefix[i] + w
+// partitionUnits groups seg into width units (CD2), using the precomputed
+// own widths ow (aligned with seg, one entry per rune -- see ownWidths).
+// offset is seg's starting position in the original rune slice the caller
+// will index into, so the returned units' start/end are absolute indices
+// there (sliceable directly, no further translation needed). Single pass
+// over seg; each unit's own width is measured (via the width basis, on the
+// unit's full text) exactly once.
+func partitionUnits(seg []rune, ow []int, offset int) []widthUnit {
+	n := len(seg)
+	if n == 0 {
+		return nil
 	}
-	return prefix
+	units := make([]widthUnit, 0, n)
+	i := 0
+	if ow[0] == 0 {
+		j := 1
+		for j < n && ow[j] == 0 {
+			j++
+		}
+		units = append(units, widthUnit{
+			start: offset,
+			end:   offset + j,
+			width: lipgloss.Width(string(seg[0:j])),
+		})
+		i = j
+	}
+	for i < n {
+		start := i
+		i++
+		for i < n && ow[i] == 0 {
+			i++
+		}
+		units = append(units, widthUnit{
+			start: offset + start,
+			end:   offset + i,
+			width: lipgloss.Width(string(seg[start:i])),
+		})
+	}
+	return units
 }
 
-// maxRunesWithinWidth returns the largest n such that the first n runes
-// (per prefix, a widthPrefixSums result) fit within budget. A rune that
-// would straddle the boundary (its addition would push the cumulative width
-// past budget) is excluded entirely, never partially rendered (D3).
-func maxRunesWithinWidth(prefix []int, budget int) int {
+// unitsTotalWidth sums every unit's estimated width. Single pass.
+func unitsTotalWidth(units []widthUnit) int {
+	total := 0
+	for _, u := range units {
+		total += u.width
+	}
+	return total
+}
+
+// unitsPrefixCount returns how many units, counted from the front of units,
+// have estimated widths summing to at most budget: the kept sum stays
+// within budget, and keeping the next unit would exceed it. Single pass.
+func unitsPrefixCount(units []widthUnit, budget int) int {
+	sum := 0
 	n := 0
-	for n < len(prefix)-1 && prefix[n+1] <= budget {
+	for n < len(units) {
+		next := sum + units[n].width
+		if next > budget {
+			break
+		}
+		sum = next
 		n++
 	}
 	return n
 }
 
-// minStartWithinWidth returns the smallest start such that the runes in
-// [start, end) fit within budget, given prefix (a widthPrefixSums result).
-// Like maxRunesWithinWidth, a straddling rune at the left edge is excluded
-// entirely (D3).
-func minStartWithinWidth(prefix []int, end, budget int) int {
-	target := prefix[end] - budget
-	start := 0
-	for start < end && prefix[start] < target {
-		start++
+// unitsSuffixCount is unitsPrefixCount's mirror, counting from the back.
+func unitsSuffixCount(units []widthUnit, budget int) int {
+	sum := 0
+	n := 0
+	total := len(units)
+	for n < total {
+		next := sum + units[total-1-n].width
+		if next > budget {
+			break
+		}
+		sum = next
+		n++
 	}
-	return start
+	return n
+}
+
+// trimUnitsFront removes whole units from the front of units, in one step,
+// until the removed total is at least excess or units is exhausted.
+func trimUnitsFront(units []widthUnit, excess int) []widthUnit {
+	removed := 0
+	i := 0
+	for i < len(units) && removed < excess {
+		removed += units[i].width
+		i++
+	}
+	return units[i:]
+}
+
+// trimUnitsBack mirrors trimUnitsFront, trimming from the end.
+func trimUnitsBack(units []widthUnit, excess int) []widthUnit {
+	removed := 0
+	i := len(units)
+	for i > 0 && removed < excess {
+		i--
+		removed += units[i].width
+	}
+	return units[:i]
+}
+
+// guardFit is CD4's bounded "estimate, then verify" guard. It measures
+// render()'s result with the width basis and, while that exceeds budget,
+// calls shrink(excess) to remove whole units from the side away from the
+// cursor (or the trailing side, for the prompt-truncation path); shrink
+// reports whether it was able to remove anything more. At most 3
+// re-measurements after the first (4 lipgloss.Width calls total) --
+// independent of how long render()'s underlying content is, since shrink
+// operates on whole units, not individual runes.
+func guardFit(budget int, render func() string, shrink func(excess int) bool) (result string, fits bool) {
+	for tries := 0; ; tries++ {
+		result = render()
+		w := lipgloss.Width(result)
+		if w <= budget {
+			return result, true
+		}
+		if tries >= 3 || !shrink(w-budget) {
+			return result, false
+		}
+	}
+}
+
+// buildLine renders the given rune slice with the cursor (at curPos,
+// relative to the start of dr) highlighted, including the trailing
+// block cursor when curPos sits just past the last rune.
+func buildLine(dr []rune, curPos int) string {
+	var b strings.Builder
+	for i, r := range dr {
+		if i == curPos {
+			b.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
+		} else {
+			b.WriteRune(r)
+		}
+	}
+	if curPos >= 0 && curPos >= len(dr) {
+		b.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
+	}
+	return b.String()
 }
 
 // View renders the minibuffer
@@ -257,13 +380,10 @@ func (m *Minibuffer) View() string {
 	// contentWidth is the content width of the minibuffer style below
 	// (style Width m.width-2, minus 1 column of padding on each side).
 	// Widths 0-4 collapse it to <= 0: only "no panic, no line break" is
-	// guaranteed there (D4), so no prompt or input content is rendered.
+	// guaranteed there (CD5), so no prompt or input content is rendered.
 	contentWidth := m.width - 4
 
 	runes := []rune(m.input)
-	runeWidths := runeDisplayWidths(runes)
-	prefix := widthPrefixSums(runeWidths)
-
 	promptRunes := []rune(m.prompt)
 	promptWidth := lipgloss.Width(m.prompt)
 
@@ -273,120 +393,209 @@ func (m *Minibuffer) View() string {
 
 	switch {
 	case contentWidth <= 0:
-		// D4: nothing meaningful to show; only avoid panic/line-break.
+		// CD5: nothing meaningful to show; only avoid panic/line-break.
 		promptToRender = ""
 		displayStart, displayEnd = 0, 0
 
 	case promptWidth >= contentWidth:
 		// FR3: remaining width <= 0. Truncate the prompt to the content
-		// width; input and the cursor block are not rendered. The
-		// per-rune budget only picks a starting candidate: combining
-		// sequences (e.g. a rune followed by VS16) can render wider than
-		// the sum of their individual rune widths, so shrink further, one
-		// trailing rune at a time, using the actually rendered width.
-		promptRuneWidths := runeDisplayWidths(promptRunes)
-		promptPrefix := widthPrefixSums(promptRuneWidths)
-		end := maxRunesWithinWidth(promptPrefix, contentWidth)
-		for end > 0 && lipgloss.Width(string(promptRunes[:end])) > contentWidth {
-			end--
+		// width; input and the cursor block are not rendered. Partition the
+		// prompt into width units (CD2) in one pass, keep the longest unit
+		// prefix whose estimated width is at most contentWidth, then apply
+		// the guard (CD4): the estimate can undershoot the actual rendered
+		// width for sequences joined across positive-width runes, so the
+		// kept prefix is re-measured and, if necessary, shrunk by whole
+		// trailing units; it finally falls back to an empty prompt.
+		promptOwnWidths := ownWidths(promptRunes)
+		units := partitionUnits(promptRunes, promptOwnWidths, 0)
+		keep := unitsPrefixCount(units, contentWidth)
+
+		render := func() string {
+			end := 0
+			if keep > 0 {
+				end = units[keep-1].end
+			}
+			return string(promptRunes[:end])
 		}
-		promptToRender = string(promptRunes[:end])
+		shrink := func(excess int) bool {
+			if keep == 0 {
+				return false
+			}
+			removed := 0
+			for keep > 0 && removed < excess {
+				keep--
+				removed += units[keep].width
+			}
+			return true
+		}
+
+		text, fits := guardFit(contentWidth, render, shrink)
+		if !fits {
+			text = ""
+		}
+		promptToRender = text
 		displayStart, displayEnd = 0, 0
 
 	default:
 		// FR4: remaining width >= 1.
 		promptToRender = m.prompt
 		remaining := contentWidth - promptWidth
-
 		cursorAtEnd := m.cursorPos >= len(runes)
-		// actualWidth is the input's actual display width, measured
-		// grapheme-cluster-wise (same basis as the shrink loop below),
-		// not the sum of each rune's own width. A rune-width sum
-		// overestimates sequences like ZWJ-joined emoji, which can push
-		// an input that actually fits into the scroll path below and
-		// cost it its leading code point.
-		actualWidth := lipgloss.Width(m.input)
-		actualWidthWithCursor := actualWidth
-		if cursorAtEnd {
-			actualWidthWithCursor++
-		}
 
-		switch {
-		case actualWidthWithCursor <= remaining:
-			// FR1, FR2, FR3: the input's actual display width (plus the
-			// 1-column cursor block when the cursor sits at the end) fits
-			// the remaining width; show it untruncated instead of falling
-			// back to the per-rune-width scroll path below.
+		// Step 1: fit check. Assemble the full line (prompt + whole input
+		// with the cursor highlight, or the cursor block when the cursor is
+		// at the end) once and measure it once; render untruncated if it
+		// fits, instead of falling back to the windowed paths below.
+		fullLine := promptToRender + buildLine(runes, m.cursorPos)
+		if lipgloss.Width(fullLine) <= contentWidth {
 			displayStart, displayEnd = 0, len(runes)
 			cursorDisplayPos = m.cursorPos
-
-		case cursorAtEnd:
-			// Scroll so the cursor block (1 column) sits at the right
-			// edge of the window.
-			start := minStartWithinWidth(prefix, len(runes), remaining-1)
-			displayStart, displayEnd = start, len(runes)
-			cursorDisplayPos = len(runes) - start
-
-		case runeWidths[m.cursorPos] > remaining:
-			// D3: the cursor's own character does not fit within the
-			// remaining width even alone (e.g. remaining=1, a full-width
-			// character at the cursor); do not render it.
-			displayStart, displayEnd = m.cursorPos, m.cursorPos
-
-		case prefix[m.cursorPos+1] <= remaining:
-			// Cursor fits in the window starting from position 0; show
-			// the maximal prefix that fits (may extend past the cursor).
-			end := maxRunesWithinWidth(prefix, remaining)
-			displayStart, displayEnd = 0, end
-			cursorDisplayPos = m.cursorPos
-
-		default:
-			// Scroll so the cursor's character sits at the right edge of
-			// the window.
-			start := minStartWithinWidth(prefix, m.cursorPos+1, remaining)
-			displayStart, displayEnd = start, m.cursorPos+1
-			cursorDisplayPos = m.cursorPos - start
-		}
-	}
-
-	// buildLine renders the given rune slice with the cursor (at curPos,
-	// relative to the start of dr) highlighted, including the trailing
-	// block cursor when curPos sits just past the last rune.
-	buildLine := func(dr []rune, curPos int) string {
-		var b strings.Builder
-		for i, r := range dr {
-			if i == curPos {
-				b.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
-			} else {
-				b.WriteRune(r)
-			}
-		}
-		if curPos >= 0 && curPos >= len(dr) {
-			b.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
-		}
-		return b.String()
-	}
-
-	// D2: the per-rune budget above only picks a starting candidate
-	// window; it is not a reliable bound on the rendered width, since
-	// combining sequences (e.g. a rune followed by VS16) can render wider
-	// than the sum of their individual rune widths. Shrink the window,
-	// one whole rune at a time from the side farther from the cursor (so
-	// the cursor stays visible), using the actually rendered width, until
-	// the assembled line fits contentWidth.
-	for contentWidth > 0 && displayEnd > displayStart {
-		dr := runes[displayStart:displayEnd]
-		line := promptToRender + buildLine(dr, cursorDisplayPos)
-		if lipgloss.Width(line) <= contentWidth {
 			break
 		}
-		leftDist := cursorDisplayPos
-		rightDist := (displayEnd - displayStart) - cursorDisplayPos
-		if rightDist >= leftDist {
-			displayEnd--
-		} else {
-			displayStart++
-			cursorDisplayPos--
+
+		ow := ownWidths(runes)
+
+		switch {
+		case cursorAtEnd:
+			// Step 2: scroll so the cursor block (1 column) sits at the
+			// right edge. Partition the whole input into units and keep
+			// the longest unit suffix whose estimated width is at most
+			// remaining-1.
+			units := partitionUnits(runes, ow, 0)
+			n := unitsSuffixCount(units, remaining-1)
+			kept := units[len(units)-n:]
+
+			displayEnd = len(runes)
+			if len(kept) > 0 {
+				displayStart = kept[0].start
+			} else {
+				displayStart = len(runes)
+			}
+			cursorDisplayPos = displayEnd - displayStart
+
+			render := func() string {
+				return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+			}
+			shrink := func(excess int) bool {
+				if len(kept) == 0 {
+					return false
+				}
+				kept = trimUnitsFront(kept, excess)
+				if len(kept) > 0 {
+					displayStart = kept[0].start
+				} else {
+					displayStart = displayEnd
+				}
+				cursorDisplayPos = displayEnd - displayStart
+				return true
+			}
+
+			if _, fits := guardFit(contentWidth, render, shrink); !fits {
+				// CD4: even the cursor block alone overflows.
+				displayStart, displayEnd = len(runes), len(runes)
+				cursorDisplayPos = -1
+			}
+
+		case ow[m.cursorPos] > remaining:
+			// Step 3 (CD3): the cursor's own character does not fit within
+			// the remaining width even alone; do not render it.
+			displayStart, displayEnd = m.cursorPos, m.cursorPos
+
+		default:
+			// CD3: units are computed per segment around the cursor -- the
+			// input before the cursor rune, and the input after it -- since
+			// the cursor's own rune is handled separately.
+			beforeUnits := partitionUnits(runes[:m.cursorPos], ow[:m.cursorPos], 0)
+			beforeWidth := unitsTotalWidth(beforeUnits)
+			cursorWidth := ow[m.cursorPos]
+
+			if beforeWidth+cursorWidth <= remaining {
+				// Step 4: the whole before-cursor segment plus the cursor
+				// fit; extend right over the longest unit prefix of the
+				// after-cursor segment that fits the leftover width.
+				afterUnits := partitionUnits(runes[m.cursorPos+1:], ow[m.cursorPos+1:], m.cursorPos+1)
+				leftover := remaining - beforeWidth - cursorWidth
+				nAfter := unitsPrefixCount(afterUnits, leftover)
+				afterKept := afterUnits[:nAfter]
+				beforeKept := beforeUnits
+
+				displayStart = 0
+				cursorDisplayPos = m.cursorPos
+				if nAfter > 0 {
+					displayEnd = afterKept[nAfter-1].end
+				} else {
+					displayEnd = m.cursorPos + 1
+				}
+
+				render := func() string {
+					return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+				}
+				// CD4: the side away from the cursor is tried right first
+				// (the greedily-extended after-cursor part), then left.
+				shrink := func(excess int) bool {
+					if len(afterKept) > 0 {
+						afterKept = trimUnitsBack(afterKept, excess)
+						if len(afterKept) > 0 {
+							displayEnd = afterKept[len(afterKept)-1].end
+						} else {
+							displayEnd = m.cursorPos + 1
+						}
+						return true
+					}
+					if len(beforeKept) > 0 {
+						beforeKept = trimUnitsFront(beforeKept, excess)
+						if len(beforeKept) > 0 {
+							displayStart = beforeKept[0].start
+						} else {
+							displayStart = m.cursorPos
+						}
+						cursorDisplayPos = m.cursorPos - displayStart
+						return true
+					}
+					return false
+				}
+
+				if _, fits := guardFit(contentWidth, render, shrink); !fits {
+					displayStart, displayEnd = m.cursorPos, m.cursorPos
+					cursorDisplayPos = -1
+				}
+			} else {
+				// Step 5: scroll so the cursor's character sits at the
+				// right edge of the window; start at the longest unit
+				// suffix of the before-cursor segment that fits.
+				n := unitsSuffixCount(beforeUnits, remaining-cursorWidth)
+				kept := beforeUnits[len(beforeUnits)-n:]
+
+				displayEnd = m.cursorPos + 1
+				if len(kept) > 0 {
+					displayStart = kept[0].start
+				} else {
+					displayStart = m.cursorPos
+				}
+				cursorDisplayPos = m.cursorPos - displayStart
+
+				render := func() string {
+					return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+				}
+				shrink := func(excess int) bool {
+					if len(kept) == 0 {
+						return false
+					}
+					kept = trimUnitsFront(kept, excess)
+					if len(kept) > 0 {
+						displayStart = kept[0].start
+					} else {
+						displayStart = m.cursorPos
+					}
+					cursorDisplayPos = m.cursorPos - displayStart
+					return true
+				}
+
+				if _, fits := guardFit(contentWidth, render, shrink); !fits {
+					displayStart, displayEnd = m.cursorPos, m.cursorPos
+					cursorDisplayPos = -1
+				}
+			}
 		}
 	}
 

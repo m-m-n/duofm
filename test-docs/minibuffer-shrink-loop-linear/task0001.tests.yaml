@@ -1,0 +1,140 @@
+task_id: task0001
+baseline_failures:            # step 4a, before any file was touched (podman go test ./...)
+  - TestUpdate_NavigationJK
+  - TestUpdate_NavigationNumeric/key_1
+  - TestUpdate_NavigationNumeric/key_2
+  - TestUpdate_Enter
+  - TestUpdate_NumericKey_ActionID/key_1
+  - TestUpdate_NumericKey_ActionID/key_2
+  - TestUpdate_ArrowKeys
+  # All 7 are in internal/ui/context_menu_dialog_test.go, unrelated to
+  # Minibuffer.View; inherited, not caused by this task.
+final_failures:                # after implementation, same command, identical set
+  - TestUpdate_NavigationJK
+  - TestUpdate_NavigationNumeric/key_1
+  - TestUpdate_NavigationNumeric/key_2
+  - TestUpdate_Enter
+  - TestUpdate_NumericKey_ActionID/key_1
+  - TestUpdate_NumericKey_ActionID/key_2
+  - TestUpdate_ArrowKeys
+acceptance_tests:
+  AC-1:
+    tests:
+      - TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth
+      - TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth
+      - TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth
+      - TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth
+    red_confirmed: true
+    red_reason: >-
+      Written before the View change and run with the approved test_command
+      (podman ... go test ./...) against the unmodified View: all four
+      failed, each at exactly the 10s limit, e.g. "minibuffer_test.go:855:
+      Minibuffer.View did not return within 10s" (TS-1), and likewise for
+      TS-2/TS-3/TS-4. Full package run: FAIL
+      github.com/sakura/duofm/internal/ui 42.196s (vs 2.003s on the
+      pre-change baseline with these 4 tests absent). Root cause confirmed
+      by code reading: for TS-1/TS-2 (cursorAtEnd), the old
+      minStartWithinWidth's per-rune prefix sum undercounts the trailing
+      U+00A9 U+FE0F pair's rendered width (sums to 1, renders as 2), driving
+      its computed start to 0 (the whole ~100000-rune input); for TS-3, the
+      old maxRunesWithinWidth's cumulative per-rune sum never exceeds budget
+      across the trailing 100000 zero-width runes, so it also returns the
+      whole input. Either way the old D2 shrink loop then repeats an
+      O(window) rebuild-and-measure while trimming one rune at a time from a
+      ~100000-rune window, which is the O(n^2)-shaped hang this task fixes.
+  AC-2:
+    tests:
+      - TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth
+      - TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth
+      - TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth
+      - TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth
+    red_confirmed: false
+    red_reason: >-
+      Same four tests as AC-1; their cursor-visibility (ANSI-stripped
+      content) assertions sit after the runViewTimed(t, mb) call. In the
+      red-phase run, runViewTimed's timeout branch called t.Fatalf, which
+      runs runtime.Goexit and unwinds the calling test function -- so the
+      content assertions below it never executed pre-implementation for any
+      of the four tests. AC-1's timeout failure is real and was observed,
+      but it structurally preempts observing AC-2's specific check on this
+      input size, so no independent red state for the content assertion
+      itself was seen. Post-implementation, the same four tests (including
+      the content assertions) pass.
+  AC-3:
+    tests: []
+    red_confirmed: true
+    red_reason: >-
+      AC-3's verifiable outcome is that the red-phase run (command + outcome)
+      is recorded, not a new test. Command:
+      `podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+      /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v
+      duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e
+      GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e
+      GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+      GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
+      ./...` (the approved test_command, run per Test Notes' "full project
+      test command also works" fallback since TS-1..TS-4 need to run
+      unfiltered here). Outcome: exit 1; internal/ui FAILed in 42.196s with
+      TestMinibufferView_LinearTime_TS1..TS4 each failing at the 10s limit,
+      on top of the 7 pre-existing baseline failures (see baseline_failures)
+      unaffected. Full per-test outcomes are recorded under AC-1.
+  AC-4:
+    tests:
+      - TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth
+      - TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth
+      - TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth
+      - TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth
+    red_confirmed: false
+    red_reason: >-
+      Same four tests; the t.Logf duration line only runs in runViewTimed's
+      completed-in-time branch. Pre-implementation every one of the four hit
+      the timeout branch instead, so no duration was ever logged and there
+      is nothing for AC-4's own check (a completed run with a <=2s duration)
+      to have failed independently of AC-1's timeout. Post-implementation,
+      race-enabled verbose measurements (recorded in the report) are all
+      well under the 2s guideline.
+  AC-5:
+    tests:
+      - TestMinibufferView_TS7_JoinedSequenceGuard
+    red_confirmed: false
+    red_reason: >-
+      Run against the unmodified View in the same red-phase pass: this test
+      already passed (Minibuffer.View took ~36us). The old per-rune shrink
+      loop re-measures the actually assembled line's real rendered width on
+      every iteration, so it already produced a correct, bounded result for
+      this small (90-rune) fixture -- the old algorithm's defect is
+      specifically its O(n^2)-shaped performance on very long inputs, not
+      incorrect output on short ones. The joined-sequence-underestimate path
+      this test exercises (CD4's guard) is a property of the NEW unit-based
+      estimate this task introduces; the old per-rune-sum algorithm has no
+      equivalent failure mode at this input size, so no red state exists to
+      observe here.
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-6 is a non-regression invariant over the whole pre-existing suite
+      (internal/ui/minibuffer_test.go and internal/ui/pane_render_test.go's
+      existing tests, plus the project test command overall), not new
+      behavior with its own red state. Verified by running the approved
+      test_command before any change (step 4a: 7 pre-existing failures, all
+      in internal/ui/context_menu_dialog_test.go, none related to
+      Minibuffer) and again after implementation (identical 7-failure set,
+      confirmed both via the full `go test ./...` run and a
+      `-run 'TestUpdate_'` rerun), and by leaving every pre-existing
+      assertion in both files unmodified (only new TS-1..TS-4/TS-7 tests
+      were appended to minibuffer_test.go).
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-7 is a structural change-scope constraint (which files changed,
+      which imports minibuffer.go gains, whether go.mod/go.sum change), not
+      a behavior with a red state. Verified via `git diff --stat` (only
+      internal/ui/minibuffer.go and internal/ui/minibuffer_test.go changed),
+      `git diff --stat -- go.mod go.sum` (empty, unchanged), and reading
+      minibuffer.go's import block (still exactly "strings",
+      github.com/charmbracelet/bubbletea, github.com/charmbracelet/lipgloss).
+      HandleKey, the setters (SetPrompt/SetWidth/SetInput/SetCursorPos/etc.)
+      and the rune-index meaning of cursorPos are unchanged; only View and
+      its private helper functions were rewritten.

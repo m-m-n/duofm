@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -783,5 +784,205 @@ func TestMinibufferViewTruncation(t *testing.T) {
 	// Note: actual rendering may include ANSI codes, so we check the visible content
 	if len(view) > 100 { // generous limit accounting for ANSI codes
 		// Just verify it renders without panic
+	}
+}
+
+// --- task0001 TS-1..TS-4 (AC-1..AC-4, FR1, FR3, FR4, NFR2): time-bound
+// regression tests for Minibuffer.View's linear-time range selection. Each
+// fixture reproduces a shape (a very long run of zero-width combining marks
+// next to a positive-width sequence whose per-rune width sum understates its
+// rendered width) that made the pre-change per-rune shrink loop's initial
+// range estimate swallow the whole input, and then shrink it back down one
+// rune at a time -- runViewTimed fails the test rather than let a hang block
+// the suite.
+
+const linearTimeLimit = 10 * time.Second
+
+// runViewTimed runs mb.View() in its own goroutine, logs the measured
+// duration (AC-4, read by TS-6 in verbose output), and fails the test if
+// View panics or does not return within linearTimeLimit. A panic inside the
+// goroutine is reported as a test failure, not a crashed test binary; a
+// goroutine that times out is abandoned (Test Notes: expected for the
+// pre-change red-phase run).
+func runViewTimed(t *testing.T, mb *Minibuffer) string {
+	t.Helper()
+
+	type viewResult struct {
+		out   string
+		panic any
+	}
+	done := make(chan viewResult, 1)
+	start := time.Now()
+
+	go func() {
+		var res viewResult
+		defer func() {
+			res.panic = recover()
+			done <- res
+		}()
+		res.out = mb.View()
+	}()
+
+	select {
+	case res := <-done:
+		t.Logf("Minibuffer.View took %s", time.Since(start))
+		if res.panic != nil {
+			t.Fatalf("Minibuffer.View panicked: %v", res.panic)
+		}
+		return res.out
+	case <-time.After(linearTimeLimit):
+		t.Fatalf("Minibuffer.View did not return within %s", linearTimeLimit)
+		return ""
+	}
+}
+
+// TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth is TS-1 (AC-1,
+// AC-2): m.width 80, cursor at the end, a leading run of 100000 zero-width
+// combining marks (U+0301) followed by 71 'a's and a copyright-with-VS16
+// pair (U+00A9 U+FE0F) whose per-rune width sum (1) understates its
+// rendered width (2).
+func TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth(t *testing.T) {
+	const width = 80
+	input := strings.Repeat("́", 100000) + strings.Repeat("a", 71) + "©️"
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(width)
+	mb.SetInput(input)
+	mb.SetCursorPos(len([]rune(input)))
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "©️") {
+		t.Errorf("expected visible result to contain the input's final U+00A9 U+FE0F, got %q", visible)
+	}
+}
+
+// TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth is TS-2, the same
+// shape as TS-1 at m.width 40 (fewer 'a's so the fixture still exercises the
+// scroll path at a narrower content width).
+func TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth(t *testing.T) {
+	const width = 40
+	input := strings.Repeat("́", 100000) + strings.Repeat("a", 31) + "©️"
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(width)
+	mb.SetInput(input)
+	mb.SetCursorPos(len([]rune(input)))
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "©️") {
+		t.Errorf("expected visible result to contain the input's final U+00A9 U+FE0F, got %q", visible)
+	}
+}
+
+// TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth is TS-3: the
+// copyright-with-VS16 pair and the 'a's now sit at the FRONT of the input,
+// with the cursor at rune index 2 (the first 'a', right after the pair) and
+// the 100000 zero-width marks trailing off the end.
+func TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth(t *testing.T) {
+	const width = 40
+	input := "©️" + strings.Repeat("a", 32) + strings.Repeat("́", 100000)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(width)
+	mb.SetInput(input)
+	mb.SetCursorPos(2)
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "©️a") {
+		t.Errorf("expected visible result to contain U+00A9 U+FE0F immediately followed by 'a', got %q", visible)
+	}
+}
+
+// TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth is TS-4: the
+// pathological run lives in the PROMPT instead of the input (empty input),
+// exercising the prompt-truncation path (promptWidth >= contentWidth).
+func TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth(t *testing.T) {
+	const width = 40
+	prompt := "(reverse-i-search)'" + "©️" + strings.Repeat("a", 16) + strings.Repeat("́", 100000) + "': "
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(prompt)
+	mb.SetWidth(width)
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "(reverse-i-search)'©️") {
+		t.Errorf("expected visible result to contain the prompt head immediately followed by U+00A9 U+FE0F, got %q", visible)
+	}
+}
+
+// TestMinibufferView_TS7_JoinedSequenceGuard is TS-7 (AC-5): a guard-path
+// regression where per-rune width estimates undershoot the rendered width of
+// a joined sequence (U+0600 ARABIC NUMBER SIGN followed by U+1F600 U+FE0E).
+// The fixture assumption is asserted first so a later failure in this test
+// cannot be mistaken for this one having drifted.
+func TestMinibufferView_TS7_JoinedSequenceGuard(t *testing.T) {
+	const width = 40
+	const triple = "؀\U0001F600︎"
+
+	individualSum := lipgloss.Width("؀") + lipgloss.Width("\U0001F600︎")
+	joined := lipgloss.Width(triple)
+	if individualSum >= joined {
+		t.Fatalf("test fixture assumption broken: width(U+0600) + width(U+1F600 U+FE0E) = %d, want < width of the three together = %d", individualSum, joined)
+	}
+
+	input := strings.Repeat(triple, 30)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(width)
+	mb.SetInput(input)
+	mb.SetCursorPos(len([]rune(input)))
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+
+	visible := stripANSI(result)
+	if !strings.Contains(visible, "\U0001F600") {
+		t.Errorf("expected visible result to contain U+1F600, got %q", visible)
 	}
 }
