@@ -2,73 +2,41 @@ schema_version: 1
 feature: minibuffer-grapheme-bounds-linear
 created: '2026-09-28'
 base_branch: main
-goal: '# ミニバッファの書記素区切り計算（graphemeClusterBounds）が特定の入力で二乗時間になる
-
+goal: |
+  # ミニバッファの書記素区切り計算（graphemeClusterBounds）が特定の入力で二乗時間になる
 
   Notion タスク: https://www.notion.so/3e83509ec8ee813ebd31f4fce4493eb1 （種別: バグ）
 
-
   ## 現象
-
-  ミニバッファの `graphemeClusterBounds` が `uniseg.NewGraphemes` の `Next()` で書記素を走査している。`Next()`
-  の内部では書記素に加えて単語・文・行の境界も計算しており、文の境界規則 SB8 が「.」の後の空白 1 つごとに残りの入力を先読みする。このため「.」+ 空白
-  n 個 +「A」のような入力で 1 回の呼び出しが O(n^2) になる。
-
+  ミニバッファの `graphemeClusterBounds` が `uniseg.NewGraphemes` の `Next()` で書記素を走査している。`Next()` の内部では書記素に加えて単語・文・行の境界も計算しており、文の境界規則 SB8 が「.」の後の空白 1 つごとに残りの入力を先読みする。このため「.」+ 空白 n 個 +「A」のような入力で 1 回の呼び出しが O(n^2) になる。
   計測値（関数を写したスクラッチプログラム、カーソルは末尾付近）:
-
   - NewGraphemes: n=1000/2000/4000/8000 で 5.9ms / 23.5ms / 95ms / 380ms
-
   - FirstGraphemeClusterInString で走査した場合: 13µs / 25µs / 52µs / 105µs
-
-  この関数は View（カーソルが末尾以外のときの毎回の描画）、Left/Ctrl+B、Right/Ctrl+F から毎回呼ばれるため、8000 rune 程度の入力で描画
-  1 回・キー入力 1 回ごとに約 0.4 秒の遅れが出る。minibuffer-grapheme-cursor-highlight の SPEC NFR3（書記素の区切り計算も入力長に対して線形）に反する。
-
+  この関数は View（カーソルが末尾以外のときの毎回の描画）、Left/Ctrl+B、Right/Ctrl+F から毎回呼ばれるため、8000 rune 程度の入力で描画 1 回・キー入力 1 回ごとに約 0.4 秒の遅れが出る。minibuffer-grapheme-cursor-highlight の SPEC NFR3（書記素の区切り計算も入力長に対して線形）に反する。
   minibuffer-grapheme-cursor-highlight の review round 1 で medium として検出された残件。
 
-
   ## 再現手順
-
   1. ミニバッファを開く
-
   2. 「.」の後に空白を 8000 個程度、最後に「A」を貼り付ける
-
   3. カーソルを末尾付近で左右に動かす
 
-
   ## 期待する挙動
-
   入力長に対して線形の時間でカーソル移動と描画が行われ、操作に目立つ遅れが出ない。
 
-
   ## 完了の定義
-
   - [ ] 再現手順で現象が起きない
-
   - [ ] 再発を検出するテストがある
 
-
   ## 該当箇所
-
-  `internal/ui/minibuffer.go:209`（`graphemeClusterBounds`）。修正案: 入力先頭から `uniseg.FirstGraphemeClusterInString(rest,
-  state)` を state=-1 で始め、状態を引き継ぎながら rune 数を数える走査に置き換える。回帰テストは既存の線形時間テストと同じ形式で「.」+
-  `strings.Repeat(" ", n)` +「A」を使う。
-
+  `internal/ui/minibuffer.go:209`（`graphemeClusterBounds`）。修正案: 入力先頭から `uniseg.FirstGraphemeClusterInString(rest, state)` を state=-1 で始め、状態を引き継ぎながら rune 数を数える走査に置き換える。回帰テストは既存の線形時間テストと同じ形式で「.」+ `strings.Repeat(" ", n)` +「A」を使う。
 
   ## 実害・発生条件
-
   「.」の後に大量の空白が続く長い入力を貼り付け、カーソルが末尾以外にあるとき。
 
-
   ## 追加指示
-
-  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作成する。integration
-  ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）
-
+  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作成する。integration ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）
   - 不明点は Codex に相談し、比較的良いと判断した選択肢を採用する
-
   - その議論内容を Notion に記録する
-
-  '
 parent_branch: em-workflow/minibuffer-grapheme-bounds-linear/integration
 tier: reduced
 tier_decision:
@@ -115,8 +83,7 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: 'tier reduced（design step を削減）。また、表示や操作の見た目を変えない内部の書記素区切り計算の計算量修正のため（create-spec.design-step:
-    decide_autonomously）'
+  skipped_reason: 'tier reduced（design step を削減）。また、表示や操作の見た目を変えない内部の書記素区切り計算の計算量修正のため（create-spec.design-step: decide_autonomously）'
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
