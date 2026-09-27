@@ -1,11 +1,11 @@
 schema_version: 1
 feature: minibuffer-grapheme-bounds-linear
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
-base_revision: 22dcb40d1511d2685d7911e4e8a028d3e91c463c
+base_revision: f1d00016a5807c49ecfb0712d973351ff9c88d04
 last_input_digest: sha256:eb472721c964f5ba3cc6158e0516e443ad26ced380e6ed3b8e58bc743786d015
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -25,7 +25,7 @@ artifacts:
   produced_by: create-plan-run-0001
 patches:
 - patch_id: create-plan-p0001
-  status: validated
+  status: applied
   base_input_digest: sha256:eb472721c964f5ba3cc6158e0516e443ad26ced380e6ed3b8e58bc743786d015
   base_workflow_blob: b7d4e4bab8fa7e0d5a775df7b898a703487d8a85
 progress_fingerprint: null
