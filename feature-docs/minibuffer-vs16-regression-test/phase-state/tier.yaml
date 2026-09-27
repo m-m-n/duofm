@@ -1,0 +1,63 @@
+schema_version: 2
+feature: minibuffer-vs16-regression-test
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.0
+    confidence: 0.99
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.99
+      '2': 0.01
+      '3': 0.0
+  observed_at: '2026-09-27T17:05:10+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.0
+    confidence: 0.94
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.03
+      '1': 0.94
+      '2': 0.03
+      '3': 0.0
+  observed_at: '2026-09-27T17:12:40+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 15
+  new_functions_needed: 1
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: 指定の再現条件をすべて満たすテストは見つからなかったよ。internal/ui/minibuffer_test.go:427
+    の TestMinibufferView_WidthInputCursorTable_BoundedSingleLine は幅37・指定プロンプト・末尾カーソルを含むけれど、入力は空文字、日本語、ASCIIだけだよ。同ファイル:844以降には©️を使うVS16関連テストがあるけれど、幅は80または40で、U+2764
+    U+FE0Fを4個並べる条件ではないよ。他のテストも検索したけれど、該当する入力はなかったよ。ファイル変更とテスト実行はしていないよ
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 1
+  body_change_kind: new_logic
+  change_containment: single_module
+  caller_and_dependency_count: 0
+  changes_external_contract: false
+  changes_behavior: false
+decided_at: '2026-09-27T17:13:00+09:00'
