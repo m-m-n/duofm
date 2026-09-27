@@ -17,5 +17,14 @@ records:
   answer_mode: select
   selected_option_ids: []
   freeform: null
-  normalized_answer: 'requirements-analyst が question packet を返さず completed。可逆な仮定 A-1〜A-5 を SPEC.md に記録'
+  normalized_answer: requirements-analyst が question packet を返さず completed。可逆な仮定 A-1〜A-5 を SPEC.md に記録
   resolution_note: 'gate: create-spec.requirement-clarification（packet なし）; 記録した仮定: A-1 回帰テストは runner_self_test.sh 内の TS-6 として追加 / A-2 TS-6 は mktemp と mv の間で失敗させて観測 / A-3 SELF_TMPDIR 内に残った一時ファイルは既存 EXIT trap が削除し、呼び出しごとの後始末は足さない / A-4 冒頭コメントのシナリオ範囲を TS-6 まで更新 / A-5 チケットの追加指示（push・PR・Codex・Notion）は機能要件に含めない; codex_consulted: false; opus_escalation: false'
+- question_id: create-plan.planning-assumptions
+  packet_id: null
+  answered_at: '2026-09-27T20:10:00+09:00'
+  source: planner-assumption
+  answer_mode: select
+  selected_option_ids: []
+  freeform: null
+  normalized_answer: implementation-planner が question packet を返さず completed。可逆な計画上の仮定 PA-1〜PA-4 を記録
+  resolution_note: 'gate: create-plan.planning-assumptions（packet なし）; 記録した仮定: PA-1 VERIFICATION.md は SPEC.md のシナリオ ID（TS-6 / MUT-1 / REG-1）をそのまま使い、スクリプト既存の TS-1〜TS-5 は Test Scenarios 節に載せない / PA-2 タスク 1 件で共有ファイルが無いため reduced tier の規則で IMPLEMENTATION.md は作らない / PA-3 修正・TS-6・冒頭コメントは同一ファイルなので 1 タスクにまとめる / PA-4 中間一時ファイルは runner コピーのパス由来ではなく SELF_TMPDIR 直下に作る（TS-6 の失敗経路でも両作成箇所を検査できるように）; codex_consulted: false; opus_escalation: false'
