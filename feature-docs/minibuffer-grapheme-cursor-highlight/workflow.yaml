@@ -99,7 +99,7 @@ workflow:
   summary: make build ok; go test ./... ok (TS1-TS10 unit scenarios incl. linear-time tests); go vet ok; gofmt no diff; go.mod diff vs implement base_commit is rivo/uniseg v0.4.7 indirect->direct only; E2E 264/264 passed
   excluded: []
 - id: retrospect
-  status: pending
+  status: in_progress
 tasks:
   task0001:
     title: Grapheme-wise cursor movement and whole-grapheme cursor highlight
