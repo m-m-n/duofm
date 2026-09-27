@@ -1,0 +1,96 @@
+schema_version: 1
+feature: minibuffer-grapheme-cursor-highlight
+phase: create-spec
+status: completed
+generation: 1
+base_revision: 096bb725c61d8ed62d68c638b45bdb21d60fc9ea
+last_input_digest: sha256:5dc650c3caa6f7cccd693f74a119ff077f6e94fe1448846bcf6b4206c11e3b87
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-27T18:48:07+09:00'
+    questions:
+    - question_id: req.cursor-grapheme-approach
+      status: answered
+    - question_id: req.edit-ops-scope
+      status: answered
+    - question_id: req.window-edge-split
+      status: answered
+    - question_id: design-step.decision
+      status: answered
+answers:
+  req.cursor-grapheme-approach:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T18:48:07+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - grapheme_move_and_highlight
+    freeform: null
+    normalized_answer: Left/Right/Ctrl+B/Ctrl+F は書記素単位で移動する。SetCursorPos などで書記素の途中に置かれた場合も、カーソルを含む書記素全体を 1 つのまとまりとして反転表示する。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: grapheme_move_and_highlight / grapheme_move_only / highlight_whole_grapheme_only; chosen: grapheme_move_and_highlight; codex_consulted:
+      true (codex entry, 1 turn); opus_escalation: false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 SetCursorPos（タブ補完）は書記素の途中も受け付けるため、移動だけ直しても途中位置で分割描画が残り、反転だけ直すと家族絵文字上で複数回キーを押す間同じ絵文字が反転し続けるので、移動と反転の両方を直す。Q2
+      削除・挿入・行内消去は rune 位置で入力を編集しており、移動と反転はこれと独立して直せるため編集は範囲外。Q3 表示窓は書記素と異なる widthUnit を使い末尾スクロールと共有しているため、今回はカーソル前後の分割位置を書記素の開始・終了へ変える範囲に絞る。実装注記: 既存 uniseg v0.4.7 で区切り（直接使うなら indirect を外す）、幅は lipgloss.Width
+      で測る。cursorPos は rune 位置のまま、途中からの左移動は書記素の開始、右移動は終了へ。反転範囲 [start,end) を buildLine と窓選択で共有。テストは描画器を ANSI256 に固定し t.Cleanup で戻す。境界計算は線形を維持。'
+  req.edit-ops-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T18:48:07+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - keep_rune_wise_editing
+    freeform: null
+    normalized_answer: Backspace/Delete/Ctrl+K/Ctrl+U/文字挿入は rune 単位のまま変えない（範囲外）。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: keep_rune_wise_editing / grapheme_wise_delete; chosen: keep_rune_wise_editing; codex_consulted: true (codex entry, 1 turn); opus_escalation:
+      false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 SetCursorPos（タブ補完）は書記素の途中も受け付けるため、移動だけ直しても途中位置で分割描画が残り、反転だけ直すと家族絵文字上で複数回キーを押す間同じ絵文字が反転し続けるので、移動と反転の両方を直す。Q2 削除・挿入・行内消去は rune 位置で入力を編集しており、移動と反転はこれと独立して直せるため編集は範囲外。Q3
+      表示窓は書記素と異なる widthUnit を使い末尾スクロールと共有しているため、今回はカーソル前後の分割位置を書記素の開始・終了へ変える範囲に絞る。実装注記: 既存 uniseg v0.4.7 で区切り（直接使うなら indirect を外す）、幅は lipgloss.Width で測る。cursorPos は rune 位置のまま、途中からの左移動は書記素の開始、右移動は終了へ。反転範囲
+      [start,end) を buildLine と窓選択で共有。テストは描画器を ANSI256 に固定し t.Cleanup で戻す。境界計算は線形を維持。'
+  req.window-edge-split:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T18:48:07+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - cursor_grapheme_only
+    freeform: null
+    normalized_answer: カーソルを含む書記素は常に丸ごと扱う。スクロール時の表示窓の端は既存の width unit 単位の切り方のまま（範囲外）。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: cursor_grapheme_only / snap_window_edges_to_graphemes; chosen: cursor_grapheme_only; codex_consulted: true (codex entry, 1 turn);
+      opus_escalation: false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 SetCursorPos（タブ補完）は書記素の途中も受け付けるため、移動だけ直しても途中位置で分割描画が残り、反転だけ直すと家族絵文字上で複数回キーを押す間同じ絵文字が反転し続けるので、移動と反転の両方を直す。Q2 削除・挿入・行内消去は
+      rune 位置で入力を編集しており、移動と反転はこれと独立して直せるため編集は範囲外。Q3 表示窓は書記素と異なる widthUnit を使い末尾スクロールと共有しているため、今回はカーソル前後の分割位置を書記素の開始・終了へ変える範囲に絞る。実装注記: 既存 uniseg v0.4.7 で区切り（直接使うなら indirect を外す）、幅は lipgloss.Width で測る。cursorPos
+      は rune 位置のまま、途中からの左移動は書記素の開始、右移動は終了へ。反転範囲 [start,end) を buildLine と窓選択で共有。テストは描画器を ANSI256 に固定し t.Cleanup で戻す。境界計算は線形を維持。'
+  design-step.decision:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T18:48:07+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: design_step_recommendation（skip）をそのまま採用する。
+    resolution_note: 'gate: create-spec.design-step; batch-policies.yaml option_id decide_autonomously'
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:87f23d6deddba47b6b1d072e8ee242f4503d90fbb3ba42f69866a8ccb44720eb
+  output_digest: sha256:93c1136d7000662601a3d7953318458924b530d535925afc9cf0dae3bcdf1341
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:5dc650c3caa6f7cccd693f74a119ff077f6e94fe1448846bcf6b4206c11e3b87
+  output_digest: sha256:e4ef05d3cc7bc38e2d62190f968a7800e64214f95b55d75b67ca3e0b5ada36c4
+- request_id: create-spec-run-0003
+  status: completed
+  input_digest: sha256:fa26bd2c31972c18ff3ac7de21efff23fd1c00d15af9b6ab0c9a7c53e010b761
+  output_digest: null
+artifacts:
+- path: feature-docs/minibuffer-grapheme-cursor-highlight/REQUIREMENTS.md
+  sha256: sha256:2ee70766962aca2799b0f3c2f786b0c79b2612ce6fe6d0dd8d3fdff0e5329a58
+  produced_by: create-spec-run-0003
+- path: feature-docs/minibuffer-grapheme-cursor-highlight/SPEC.md
+  sha256: sha256:06eaee6e2b449ea93d5f9daa54a8fbfdfd7d99ac104a5a2408081ec3559d5cac
+  produced_by: create-spec-run-0003
+patches: []
+progress_fingerprint: sha256:4db7c67f7a015d46b4a83c876256282d58f81e52794c39681e032813ac82813f
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null

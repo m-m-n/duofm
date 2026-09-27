@@ -1,0 +1,98 @@
+feature: minibuffer-grapheme-cursor-highlight
+collected_at: '2026-09-27T23:37:53+09:00'
+session_ids:
+- 01a0e238-fbd7-7058-a688-de53a0cd9ce6
+- 01a0e24a-527e-776e-b7f5-9171f422d346
+- 01a0e24e-5602-76c3-941e-c2f1a6152697
+- 01a0e258-7c13-70fa-b146-92c6041080f6
+- 01a0e26d-6832-7228-baa2-287644bded7f
+- 01a0e279-ca85-72a2-9d57-8e6c3041016e
+- 01a0e34b-a12c-710d-9f73-f74a669628b5
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives:
+  - perspective: license
+    reason: diff が go.mod に触れている（github.com/rivo/uniseg を direct 依存へ昇格）
+  - perspective: vulnerability
+    reason: diff が go.mod に触れている（依存マニフェスト変更）
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: description_plus_code の最終読みで P(0)+P(1) が 0.64（score 1.36、confidence 0.63）となり、reduced の閾値
+      0.85 に届かず full を採用
+    bases:
+    - basis: description_only
+      score:
+        type: score
+        score: 1.28
+        confidence: 0.71
+        legend:
+          '0': '0: Only a wording or rule-text change: no new logic, and no test change.'
+          '1': '1: A rule addition combined with a test addition, or a small change spread across a few
+            files together with a small test change.'
+          '2': '2: New logic, a change reaching across several modules, or a change to an external contract.'
+          '3': '3: A broad cross-cutting change: new files, new modules, a new dependency, or a change
+            to the architecture.'
+        probabilities:
+          '0': 0.0
+          '1': 0.72
+          '2': 0.27
+          '3': 0.01
+      observed_at: '2026-09-27T18:37:30+09:00'
+    - basis: description_plus_code
+      score:
+        type: score
+        score: 1.36
+        confidence: 0.63
+        legend:
+          '0': '0: Only a wording or rule-text change: no new logic, and no test change.'
+          '1': '1: A rule addition combined with a test addition, or a small change spread across a few
+            files together with a small test change.'
+          '2': '2: New logic, a change reaching across several modules, or a change to an external contract.'
+          '3': '3: A broad cross-cutting change: new files, new modules, a new dependency, or a change
+            to the architecture.'
+        probabilities:
+          '0': 0.0
+          '1': 0.64
+          '2': 0.35
+          '3': 0.01
+      observed_at: '2026-09-27T18:39:49+09:00'
+    pre_survey_estimate:
+      files_expected:
+      - internal/ui/minibuffer.go
+      - internal/ui/minibuffer_test.go
+      - go.mod
+      changed_lines_approx: 160
+      new_functions_needed: 1
+      new_files_needed: 0
+      new_dependencies_needed: []
+      covering_tests_exist: true
+      spillover_modules: []
+      work_still_required: true
+      test_change_kind: new_behavior_tests
+      added_test_cases_approx: 6
+      body_change_kind: new_logic
+      change_containment: single_module
+      caller_and_dependency_count: 3
+      changes_external_contract: false
+      changes_behavior: true
+      evidence: 不具合は残っているよ。internal/ui/minibuffer.go:145 の左右移動は rune 単位で、:359 の buildLine は該当する 1 rune
+        だけを反転する。:449 は反転後の幅で収まりを判定し、:508・:516・:569 の表示範囲もカーソルの rune を境界にしている。既存テストは internal/ui/minibuffer_test.go:572・:729
+        で書記素内部の位置を扱うが、検証は改行と幅だけで、:691 の全文保持テストは絵文字外の位置だけを扱う。数値は書記素全体を反転し表示範囲も合わせる案の概算で、新規関数は製品コードの補助関数を数えたよ。追加テストは
+        ZWJ・結合文字・VS16・幅内保持・スクロール・幅不足の6観点を想定した。uniseg は go.mod:27、go.sum:36 に既存で、直接利用なら go.mod の依存区分を変更する。呼出元・依存数は
+        pane_render.go:111 の描画呼出元1件と lipgloss・uniseg の2件を数えた。カーソル位置の公開仕様を維持する案なので、model_update_keyboard.go:355・:363
+        の補完連携は変更対象に含めていない。静的確認のみで、ファイル変更とテスト実行はしていないよ
+follow_up_drafts: []
+lessons_candidates:
+- 'review round 1 の medium 指摘（graphemeClusterBounds の二乗時間、NFR3 違反、stable_id b0c1cb365d883b07）は unresolved
+  のまま別タスクとして起票済み: https://app.notion.com/p/graphemeClusterBounds-3e83509ec8ee813ebd31f4fce4493eb1 。uniseg.NewGraphemes
+  が単語・文・行境界も計算する点は、実装計画の段階で指摘できていなかった'
+- review の architecture / spec は litellm（muse-spark-contributor）が rate_limited で skip し、codex へフォールバックした
+- vulnerability 観点はツール未実行（go_tool_not_found）
+- integration ブランチは、後から main に入った minibuffer-grapheme-scroll-boundary の変更と internal/ui/minibuffer.go で衝突する見込み（git
+  merge-tree で CONFLICT）。並行する同一ファイルの feature の検知が無い
+- task0001 は test-docs/minibuffer-grapheme-cursor-highlight/task0001.tests.yaml を変更したが files 予測に無く、implementer
+  の deviations にも出なかった

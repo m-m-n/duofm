@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"strings"
 	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -144,15 +143,28 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 		}
 		return true
 
-	case tea.KeyLeft:
+	case tea.KeyLeft, tea.KeyCtrlB:
+		// Left and Ctrl+B move to the start of the grapheme cluster
+		// containing the rune just before the cursor (GD1): this single
+		// rule covers both "at a cluster start -> previous cluster's
+		// start" and "inside a cluster -> this cluster's start". No-op at
+		// position 0.
 		if m.cursorPos > 0 {
-			m.cursorPos--
+			runes := []rune(m.input)
+			start, _ := graphemeClusterBounds(runes, m.cursorPos-1)
+			m.cursorPos = start
 		}
 		return true
 
-	case tea.KeyRight:
-		if m.cursorPos < len([]rune(m.input)) {
-			m.cursorPos++
+	case tea.KeyRight, tea.KeyCtrlF:
+		// Right and Ctrl+F move to the end of the grapheme cluster
+		// containing the cursor's rune (GD1). No-op at the end.
+		// Note: Ctrl+F conflicts with the regex search key, so it's only
+		// active when the minibuffer is visible.
+		runes := []rune(m.input)
+		if m.cursorPos < len(runes) {
+			_, end := graphemeClusterBounds(runes, m.cursorPos)
+			m.cursorPos = end
 		}
 		return true
 
@@ -178,24 +190,36 @@ func (m *Minibuffer) HandleKey(msg tea.KeyMsg) bool {
 		m.input = string(runes[m.cursorPos:])
 		m.cursorPos = 0
 		return true
-
-	case tea.KeyCtrlB:
-		// Move backward (same as left)
-		if m.cursorPos > 0 {
-			m.cursorPos--
-		}
-		return true
-
-	case tea.KeyCtrlF:
-		// Move forward (same as right)
-		// Note: This conflicts with regex search key, so it's only active when minibuffer is visible
-		if m.cursorPos < len([]rune(m.input)) {
-			m.cursorPos++
-		}
-		return true
 	}
 
 	return false
+}
+
+// graphemeClusterBounds returns the rune-offset bounds [start, end) of the
+// grapheme cluster that contains rune index p, per the Shared Components
+// "Grapheme cluster locator" contract in IMPLEMENTATION.md. rivo/uniseg's
+// default extended grapheme cluster segmentation is applied to the WHOLE
+// input runes, starting at its first rune, never to a sub-slice (GD1) --
+// segmentation is context-dependent (regional-indicator pairing, ZWJ
+// sequences), so re-segmenting a sub-slice could disagree with the whole
+// input's clustering. Precondition: 0 <= p < len(runes) (the end position
+// has no cluster; callers never ask about it). This is a single forward
+// pass that stops as soon as the containing cluster is found, so it is
+// linear in the input length (GD5); byte offsets never leave this
+// function.
+func graphemeClusterBounds(runes []rune, p int) (start, end int) {
+	gr := uniseg.NewGraphemes(string(runes))
+	pos := 0
+	for gr.Next() {
+		clusterLen := len(gr.Runes())
+		if p < pos+clusterLen {
+			return pos, pos + clusterLen
+		}
+		pos += clusterLen
+	}
+	// Precondition violated (p out of range): treat rune p defensively as
+	// its own single-rune cluster rather than panic.
+	return p, p + 1
 }
 
 // widthUnit is a grapheme cluster: a maximal run of runes that
@@ -347,22 +371,22 @@ func guardFit(budget int, render func() string, shrink func(excess int) bool) (r
 	}
 }
 
-// buildLine renders the given rune slice with the cursor (at curPos,
-// relative to the start of dr) highlighted, including the trailing
-// block cursor when curPos sits just past the last rune.
-func buildLine(dr []rune, curPos int) string {
-	var b strings.Builder
-	for i, r := range dr {
-		if i == curPos {
-			b.WriteString(lipgloss.NewStyle().Reverse(true).Render(string(r)))
-		} else {
-			b.WriteRune(r)
-		}
+// buildLine renders dr with the grapheme cluster [hs, he) rendered as one
+// reversed segment (GD2: at most one reversed segment per rendered line),
+// including the trailing block cursor when hs equals len(dr) (cursor at the
+// end, unchanged). hs < 0 means no highlight. Precondition when hs >= 0 and
+// hs != len(dr): 0 <= hs < he <= len(dr); dr itself is never segmented here
+// -- hs/he are the cursor's cluster bounds, already translated into dr's
+// coordinates by the caller (View).
+func buildLine(dr []rune, hs, he int) string {
+	switch {
+	case hs < 0:
+		return string(dr)
+	case hs == len(dr):
+		return string(dr) + lipgloss.NewStyle().Reverse(true).Render(" ")
+	default:
+		return string(dr[:hs]) + lipgloss.NewStyle().Reverse(true).Render(string(dr[hs:he])) + string(dr[he:])
 	}
-	if curPos >= 0 && curPos >= len(dr) {
-		b.WriteString(lipgloss.NewStyle().Reverse(true).Render(" "))
-	}
-	return b.String()
 }
 
 // View renders the minibuffer
@@ -383,7 +407,12 @@ func (m *Minibuffer) View() string {
 
 	var promptToRender string
 	var displayStart, displayEnd int // rune range into `runes`
-	cursorDisplayPos := -1           // rune-relative index into runes[displayStart:displayEnd]; -1 = no highlight
+	// hlStart/hlEnd: rune-relative highlight range into
+	// runes[displayStart:displayEnd] (GD2). hlStart < 0 = no highlight;
+	// hlStart == len(range) = trailing block cursor; otherwise
+	// 0 <= hlStart < hlEnd <= len(range) is the cursor's whole grapheme
+	// cluster.
+	hlStart, hlEnd := -1, -1
 
 	switch {
 	case contentWidth <= 0:
@@ -436,14 +465,25 @@ func (m *Minibuffer) View() string {
 		remaining := contentWidth - promptWidth
 		cursorAtEnd := m.cursorPos >= len(runes)
 
-		// Step 1: fit check. Assemble the full line (prompt + whole input
-		// with the cursor highlight, or the cursor block when the cursor is
-		// at the end) once and measure it once; render untruncated if it
-		// fits, instead of falling back to the windowed paths below.
-		fullLine := promptToRender + buildLine(runes, m.cursorPos)
+		// gs/ge are the cursor's grapheme cluster bounds (GD2). When the
+		// cursor is at the end there is no cluster to locate (the locator's
+		// precondition excludes the end position), so gs/ge stay at
+		// len(runes), which buildLine treats as the trailing block cursor
+		// sentinel.
+		gs, ge := len(runes), len(runes)
+		if !cursorAtEnd {
+			gs, ge = graphemeClusterBounds(runes, m.cursorPos)
+		}
+
+		// Step 1: fit check (FR2, FR3). Assemble the full line (prompt +
+		// whole input with the cursor's whole cluster highlighted as one
+		// reversed segment, or the cursor block when the cursor is at the
+		// end) once and measure it once; render untruncated if it fits,
+		// instead of falling back to the windowed paths below.
+		fullLine := promptToRender + buildLine(runes, gs, ge)
 		if lipgloss.Width(fullLine) <= contentWidth {
 			displayStart, displayEnd = 0, len(runes)
-			cursorDisplayPos = m.cursorPos
+			hlStart, hlEnd = gs, ge
 			break
 		}
 
@@ -469,10 +509,11 @@ func (m *Minibuffer) View() string {
 			} else {
 				displayStart = len(runes)
 			}
-			cursorDisplayPos = displayEnd - displayStart
+			hlStart = displayEnd - displayStart
+			hlEnd = hlStart
 
 			render := func() string {
-				return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+				return promptToRender + buildLine(runes[displayStart:displayEnd], hlStart, hlEnd)
 			}
 			shrink := func(excess int) bool {
 				if len(kept) == 0 {
@@ -484,14 +525,15 @@ func (m *Minibuffer) View() string {
 				} else {
 					displayStart = displayEnd
 				}
-				cursorDisplayPos = displayEnd - displayStart
+				hlStart = displayEnd - displayStart
+				hlEnd = hlStart
 				return true
 			}
 
 			if _, fits := guardFit(contentWidth, render, shrink); !fits {
 				// CD4: even the cursor block alone overflows.
 				displayStart, displayEnd = len(runes), len(runes)
-				cursorDisplayPos = -1
+				hlStart, hlEnd = -1, -1
 			}
 
 		default:
@@ -499,7 +541,8 @@ func (m *Minibuffer) View() string {
 			// shared units list and split that list around it -- the
 			// cursor's grapheme is excluded from both the before- and
 			// after-cursor slices, so it is never itself trimmed away by
-			// guardFit below.
+			// guardFit below (GD3). Both units and [gs, ge) come from
+			// segmenting the whole input, so cursorUnit spans [gs, ge).
 			cIdx := unitIndexContaining(units, m.cursorPos)
 			cursorUnit := units[cIdx]
 			cursorWidth := cursorUnit.width
@@ -526,7 +569,7 @@ func (m *Minibuffer) View() string {
 					beforeKept := beforeUnits
 
 					displayStart = 0
-					cursorDisplayPos = m.cursorPos
+					hlStart, hlEnd = cursorUnit.start, cursorUnit.end
 					if nAfter > 0 {
 						displayEnd = afterKept[nAfter-1].end
 					} else {
@@ -534,7 +577,7 @@ func (m *Minibuffer) View() string {
 					}
 
 					render := func() string {
-						return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+						return promptToRender + buildLine(runes[displayStart:displayEnd], hlStart, hlEnd)
 					}
 					// CD4: the side away from the cursor is tried right
 					// first (the greedily-extended after-cursor part), then
@@ -556,7 +599,7 @@ func (m *Minibuffer) View() string {
 							} else {
 								displayStart = cursorUnit.start
 							}
-							cursorDisplayPos = m.cursorPos - displayStart
+							hlStart, hlEnd = cursorUnit.start-displayStart, cursorUnit.end-displayStart
 							return true
 						}
 						return false
@@ -564,7 +607,7 @@ func (m *Minibuffer) View() string {
 
 					if _, fits := guardFit(contentWidth, render, shrink); !fits {
 						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
-						cursorDisplayPos = -1
+						hlStart, hlEnd = -1, -1
 					}
 				} else {
 					// Step 6: scroll so the cursor's grapheme sits at the
@@ -579,10 +622,10 @@ func (m *Minibuffer) View() string {
 					} else {
 						displayStart = cursorUnit.start
 					}
-					cursorDisplayPos = m.cursorPos - displayStart
+					hlStart, hlEnd = cursorUnit.start-displayStart, cursorUnit.end-displayStart
 
 					render := func() string {
-						return promptToRender + buildLine(runes[displayStart:displayEnd], cursorDisplayPos)
+						return promptToRender + buildLine(runes[displayStart:displayEnd], hlStart, hlEnd)
 					}
 					shrink := func(excess int) bool {
 						if len(kept) == 0 {
@@ -594,13 +637,13 @@ func (m *Minibuffer) View() string {
 						} else {
 							displayStart = cursorUnit.start
 						}
-						cursorDisplayPos = m.cursorPos - displayStart
+						hlStart, hlEnd = cursorUnit.start-displayStart, cursorUnit.end-displayStart
 						return true
 					}
 
 					if _, fits := guardFit(contentWidth, render, shrink); !fits {
 						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
-						cursorDisplayPos = -1
+						hlStart, hlEnd = -1, -1
 					}
 				}
 			}
@@ -608,7 +651,7 @@ func (m *Minibuffer) View() string {
 	}
 
 	displayRunes := runes[displayStart:displayEnd]
-	contentLine := promptToRender + buildLine(displayRunes, cursorDisplayPos)
+	contentLine := promptToRender + buildLine(displayRunes, hlStart, hlEnd)
 
 	// Style the whole minibuffer line
 	style := lipgloss.NewStyle().

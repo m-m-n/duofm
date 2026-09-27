@@ -2,12 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 )
 
 func TestNewMinibuffer(t *testing.T) {
@@ -1149,6 +1151,621 @@ func TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs(t *testing.T) {
 		t.Errorf("expected visible text to contain %q, got %q", want, visible)
 	}
 	checkVS16PairingIntact(t, visible)
+}
+
+// --- task0001 (AC-1..AC-8): grapheme-wise cursor movement and whole-cluster
+// cursor highlight. Test Notes' "256-color profile helper" and
+// "reversed-run extraction helper".
+
+// fix256ColorProfile fixes the default lipgloss renderer's color profile to
+// 256 colors for the duration of the calling test, restoring the previous
+// profile at cleanup (Test Notes: 256-color profile helper). The profile is
+// process-global, so callers of this helper must not run in parallel
+// (no test in this package calls t.Parallel()). It first asserts, fatally,
+// that rendering a sample character with the reverse attribute actually
+// emits an escape sequence under the fixed profile -- otherwise a
+// non-terminal test run would make AC-3, AC-4 and AC-5 pass vacuously
+// (Test Notes): the split highlight would neither inflate the measured
+// width nor be visible as a separate reversed run.
+func fix256ColorProfile(t *testing.T) {
+	t.Helper()
+	previous := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.ANSI256)
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(previous)
+	})
+
+	sample := lipgloss.NewStyle().Reverse(true).Render("x")
+	if sample == "x" {
+		t.Fatalf("fix256ColorProfile: reverse attribute produced no escape sequence under the fixed 256-color profile (got %q); AC-3/AC-4/AC-5 would pass vacuously", sample)
+	}
+}
+
+// sgrParamsRegex matches one CSI SGR escape sequence, capturing its
+// semicolon-separated parameter list (possibly empty, which is itself a
+// reset in the SGR spec).
+var sgrParamsRegex = regexp.MustCompile(`\x1b\[([0-9;]*)m`)
+
+// reversedRuns returns, in order, the plain-text runs rendered while the
+// SGR reverse attribute (parameter "7") is switched on in an ANSI-styled
+// View() result (Test Notes: reversed-run extraction helper). Each CSI SGR
+// sequence's parameter list is split on ";" and checked for an exact "7"
+// (switches reverse on) or an exact "0" or empty list (a reset, switches
+// reverse off and closes the current run). The outer minibuffer style's own
+// color sequences -- e.g. "48;5;236" or "97;48;5;236" -- never contain "7"
+// or "0" as a whole parameter, so they are never mistaken for the reverse
+// attribute being toggled.
+func reversedRuns(result string) []string {
+	var runs []string
+	var current strings.Builder
+	reverseOn := false
+	lastEnd := 0
+
+	flushText := func(text string) {
+		if reverseOn {
+			current.WriteString(text)
+		}
+	}
+	closeRun := func() {
+		if reverseOn {
+			runs = append(runs, current.String())
+			current.Reset()
+		}
+	}
+
+	for _, m := range sgrParamsRegex.FindAllStringSubmatchIndex(result, -1) {
+		segStart, segEnd := m[0], m[1]
+		paramStart, paramEnd := m[2], m[3]
+		flushText(result[lastEnd:segStart])
+
+		params := result[paramStart:paramEnd]
+		isReverseOn := false
+		isReset := params == ""
+		for _, p := range strings.Split(params, ";") {
+			switch p {
+			case "7":
+				isReverseOn = true
+			case "0":
+				isReset = true
+			}
+		}
+		switch {
+		case isReverseOn:
+			reverseOn = true
+		case isReset:
+			closeRun()
+			reverseOn = false
+		}
+		lastEnd = segEnd
+	}
+	flushText(result[lastEnd:])
+	closeRun()
+
+	return runs
+}
+
+// --- AC-1 (FR1; SPEC AC1, AC2; TS1, TS2): with familyEmojiLsInput, chained
+// Left/Ctrl+B presses from the end and chained Right/Ctrl+F presses from
+// the start move the cursor across exactly one grapheme cluster per press,
+// and a further press at either boundary is a no-op.
+
+func TestMinibufferHandleKey_GraphemeMovement_FamilyEmoji(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	runLeftLike := func(t *testing.T, key tea.KeyType) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(9)
+
+		for _, want := range []int{8, 7, 0} {
+			mb.HandleKey(tea.KeyMsg{Type: key})
+			if got := mb.CursorPos(); got != want {
+				t.Fatalf("key=%v: cursorPos = %d, want %d", key, got, want)
+			}
+		}
+		// A further press at 0 is a no-op.
+		mb.HandleKey(tea.KeyMsg{Type: key})
+		if got := mb.CursorPos(); got != 0 {
+			t.Errorf("key=%v at 0: cursorPos = %d, want 0", key, got)
+		}
+	}
+	runRightLike := func(t *testing.T, key tea.KeyType) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(0)
+
+		for _, want := range []int{7, 8, 9} {
+			mb.HandleKey(tea.KeyMsg{Type: key})
+			if got := mb.CursorPos(); got != want {
+				t.Fatalf("key=%v: cursorPos = %d, want %d", key, got, want)
+			}
+		}
+		// A further press at the end is a no-op.
+		mb.HandleKey(tea.KeyMsg{Type: key})
+		if got := mb.CursorPos(); got != 9 {
+			t.Errorf("key=%v at 9: cursorPos = %d, want 9", key, got)
+		}
+	}
+
+	t.Run("Left", func(t *testing.T) { runLeftLike(t, tea.KeyLeft) })
+	t.Run("CtrlB", func(t *testing.T) { runLeftLike(t, tea.KeyCtrlB) })
+	t.Run("Right", func(t *testing.T) { runRightLike(t, tea.KeyRight) })
+	t.Run("CtrlF", func(t *testing.T) { runRightLike(t, tea.KeyCtrlF) })
+}
+
+// --- AC-2 (FR1; SPEC AC3, AC4; TS3, TS4): SetCursorPos inside the family
+// emoji cluster (the tab-completion path), a table-driven walk over five
+// non-emoji cluster shapes (combining accent, VS16 heart pair, regional-
+// indicator flag pair, leading isolated combining mark, leading isolated
+// ZWJ), and an empty input.
+
+func TestMinibufferHandleKey_GraphemeMovement_SetCursorInsideCluster(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+
+	for k := 1; k <= 6; k++ {
+		for _, key := range []tea.KeyType{tea.KeyLeft, tea.KeyCtrlB} {
+			t.Run(fmt.Sprintf("k=%d/key=%v", k, key), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.Show()
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(k)
+				mb.HandleKey(tea.KeyMsg{Type: key})
+				if got := mb.CursorPos(); got != 0 {
+					t.Errorf("k=%d key=%v: cursorPos = %d, want 0", k, key, got)
+				}
+			})
+		}
+		for _, key := range []tea.KeyType{tea.KeyRight, tea.KeyCtrlF} {
+			t.Run(fmt.Sprintf("k=%d/key=%v", k, key), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.Show()
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(k)
+				mb.HandleKey(tea.KeyMsg{Type: key})
+				if got := mb.CursorPos(); got != 7 {
+					t.Errorf("k=%d key=%v: cursorPos = %d, want 7", k, key, got)
+				}
+			})
+		}
+	}
+}
+
+// graphemeMoveCase is one row of the AC-2 table: from cursor position
+// `from`, pressing `key` must leave the cursor at exactly `want`.
+type graphemeMoveCase struct {
+	from int
+	key  tea.KeyType
+	want int
+}
+
+func assertGraphemeMoves(t *testing.T, name, input string, cases []graphemeMoveCase) {
+	t.Helper()
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%s/from=%d/key=%v/want=%d", name, c.from, c.key, c.want), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.Show()
+			mb.SetInput(input)
+			mb.SetCursorPos(c.from)
+			mb.HandleKey(tea.KeyMsg{Type: c.key})
+			if got := mb.CursorPos(); got != c.want {
+				t.Errorf("input=%q from=%d key=%v: cursorPos = %d, want %d", input, c.from, c.key, got, c.want)
+			}
+		})
+	}
+}
+
+func TestMinibufferHandleKey_GraphemeMovement_TableDriven(t *testing.T) {
+	// "e" + U+0301 (combining acute) + "x": clusters [0,2) "e´", [2,3) "x".
+	const combiningInput = "éx"
+	assertGraphemeMoves(t, "combining", combiningInput, []graphemeMoveCase{
+		{from: 3, key: tea.KeyLeft, want: 2},
+		{from: 2, key: tea.KeyLeft, want: 0},
+		{from: 1, key: tea.KeyLeft, want: 0}, // inside the cluster -> its start
+		{from: 0, key: tea.KeyLeft, want: 0}, // no-op at start
+		{from: 0, key: tea.KeyRight, want: 2},
+		{from: 2, key: tea.KeyRight, want: 3},
+		{from: 1, key: tea.KeyRight, want: 2}, // inside the cluster -> its end
+		{from: 3, key: tea.KeyRight, want: 3}, // no-op at end
+		{from: 3, key: tea.KeyCtrlB, want: 2},
+		{from: 0, key: tea.KeyCtrlF, want: 2},
+	})
+
+	// U+2764 U+FE0F (heart + VS16) between two ASCII letters: clusters
+	// [0,1) "a", [1,3) heart, [3,4) "b".
+	const heartInput = "a" + vs16Pair + "b"
+	assertGraphemeMoves(t, "heart_vs16", heartInput, []graphemeMoveCase{
+		{from: 4, key: tea.KeyLeft, want: 3},
+		{from: 3, key: tea.KeyLeft, want: 1},
+		{from: 2, key: tea.KeyLeft, want: 1}, // inside the cluster -> its start
+		{from: 1, key: tea.KeyLeft, want: 0},
+		{from: 0, key: tea.KeyLeft, want: 0}, // no-op at start
+		{from: 0, key: tea.KeyRight, want: 1},
+		{from: 1, key: tea.KeyRight, want: 3},
+		{from: 2, key: tea.KeyRight, want: 3}, // inside the cluster -> its end
+		{from: 3, key: tea.KeyRight, want: 4},
+		{from: 4, key: tea.KeyRight, want: 4}, // no-op at end
+		{from: 4, key: tea.KeyCtrlB, want: 3},
+		{from: 0, key: tea.KeyCtrlF, want: 1},
+	})
+
+	// U+1F1EF U+1F1F5 (regional-indicator flag pair) between two ASCII
+	// letters: clusters [0,1) "a", [1,3) flag, [3,4) "b".
+	const flagInput = "a\U0001F1EF\U0001F1F5b"
+	assertGraphemeMoves(t, "flag_pair", flagInput, []graphemeMoveCase{
+		{from: 4, key: tea.KeyLeft, want: 3},
+		{from: 3, key: tea.KeyLeft, want: 1},
+		{from: 2, key: tea.KeyLeft, want: 1}, // inside the cluster -> its start
+		{from: 1, key: tea.KeyLeft, want: 0},
+		{from: 0, key: tea.KeyLeft, want: 0}, // no-op at start
+		{from: 0, key: tea.KeyRight, want: 1},
+		{from: 1, key: tea.KeyRight, want: 3},
+		{from: 2, key: tea.KeyRight, want: 3}, // inside the cluster -> its end
+		{from: 3, key: tea.KeyRight, want: 4},
+		{from: 4, key: tea.KeyRight, want: 4}, // no-op at end
+		{from: 4, key: tea.KeyCtrlB, want: 3},
+		{from: 0, key: tea.KeyCtrlF, want: 1},
+	})
+
+	// A leading isolated combining mark (no base to attach to) followed by
+	// ASCII letters: clusters [0,1) U+0301 alone, [1,2) "a", [2,3) "b".
+	const leadingCombiningInput = "́ab"
+	assertGraphemeMoves(t, "leading_combining", leadingCombiningInput, []graphemeMoveCase{
+		{from: 3, key: tea.KeyLeft, want: 2},
+		{from: 2, key: tea.KeyLeft, want: 1},
+		{from: 1, key: tea.KeyLeft, want: 0},
+		{from: 0, key: tea.KeyLeft, want: 0}, // no-op at start
+		{from: 0, key: tea.KeyRight, want: 1},
+		{from: 1, key: tea.KeyRight, want: 2},
+		{from: 2, key: tea.KeyRight, want: 3},
+		{from: 3, key: tea.KeyRight, want: 3}, // no-op at end
+		{from: 3, key: tea.KeyCtrlB, want: 2},
+		{from: 0, key: tea.KeyCtrlF, want: 1},
+	})
+
+	// A leading isolated ZWJ (no preceding or following pictographic to
+	// join) followed by ASCII letters: same cluster shape as above.
+	const leadingZWJInput = "‍ab"
+	assertGraphemeMoves(t, "leading_zwj", leadingZWJInput, []graphemeMoveCase{
+		{from: 3, key: tea.KeyLeft, want: 2},
+		{from: 2, key: tea.KeyLeft, want: 1},
+		{from: 1, key: tea.KeyLeft, want: 0},
+		{from: 0, key: tea.KeyLeft, want: 0}, // no-op at start
+		{from: 0, key: tea.KeyRight, want: 1},
+		{from: 1, key: tea.KeyRight, want: 2},
+		{from: 2, key: tea.KeyRight, want: 3},
+		{from: 3, key: tea.KeyRight, want: 3}, // no-op at end
+		{from: 3, key: tea.KeyCtrlB, want: 2},
+		{from: 0, key: tea.KeyCtrlF, want: 1},
+	})
+}
+
+func TestMinibufferHandleKey_GraphemeMovement_EmptyInput(t *testing.T) {
+	for _, key := range []tea.KeyType{tea.KeyLeft, tea.KeyCtrlB, tea.KeyRight, tea.KeyCtrlF} {
+		t.Run(fmt.Sprintf("key=%v", key), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.Show()
+			mb.HandleKey(tea.KeyMsg{Type: key})
+			if got := mb.CursorPos(); got != 0 {
+				t.Errorf("key=%v on empty input: cursorPos = %d, want 0", key, got)
+			}
+		})
+	}
+}
+
+// --- AC-3 (FR2; SPEC AC5, AC6; TS5): with the 256-color profile fixed and
+// a width at which the whole line fits (m.width 19), View's output contains
+// exactly one reversed run for every cursor 0..9, and that run is exactly
+// the expected cluster ("l" at 7, "s" at 8, the block cursor at 9, and the
+// whole 7-rune family emoji for every cursor 0..6 -- the emoji is a single
+// cluster regardless of which of its runes the cursor sits on).
+
+func TestMinibufferView_FamilyEmoji_SingleReversedRunWholeCluster(t *testing.T) {
+	fix256ColorProfile(t)
+	checkFamilyEmojiFixture(t)
+
+	const width = 19
+	runes := []rune(familyEmojiLsInput)
+	familyEmojiText := string(runes[0:7])
+
+	for pos := 0; pos <= 9; pos++ {
+		t.Run(fmt.Sprintf("cursor=%d", pos), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(searchPrompt)
+			mb.SetWidth(width)
+			mb.SetInput(familyEmojiLsInput)
+			mb.SetCursorPos(pos)
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, width, result)
+			runs := reversedRuns(result)
+
+			var want string
+			switch {
+			case pos <= 6:
+				want = familyEmojiText
+			case pos == 7:
+				want = "l"
+			case pos == 8:
+				want = "s"
+			default: // pos == 9
+				want = " "
+			}
+
+			if len(runs) != 1 || runs[0] != want {
+				t.Errorf("cursor=%d: reversed runs = %#v, want exactly [%q]", pos, runs, want)
+			}
+
+			if pos <= 6 {
+				visible := stripANSI(result)
+				if !strings.Contains(visible, familyEmojiText) {
+					t.Errorf("cursor=%d: visible text does not contain the whole family emoji: %q", pos, visible)
+				}
+			}
+		})
+	}
+}
+
+// --- AC-4 (FR3; SPEC AC7; TS6): with the 256-color profile fixed, for
+// every m.width 19..24 and every cursor 1..6, the whole line renders
+// untruncated (prompt immediately followed by the whole input) -- the
+// cluster highlight no longer inflates the measured width.
+
+func TestMinibufferView_FamilyEmoji_FitsUntruncated_WidthCursorTable(t *testing.T) {
+	fix256ColorProfile(t)
+	checkFamilyEmojiFixture(t)
+
+	want := searchPrompt + familyEmojiLsInput
+	for width := 19; width <= 24; width++ {
+		for pos := 1; pos <= 6; pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(searchPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+
+				visible := stripANSI(result)
+				if !strings.Contains(visible, want) {
+					t.Errorf("width=%d/cursor=%d: expected visible text to contain %q, got %q", width, pos, want, visible)
+				}
+			})
+		}
+	}
+}
+
+// --- AC-5 (FR4; SPEC AC8; TS7): with the 256-color profile fixed, for
+// every m.width 14..18 and every cursor 0..6, the family emoji either
+// appears whole inside a single reversed run or none of its runes appear.
+// At m.width 15 specifically, no input rune at all is rendered.
+
+func TestMinibufferView_FamilyEmoji_NarrowWidths_WholeOrNone(t *testing.T) {
+	fix256ColorProfile(t)
+	checkFamilyEmojiFixture(t)
+
+	runes := []rune(familyEmojiLsInput)
+	familyEmojiText := string(runes[0:7])
+	emojiRunes := runes[0:7]
+
+	for width := 14; width <= 18; width++ {
+		for pos := 0; pos <= 6; pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(searchPrompt)
+				mb.SetWidth(width)
+				mb.SetInput(familyEmojiLsInput)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+
+				visible := stripANSI(result)
+				containsWhole := strings.Contains(visible, familyEmojiText)
+				anyEmojiRune := false
+				for _, r := range emojiRunes {
+					if strings.ContainsRune(visible, r) {
+						anyEmojiRune = true
+						break
+					}
+				}
+
+				switch {
+				case containsWhole:
+					runs := reversedRuns(result)
+					found := false
+					for _, run := range runs {
+						if run == familyEmojiText {
+							found = true
+							break
+						}
+					}
+					if !found {
+						t.Errorf("width=%d/cursor=%d: family emoji present but not as a single reversed run; runs=%#v, visible=%q", width, pos, runs, visible)
+					}
+				case anyEmojiRune:
+					t.Errorf("width=%d/cursor=%d: partial family emoji runes rendered (neither fully present nor fully absent): visible=%q", width, pos, visible)
+				}
+
+				if width == 15 {
+					// AC-5: the emoji's width exceeds the remaining width;
+					// no input rune is rendered. "search" in the prompt
+					// itself contains 's', so only the text after the
+					// prompt is checked.
+					remainder := strings.Replace(visible, searchPrompt, "", 1)
+					if strings.ContainsAny(remainder, "ls") {
+						t.Errorf("width=15/cursor=%d: expected no input rune after the prompt, got remainder=%q (visible=%q)", pos, remainder, visible)
+					}
+				}
+			})
+		}
+	}
+}
+
+// --- AC-6 (NFR1; SPEC AC9; TS8): new bounded-single-line tables covering a
+// flag pair, an e + U+0301 sequence, and a leading isolated zero-width rune
+// (both a combining mark and a ZWJ), for every m.width 10..30 and every
+// cursor 0..n, under both the default profile and the fixed 256-color
+// profile. All existing bounded-single-line tables (unmodified) still pass.
+
+func TestMinibufferView_NewGraphemeFixtures_BoundedSingleLine(t *testing.T) {
+	fixtures := []string{
+		"éx",                           // e + combining acute + x
+		"a" + vs16Pair + vs16Pair + "b", // two VS16 heart pairs
+		"a\U0001F1EF\U0001F1F5b",        // regional-indicator flag pair
+		"́ab",                           // leading isolated combining mark
+		"‍ab",                           // leading isolated ZWJ
+	}
+
+	run := func(t *testing.T) {
+		for _, input := range fixtures {
+			n := len([]rune(input))
+			for width := 10; width <= 30; width++ {
+				for pos := 0; pos <= n; pos++ {
+					t.Run(fmt.Sprintf("input=%q/width=%d/cursor=%d", input, width, pos), func(t *testing.T) {
+						mb := NewMinibuffer()
+						mb.SetPrompt(searchPrompt)
+						mb.SetWidth(width)
+						mb.SetInput(input)
+						mb.SetCursorPos(pos)
+						mb.Show()
+
+						result := mustNotPanic(t, "Minibuffer.View", mb.View)
+						assertBoundedSingleLine(t, width, result)
+					})
+				}
+			}
+		}
+	}
+
+	t.Run("default_profile", func(t *testing.T) { run(t) })
+	t.Run("fixed_256_profile", func(t *testing.T) {
+		fix256ColorProfile(t)
+		run(t)
+	})
+}
+
+// --- AC-7 (FR2, FR5; SPEC AC10; TS9): editing operations on
+// familyEmojiLsInput with cursor 3 stay rune-wise (GD4); an insertion that
+// leaves the cursor inside a cluster highlights the whole cluster on the
+// next View.
+
+func TestMinibufferHandleKey_EditingOpsStayRuneWise_FamilyEmoji(t *testing.T) {
+	checkFamilyEmojiFixture(t)
+	runes := []rune(familyEmojiLsInput)
+
+	t.Run("Backspace", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(3)
+		mb.HandleKey(tea.KeyMsg{Type: tea.KeyBackspace})
+
+		want := string(append(append([]rune{}, runes[:2]...), runes[3:]...))
+		if mb.Input() != want {
+			t.Errorf("input = %q, want %q", mb.Input(), want)
+		}
+		if got := mb.CursorPos(); got != 2 {
+			t.Errorf("cursorPos = %d, want 2", got)
+		}
+	})
+
+	t.Run("Delete", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(3)
+		mb.HandleKey(tea.KeyMsg{Type: tea.KeyDelete})
+
+		want := string(append(append([]rune{}, runes[:3]...), runes[4:]...))
+		if mb.Input() != want {
+			t.Errorf("input = %q, want %q", mb.Input(), want)
+		}
+		if got := mb.CursorPos(); got != 3 {
+			t.Errorf("cursorPos = %d, want 3", got)
+		}
+	})
+
+	t.Run("InsertRune", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(3)
+		mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'Z'}})
+
+		want := string(append(append(append([]rune{}, runes[:3]...), 'Z'), runes[3:]...))
+		if mb.Input() != want {
+			t.Errorf("input = %q, want %q", mb.Input(), want)
+		}
+		if got := mb.CursorPos(); got != 4 {
+			t.Errorf("cursorPos = %d, want 4", got)
+		}
+	})
+
+	t.Run("CtrlK", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(3)
+		mb.HandleKey(tea.KeyMsg{Type: tea.KeyCtrlK})
+
+		want := string(runes[:3])
+		if mb.Input() != want {
+			t.Errorf("input = %q, want %q", mb.Input(), want)
+		}
+		if got := mb.CursorPos(); got != 3 {
+			t.Errorf("cursorPos = %d, want 3", got)
+		}
+	})
+
+	t.Run("CtrlU", func(t *testing.T) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(familyEmojiLsInput)
+		mb.SetCursorPos(3)
+		mb.HandleKey(tea.KeyMsg{Type: tea.KeyCtrlU})
+
+		want := string(runes[3:])
+		if mb.Input() != want {
+			t.Errorf("input = %q, want %q", mb.Input(), want)
+		}
+		if got := mb.CursorPos(); got != 0 {
+			t.Errorf("cursorPos = %d, want 0", got)
+		}
+	})
+}
+
+func TestMinibufferView_InsertionLeavesCursorInsideCluster_ReversesWholeCluster(t *testing.T) {
+	fix256ColorProfile(t)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(40)
+	mb.SetInput("é") // "e" + combining acute accent
+	mb.SetCursorPos(1)
+	mb.Show()
+
+	mb.HandleKey(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+
+	if got, want := mb.Input(), "eá"; got != want {
+		t.Fatalf("input = %q, want %q", got, want)
+	}
+	if got := mb.CursorPos(); got != 2 {
+		t.Fatalf("cursorPos = %d, want 2", got)
+	}
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	runs := reversedRuns(result)
+	want := "á"
+	if len(runs) != 1 || runs[0] != want {
+		t.Errorf("reversed runs = %#v, want exactly [%q]", runs, want)
+	}
 }
 
 // --- task0001 (minibuffer-grapheme-scroll-boundary, AC-1..AC-7): the
