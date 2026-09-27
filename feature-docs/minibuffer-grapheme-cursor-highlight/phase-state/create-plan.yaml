@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-grapheme-cursor-highlight
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 84b0fade9252547ef756348624006373665a6329
+last_input_digest: sha256:aeef87981fc8c7e085e4e0d9c5ccfab916fe4daea56722b8d4f44f72a7fa249d
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:aeef87981fc8c7e085e4e0d9c5ccfab916fe4daea56722b8d4f44f72a7fa249d
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
