@@ -1,0 +1,60 @@
+round: 1
+executed_at: "2026-09-27T18:52:30+09:00"
+scope:
+  review_mode: diff
+  base_commit: 9e2eb177f7a9a49da74aff60bc330b607c1fed21
+  head_commit: 1f577c8fb8af4974770b2d079d4915f3b5b5c845
+  changed_files:
+  - go.mod
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  - test-docs/minibuffer-grapheme-scroll-boundary/task0001.tests.yaml
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary:
+  - perspective: license
+    reason: "diff が go.mod を変更（github.com/rivo/uniseg を indirect から direct 依存へ昇格）"
+  - perspective: vulnerability
+    reason: "diff が go.mod を変更（依存マニフェストの変更による脆弱性検査）"
+  cross_validation: false
+perspective_runs:
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: "rate_limited"}
+- {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+- {run_id: "license#0", perspective: license, role: primary, source: codex, status: completed}
+- {run_id: "vulnerability#tool", perspective: vulnerability, role: tool, source: tool, status: skipped, skip_reason: "go_tool_not_found"}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: 587742bf38d12e29
+  severity: medium
+  category: comprehensive
+  file: internal/ui/minibuffer.go
+  line: 601
+  title: "反転表示との組み合わせでカーソルと入力が消える"
+  description: "反転表示の ANSI が有効な環境（lipgloss.SetColorProfile(termenv.ANSI256)）で、prompt=\"(search): \"、input=\"aaaaa\"+家族の絵文字+\"bbbbb\"、カーソルが絵文字の内側（位置 5・6・11）、m.width=16・17（残り幅 2・3）のとき、入力もカーソルも表示されない。buildLine（353-357 行）がカーソル位置の rune だけを反転するため書記素の途中に ANSI コードが入り、lipgloss.Width が幅 4 と測って guardFit が縮めきれず、601-603 行（Step 5 側では 565-567 行）の後退処理で displayStart=displayEnd になる。変更前は同条件でカーソル位置の rune を反転表示していたため退行。追加テストは Ascii プロファイルで動くためこの経路を通らず、assertWholeOrNone は全消失も合格にする。"
+  suggestion: "カーソルの反転表示を書記素全体にかける（buildLine にカーソルを含む書記素の範囲を渡す）。ただし SPEC の前提 a2（カーソル位置の rune だけを反転する既存の描画は変えない）と NFR1 に反するため、仕様判断が必要。a2 を残す場合は既知の制約として記録し、ANSI を有効にしたテストで挙動を固定する。"
+  sources: ["codex:comprehensive"]
+  confidence: 85
+  resolution: unresolved
+  resolution_reason: "medium のため自動修正の対象外。修正は SPEC 前提 a2 の見直しを要する（カーソル反転の書記素単位化）"
+evaluation:
+  round_summary: "第 1 ラウンド。critical と high はない。medium は 1 件で、comprehensive#0 の指摘を evaluator が ANSI256 プロファイルで再現して引き継いだ。反転表示の ANSI が有効なとき、カーソルが複数 rune の書記素の内側にあり残り幅が 2〜3 だと入力とカーソルが丸ごと消える（変更前は表示されていたので退行）。直すには SPEC の前提 a2 を見直す必要がある。プロンプト注入の試みなし。go test ./internal/ui -run Minibuffer は通過。観点: comprehensive=findings、security=corroborated、spec=findings（spec#0 rate_limited → spec#1 が担当。Ascii 環境では AC1〜AC4・NFR1・NFR2 を満たす）、license=corroborated（uniseg v0.4.7 の indirect 表記を外しただけ、MIT）、vulnerability=corroborated（道具は go_tool_not_found で未実行。モジュール追加・版変更なしのみ確認、脆弱性DB照合なし）。"
+  recommended_action: complete
+  action_rationale: "残る critical/high は 0 件。medium の 1 件は SPEC 前提 a2 と NFR1 に反する修正を要するため、人の仕様判断事項として報告する。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-minibuffer-grapheme-scroll-boundary-20260927T095203Z.md
