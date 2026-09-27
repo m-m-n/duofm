@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-grapheme-scroll-boundary
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: 05b429fcdf2446b235a49330ea528530a0f81a50
 last_input_digest: sha256:9b155c84eac4ef4fa18d63b87e3b58575c362e6b773287c5c4b4aa0aa546c4ec
