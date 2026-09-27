@@ -164,8 +164,6 @@ test_history_forward_cleared() {
     send_keys "$CURRENT_SESSION" "["
     sleep 0.5
 
-    assert_contains "$CURRENT_SESSION" "testdata" \
-        "[ key navigates back toward /testdata"
     assert_not_contains "$CURRENT_SESSION" "/testdata/dir1" \
         "[ key leaves directory A (dir1)"
 

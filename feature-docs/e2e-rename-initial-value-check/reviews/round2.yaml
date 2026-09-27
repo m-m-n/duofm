@@ -1,0 +1,66 @@
+round: 2
+executed_at: "2026-09-27T03:58:20+09:00"
+scope:
+  review_mode: diff
+  base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
+  head_commit: bd1a654aaff2f59fb7974bcb6bf73d7a0a0ad981
+  changed_files:
+  - test-docs/e2e-rename-initial-value-check/task0001.tests.yaml
+  - test-docs/e2e-rename-initial-value-check/task0002.tests.yaml
+  - test/e2e/scripts/tests/file_operation_tests.sh
+  - test/e2e/scripts/tests/history_tests.sh
+plan:
+  floor: [comprehensive, security, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+- {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+- {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+- {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: rate_limited}
+- {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+- {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings:
+- stable_id: 7f5017c72dd1dcab
+  severity: medium
+  category: spec
+  file: test/e2e/scripts/tests/file_operation_tests.sh
+  line: 51
+  title: "入力値の先頭に「│」がある値でも合格し、FR1/FR2/AC-6 の厳密一致を満たさない"
+  description: "SPEC の FR1/FR2 は、基底名の前後に余分な文字（1文字の非空白文字を含む）があれば検査を不合格にすることを求めている。AC-6 も余分な1文字を一切許さないと定めている。51行目のパターンは左の枠線 │ を行内のどの位置からでも一致させるため、入力値に含まれる │ を枠線と取り違える。模擬行で再現した: '│  │ │before_rename   │ .txt'（先頭に │ を1文字追加）と '│  │ x│before_rename  │ .txt' が合格する（navren_before も構造は同じ）。末尾側の 'before_rename│' は正しく不合格になる。TS-5 の3変種は正しく不合格になるので、前ラウンドの bafbaecc072f4a07 / d4573a9aef53ae65 は task0002 で解消済み。本件はそれとは別の欠陥。"
+  suggestion: "左の余白（Padding(0,1) により常に1桁）と、拡張子の前の区切り（JoinHorizontal の空白により常に1桁）を固定幅で照合する: '${border} ${escaped_base}[[:space:]]*${border} ${escaped_ext}'。修正後に make test-e2e で実際の画面でも合格することを確認する。あわせて、先頭に │ を1文字加える一時的な変更で、両テストの初期値検査が不合格になることも確認する。"
+  sources: ["codex:spec"]
+  confidence: 100
+  resolution: unresolved
+  resolution_reason: "medium かつ spec のため自動修正の候補外"
+- stable_id: 4db551c190612b80
+  severity: medium
+  category: comprehensive
+  file: test/e2e/scripts/tests/file_operation_tests.sh
+  line: 51
+  title: "入力値内の「│」を入力欄の枠と取り違え、ヘルパーのコメントが主張する厳密さが成り立たない"
+  description: "正規表現は行内のどの位置の │ からでも一致を始めるので、入力値の中にある │ から後ろだけで一致が成立してしまう。模擬行で '│  │ x│before_rename  │ .txt' と '│  │ before_rename│.txt  │ .txt' が合格することを確認した。22行目のコメント『No non-whitespace character next to the base name is tolerated』は、この場合に成り立たない。先頭に空白が付いた ' before_rename' も合格する（SPEC A-6 では空白は範囲外）。"
+  suggestion: "固定幅の照合 '${border} ${escaped_base}[[:space:]]*${border} ${escaped_ext}' に絞る。これで余分な1文字はすべて拒否され、先頭の空白も拒否される。'│ ' で終わる複数文字の接頭辞まで完全に排除するなら、入力欄の上枠 ╭ の列位置から入力行の列範囲を特定し、その範囲だけを比較する。ヘルパー冒頭のコメントは、実際に保証する範囲に合わせて書き直す。"
+  sources: ["codex:comprehensive"]
+  confidence: 100
+  resolution: unresolved
+  resolution_reason: "medium のため自動修正の候補外（critical/high のみ対象）"
+evaluation:
+  round_summary: "第2ラウンド。前ラウンドの2件（bafbaecc072f4a07 / d4573a9aef53ae65）は task0002 で取り除かれ、模擬行で before_rename. / xbefore_rename / before_renamex、空の値、拡張子付きの値はすべて不合格になることを確認。comprehensive#0 と spec#1 が、51行目のパターンが入力値内の │ を枠線と取り違える問題を独立に指摘し、evaluator が模擬行で再現した。comprehensive#0 の空白に関する指摘は SPEC A-6 で範囲外として low に下げた（R3b で severity 外のため除外）。FR3・NFR1・NFR2 は満たしている。critical/high 無し、dismissed_sites 無し、指示の注入の試み無し。security / comprehensive / spec いずれも corroborated（spec#0 はレート制限で skipped、spec#1 が完了）。"
+  recommended_action: rework
+  action_rationale: "medium 2件は自動修正の対象外だが FR1/FR2/AC-6 とヘルパーのコメントに反しており、2観点が独立に指摘し evaluator も再現した。修正はパターン1行とコメント、一時的な変更での確認で済むが、固定幅は描画構造に依存するので make test-e2e での確認が必要。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: true
+  branch: report
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: /home/sakura/go/src/duofm/tmp/sca-triage-e2e-rename-initial-value-check-20260926T185801Z.md

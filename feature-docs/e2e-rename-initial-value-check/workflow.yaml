@@ -1,0 +1,274 @@
+schema_version: 1
+feature: e2e-rename-initial-value-check
+created: '2026-09-27'
+base_branch: main
+goal: '# E2E リネームテストの初期値チェックが常に通る
+
+
+  Notion task: https://www.notion.so/3e63509ec8ee81138a78d466708fa2da
+
+  種別: 改善
+
+
+  ## やりたいこと (必須)
+
+  E2E のリネームテストで、ダイアログ入力欄の初期値を実際に検証できるようにする。
+
+
+  ## 背景・なぜ (必須)
+
+  `file_operation_tests.sh` の `assert_contains "before_rename"`（195 行目）と `assert_contains "navren_before"`（439
+  行目）は、ダイアログ背後のファイル一覧に同名ファイルが表示されている限り、入力欄の初期値に関係なく通る。
+
+  `history_tests.sh` 167 行目の `assert_contains "testdata"` もパス表示により常に通る（直後の `assert_not_contains` が実際の判定を担っている）。
+
+  ブランチ em-workflow/fix-e2e-failures/integration（PR https://github.com/m-m-n/duofm/pull/4 ）
+
+  レビュー指摘 537ddc2b5d008e78
+
+
+  ## 受け入れ条件 / 完了の定義 (必須)
+
+  - [ ] 初期値の照合が、入力欄にしか出ない形で行われる
+
+  - [ ] `navren_before` のチェックも同様に直す
+
+  - [ ] `history_tests.sh` の常に通る `testdata` チェックを削除するか、パス表示行に絞る
+
+
+  ## 制約・前提 (任意)
+
+  Go のソースは変更しない。
+
+  '
+parent_branch: em-workflow/e2e-rename-initial-value-check/integration
+tier: full
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.01
+      '1': 0.97
+      '2': 0.02
+      '3': 0.0
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.01
+      '1': 0.98
+      '2': 0.01
+      '3': 0.0
+  at: '2026-09-27T01:16:26+09:00'
+  reductions: []
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro
+        -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e
+        GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e
+        GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - REQUIREMENTS.md
+  - SPEC.md
+  status: completed
+  completed_at_commit: 490062ed51c848b9e6ba56115c7f8ff333943610
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: The feature changes only E2E test shell scripts; it has no user interface or visual
+    change.
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: completed
+  completed_at_commit: dd2b43559ae3b21f87d6788817d1e177728314f8
+- id: implement
+  status: completed
+  completed_at_commit: 5659fa5bdec56b9792fe83727f79e95d00fbd907
+  base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
+- id: review
+  status: completed
+  completed_at_commit: 8397575cd3abad215f412f215e10cab8b673d59e
+- id: verify
+  status: completed
+  completed_at_commit: 2ed9d6b4ad04532e9a65afebc4b6a039d298e1cb
+  result: pass
+  failed_items: []
+  summary: 'round 3 (after rework task0003): build ok / go test ./... ok / gofmt no diff / bash -n ok / run_all_tests.sh
+    --check-list OK (123 entries) / make test-e2e 264 passed 0 failed (TS-1, TS-3) / TS-2 (a)(b) and TS-5 (a)(b)(c)
+    mutations each fail exactly both initial-value checks / TS-4 no *.go or helpers.sh diff / TS-6 simulated-row
+    script: base name passes, all 12 border/extra-character/empty/full-name values fail for both base names, counters
+    +1 each / AC-1, AC-6 source inspection pass (pattern anchored at row start and end). Excluded requirements: none'
+- id: retrospect
+  status: completed
+  completed_at_commit: 4f22f499d82e32e85966226bc627a2aee7687ddc
+tasks:
+  task0001:
+    title: Input-line-only initial-value checks for the rename E2E tests, and removal of the always-passing
+      history check
+    plan: tasks/task0001.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    - test/e2e/scripts/tests/history_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - NFR1
+    - NFR2
+    status: merged
+    branch: em-workflow/e2e-rename-initial-value-check/task0001
+  task0002:
+    title: Strict initial-value match in the rename dialog's input-field assertion
+    plan: tasks/task0002.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - NFR1
+    - NFR2
+    status: merged
+    branch: em-workflow/e2e-rename-initial-value-check/task0002
+    provenance:
+      source: verify
+      source_ids:
+      - AC-2
+      review_round: null
+  task0003:
+    title: Anchor the input-field assertion to the dialog row's structure
+    plan: tasks/task0003.md
+    files:
+    - test/e2e/scripts/tests/file_operation_tests.sh
+    skills: []
+    domains:
+    - config-infra
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - NFR1
+    - NFR2
+    status: merged
+    branch: em-workflow/e2e-rename-initial-value-check/task0003
+    provenance:
+      source: verify
+      source_ids:
+      - AC-6
+      review_round: null
+review:
+  status: completed
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
+  rounds_completed: 3
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
+requirements:
+  FR1:
+    title: Restrict the initial-value check in test_rename_file to the input field, with strict matching
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
+    - TS-6
+  FR2:
+    title: Restrict the initial-value check in test_navigation_after_rename to the input field, with strict
+      matching
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    tests:
+    - TS-1
+    - TS-2
+    - TS-5
+    - TS-6
+  FR3:
+    title: Remove the always-passing testdata check from history_tests.sh
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    tests:
+    - TS-3
+  NFR1:
+    title: Go source files (*.go) are not changed.
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    tests:
+    - TS-4
+  NFR2:
+    title: The existing behavior of assert_contains / assert_not_contains in helpers.sh is not changed.
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks:
+    - task0001
+    - task0002
+    - task0003
+    tests:
+    - TS-4
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 2
+    failed_id_counts:
+      AC-2: 1
+      AC-6: 1
+  infra_resume:
+    rounds: 0
+    cap: 2
