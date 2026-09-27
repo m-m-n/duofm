@@ -1,0 +1,46 @@
+feature: drag-refresh-stale-anchor
+collected_at: "2026-09-27T18:10:00+09:00"
+session_ids: [01a0e21b-5a3b-71de-9724-5f96f3e54a47]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: full
+    rationale: "description_plus_code の最終読みで P(0)+P(1)=0.66 が reduced の下限 0.85 に届かず、threshold_rows の full 行で決定"
+    bases:
+      - basis: description_only
+        score: {type: score, score: 1.16, confidence: 0.84, probabilities: {"0": 0.0, "1": 0.84, "2": 0.16, "3": 0.0}}
+        observed_at: "2026-09-27T17:03:38+09:00"
+      - basis: description_plus_code
+        score: {type: score, score: 1.34, confidence: 0.66, probabilities: {"0": 0.0, "1": 0.66, "2": 0.34, "3": 0.0}}
+        observed_at: "2026-09-27T17:06:01+09:00"
+    pre_survey_estimate:
+      files_expected:
+        - internal/ui/model_update.go
+        - internal/ui/model_update_mouse.go
+        - internal/ui/model_update_dialog.go
+        - internal/ui/model.go
+        - internal/ui/model_update_mouse_test.go
+        - internal/ui/autorefresh_filter_test.go
+      changed_lines_approx: 250
+      new_functions_needed: 1
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: true
+      spillover_modules: []
+      work_still_required: true
+      test_change_kind: new_behavior_tests
+      added_test_cases_approx: 12
+      body_change_kind: new_logic
+      change_containment: single_module
+      caller_and_dependency_count: 15
+      changes_external_contract: false
+      changes_behavior: true
+follow_up_drafts: []
+lessons_candidates:
+  - "事前調査の files_expected は model_update.go 等の再読み込み経路側を予測したが、実装は再読み込み経路に触れずマウス移動・解放側（model_update_mouse.go / pane_drag.go）で表示一覧の変化を検出する形になった"
+  - "review round 1 の spec 観点で litellm (muse-spark-contributor) が rate_limited で skip、codex へのフォールバックで補完された"
