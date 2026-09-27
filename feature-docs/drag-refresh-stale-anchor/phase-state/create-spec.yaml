@@ -1,0 +1,21 @@
+schema_version: 1
+feature: drag-refresh-stale-anchor
+phase: create-spec
+status: dispatching
+generation: 1
+base_revision: d3c0f4cac7ea1e56a754a7c88d63e09857e228bd
+last_input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: dispatched
+  input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
