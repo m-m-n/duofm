@@ -110,7 +110,8 @@ workflow:
     M1（手動確認）: batch 実行のため未実施。自動化された対応物 TS1-TS3（空白 100000 個）で代替
     除外シナリオ: なし
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: af34126c5471a1d2aa633e904fca946839c9b6ed
 tasks:
   task0001:
     title: Linear-time grapheme cluster locator for the minibuffer
