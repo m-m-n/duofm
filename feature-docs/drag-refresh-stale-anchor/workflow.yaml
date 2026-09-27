@@ -122,7 +122,7 @@ tasks:
     - NFR2
     - NFR3
     - NFR4
-    status: in_progress
+    status: merged
     branch: em-workflow/drag-refresh-stale-anchor/task0001
     notes: null
 review:
