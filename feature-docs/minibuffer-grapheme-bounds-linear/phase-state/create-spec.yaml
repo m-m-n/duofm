@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-grapheme-bounds-linear
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: e73b7a7dddffc7ed4b227f62cf6cd71aaba56c3b
 last_input_digest: sha256:c0c3c54083160fc2a61aaba856ff880dbd81ec722a7c53f6a2ad06403e69b6d7
