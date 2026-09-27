@@ -1,0 +1,17 @@
+schema_version: 1
+feature: minibuffer-grapheme-cursor-highlight
+phase: create-spec
+status: in_progress
+generation: 1
+base_revision: 096bb725c61d8ed62d68c638b45bdb21d60fc9ea
+last_input_digest: null
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
