@@ -5,10 +5,87 @@ status: in_progress
 generation: 1
 base_revision: 9ad9ab8b4ba0d1dda0304937da051c32a2286221
 last_input_digest: sha256:f94eb2eb3cddafa21b3b02e3c32080a276daae6db4bf590dd0dce499ee4cdbd2
-active_request_id: create-spec-run-0001
-packets: {}
-answers: {}
-worker_runs: []
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-27T14:53:15+09:00'
+    questions:
+    - question_id: requirement.reproduction-width
+      status: answered
+    - question_id: requirement.output-equivalence
+      status: answered
+    - question_id: requirement.linear-scope
+      status: answered
+    - question_id: testing.regression-detection
+      status: answered
+    - question_id: design-step.necessity
+      status: answered
+answers:
+  requirement.reproduction-width:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T14:53:15+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - both_widths
+    freeform: null
+    normalized_answer: ミニバッファ幅 80 に ASCII 71 個（端末幅 160 相当、レビュー指摘と同じ条件）と、ミニバッファ幅 40 に ASCII 31 個（端末幅 80 で二乗の経路に入る条件）の両方を、完了の定義とテストの入力にする。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: both_widths / minibuffer_width_80 / terminal_width_80; chosen: both_widths; codex_consulted: true (codex entry, 2 turns); opus_escalation:
+      false; key points: turn1 で Codex は再現幅=both_widths、表示=grapheme_units_keep_invariants、範囲=whole_view、再発検出=measure_count（幅計測関数を内部関数の引数で渡す）を推した。turn2 で、measure_count は本体にテスト用の差し替え口を増やし、幅の測り方という実装詳細を確かめるだけなので、測り方を変えるリファクタで計測外の二次処理を見逃す点と、線形版は
+      10 万 rune を 100ms 未満で処理し現行は数分かかるため 10 秒上限なら両方向に約 100 倍の余裕がある点を提示。Codex は、View 全体の停止を検出でき本体変更が不要な deadline に変更して収束（-race・遅い CI での余裕は実測で確かめること、両幅・末尾以外のカーソル・長いプロンプトも対象にすること、を付記）。他 3 問は両ターンで一致。'
+  requirement.output-equivalence:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T14:53:15+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - grapheme_units_keep_invariants
+    freeform: null
+    normalized_answer: 表示範囲は書記素単位で決めてよい。既存テストの事後条件（1 行、幅の上限、カーソルが見える、収まる内容はそのまま）は守る。書記素の途中で切れていた境界のケースでは表示内容が現行と変わってよい。abb435ae05afd8f2 は対象外。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: grapheme_units_keep_invariants / identical_output / grapheme_units_and_fix_abb435; chosen: grapheme_units_keep_invariants; codex_consulted:
+      true (codex entry, 2 turns); opus_escalation: false; key points: turn1 で Codex は再現幅=both_widths、表示=grapheme_units_keep_invariants、範囲=whole_view、再発検出=measure_count（幅計測関数を内部関数の引数で渡す）を推した。turn2 で、measure_count
+      は本体にテスト用の差し替え口を増やし、幅の測り方という実装詳細を確かめるだけなので、測り方を変えるリファクタで計測外の二次処理を見逃す点と、線形版は 10 万 rune を 100ms 未満で処理し現行は数分かかるため 10 秒上限なら両方向に約 100 倍の余裕がある点を提示。Codex は、View 全体の停止を検出でき本体変更が不要な deadline に変更して収束（-race・遅い
+      CI での余裕は実測で確かめること、両幅・末尾以外のカーソル・長いプロンプトも対象にすること、を付記）。他 3 問は両ターンで一致。'
+  requirement.linear-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T14:53:15+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - whole_view
+    freeform: null
+    normalized_answer: プロンプト長 + 入力長に対して View 全体を線形にする。プロンプトの切り詰めループとカーソルが末尾以外の経路も含む。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: whole_view / input_shrink_loop_only; chosen: whole_view; codex_consulted: true (codex entry, 2 turns); opus_escalation: false;
+      key points: turn1 で Codex は再現幅=both_widths、表示=grapheme_units_keep_invariants、範囲=whole_view、再発検出=measure_count（幅計測関数を内部関数の引数で渡す）を推した。turn2 で、measure_count は本体にテスト用の差し替え口を増やし、幅の測り方という実装詳細を確かめるだけなので、測り方を変えるリファクタで計測外の二次処理を見逃す点と、線形版は
+      10 万 rune を 100ms 未満で処理し現行は数分かかるため 10 秒上限なら両方向に約 100 倍の余裕がある点を提示。Codex は、View 全体の停止を検出でき本体変更が不要な deadline に変更して収束（-race・遅い CI での余裕は実測で確かめること、両幅・末尾以外のカーソル・長いプロンプトも対象にすること、を付記）。他 3 問は両ターンで一致。'
+  testing.regression-detection:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T14:53:15+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - deadline
+    freeform: null
+    normalized_answer: 再現入力で View を goroutine で実行し、上限時間（10 秒程度。-race でも余裕があることを実測で確かめる）以内に終わらなければ失敗にする。両方の幅、カーソルが末尾以外の経路、長いプロンプトも対象にする。本体にテスト用の差し替え口は作らない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: deadline / scaling_ratio / measure_count; chosen: deadline; codex_consulted: true (codex entry, 2 turns); opus_escalation: false;
+      key points: turn1 で Codex は再現幅=both_widths、表示=grapheme_units_keep_invariants、範囲=whole_view、再発検出=measure_count（幅計測関数を内部関数の引数で渡す）を推した。turn2 で、measure_count は本体にテスト用の差し替え口を増やし、幅の測り方という実装詳細を確かめるだけなので、測り方を変えるリファクタで計測外の二次処理を見逃す点と、線形版は
+      10 万 rune を 100ms 未満で処理し現行は数分かかるため 10 秒上限なら両方向に約 100 倍の余裕がある点を提示。Codex は、View 全体の停止を検出でき本体変更が不要な deadline に変更して収束（-race・遅い CI での余裕は実測で確かめること、両幅・末尾以外のカーソル・長いプロンプトも対象にすること、を付記）。他 3 問は両ターンで一致。'
+  design-step.necessity:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T14:53:15+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: requirements-analyst の design_step_recommendation（skip）を採用する。View 内部の表示範囲の計算量の修正で、画面要素や見た目の追加・変更がない。
+    resolution_note: 'gate: create-spec.design-step; batch policy decide_autonomously'
+worker_runs:
+- request_id: create-spec-run-0001
+  status: needs_user_input
+  input_digest: sha256:f94eb2eb3cddafa21b3b02e3c32080a276daae6db4bf590dd0dce499ee4cdbd2
+  output_digest: sha256:0174f928a08d0beeb80220ad7703d505e08c0343c0eeeddf2385d8ea65108987
 artifacts: []
 patches: []
 progress_fingerprint: null
