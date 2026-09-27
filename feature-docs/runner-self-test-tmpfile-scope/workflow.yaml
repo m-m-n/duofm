@@ -116,7 +116,7 @@ tasks:
     - NFR1
     - NFR2
     - NFR3
-    status: in_progress
+    status: merged
     notes: null
     branch: em-workflow/runner-self-test-tmpfile-scope/task0001
 review:
