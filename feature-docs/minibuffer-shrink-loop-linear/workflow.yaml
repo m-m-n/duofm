@@ -115,7 +115,7 @@ tasks:
     branch: em-workflow/minibuffer-shrink-loop-linear/task0001
     notes: null
 review:
-  status: in_progress
+  status: completed
   plan:
     floor:
     - comprehensive
@@ -126,7 +126,13 @@ review:
     - perspective: performance
       reason: 修正対象が入力長に対する計算量（二次→線形）であり、差分の中心が性能特性とその回帰テストの時間上限であるため
     cross_validation: true
-  rounds_completed: 0
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - architecture
+  - spec
+  - performance
   residual_critical_high: 0
   needs_rework: false
 requirements:
