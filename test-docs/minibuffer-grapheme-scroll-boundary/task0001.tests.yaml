@@ -1,0 +1,94 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (4a)
+final_failures: []             # re-run after implementation; still fully green, no regressions
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferView_ScrollBoundary_CursorAtEnd_KeepsWholeFamilyEmoji]
+    red_confirmed: true
+    red_reason: >-
+      Before internal/ui/minibuffer.go was changed, ran this test against
+      the pre-fix (own-rune-width-run) partitionUnits: it failed with
+      "expected visible text to contain
+      \"👨‍👩‍👧‍👦bbbbb\", got \" (search): 👧‍👦bbbbb
+      \"" -- the display window's start landed inside the family emoji
+      sequence, dropping the leading 👨‍👩‍ pair, exactly the bug AC-1
+      describes.
+  AC-2:
+    tests: [TestMinibufferView_ScrollBoundary_CursorAtStart_KeepsWholeFamilyEmoji]
+    red_confirmed: true
+    red_reason: >-
+      Before internal/ui/minibuffer.go was changed, ran this test: it
+      failed with "expected visible text to contain
+      \"aaaaa👨‍👩‍👧‍👦\", got \" (search):
+      aaaaa👨‍👩‍    \"" -- the display window's end landed inside
+      the family emoji sequence, dropping the trailing 👧‍👦 pair.
+  AC-3:
+    tests: [TestMinibufferView_ScrollBoundary_AllWidthsAndCursors_WholeOrNone]
+    red_confirmed: true
+    red_reason: >-
+      Before internal/ui/minibuffer.go was changed, ran this test: the
+      top-level test and multiple width/cursor subtests failed (e.g.
+      combinations where the cursor sits inside the family emoji's rune
+      range 5-11 and the boundary lands mid-sequence), via
+      assertWholeOrNone reporting the family emoji sequence split at a
+      display boundary. Same underlying defect as AC-1/AC-2, exercised
+      across the full width x cursor grid.
+  AC-4:
+    tests: [TestMinibufferView_ScrollBoundary_CursorAtEnd_KeepsWholeFamilyEmoji, TestMinibufferView_ScrollBoundary_CursorAtStart_KeepsWholeFamilyEmoji, TestMinibufferView_ScrollBoundary_AllWidthsAndCursors_WholeOrNone, TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInput]
+    red_confirmed: true
+    red_reason: >-
+      checkScrollBoundaryFixture (the premise check) runs first in every
+      test listed above. Temporarily changed the expected input display
+      width in checkScrollBoundaryFixture from "!= 12" to "!= 13" (with the
+      message updated to match) and re-ran the full suite: all four tests
+      above failed fatally with "test fixture assumption broken: input
+      actual display width = 12, want 13", naming the premise, the expected
+      value, and the observed value, exactly as AC-4 requires. Reverted
+      immediately after (confirmed go test ./... and gofmt -l . both clean
+      again); not committed.
+  AC-5:
+    tests: [TestMinibufferView_ScrollBoundary_OtherJoinedGraphemes_WholeOrNone]
+    red_confirmed: true
+    red_reason: >-
+      Before internal/ui/minibuffer.go was changed, ran this test: the
+      "flag" (regional-indicator JP flag) subtest failed at multiple
+      width/cursor combinations (e.g. width=18/cursor=5, width=18/cursor=7,
+      width=21/cursor=0..5) via assertWholeOrNone reporting the flag
+      sequence split at a display boundary -- the pre-fix code splits the
+      two regional-indicator runes into separate units since both have
+      positive own width. Deviation note: the "skin-tone" subtest's literal
+      premise from the task plan (per-rune width sum > joined width) does
+      not hold in this codebase's width basis for any single
+      base-emoji-plus-Fitzpatrick-modifier pair (measured: sum=2,
+      joined=2), because uniseg's width algorithm always measures
+      Emoji_Modifier characters (grapheme property Extend) as width 0; this
+      is documented in the test file's comment and in this task's report
+      deviations. The "skin-tone" subtest therefore did not fail under the
+      pre-fix code (there was no grouping difference to exploit for this
+      specific pair), and its whole-or-none grid still runs as a
+      regression guard.
+  AC-6:
+    tests: [TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInput]
+    red_confirmed: true
+    red_reason: >-
+      Before internal/ui/minibuffer.go was changed, ran this test: cursor
+      positions 6, 8, and 10 (all U+200D rune positions inside the family
+      emoji) failed with e.g. "cursor=6: expected nothing but spaces after
+      the prompt, got \"‍  \" (full: \" (search): ‍  \")" -- the
+      pre-fix code let a lone U+200D through into the display window even
+      though the whole family emoji grapheme (width 2) does not fit the
+      remaining width (1).
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-7 asserts continuity (existing behavior must not change), not new
+      behavior, so there is no failing state to observe before
+      implementation: the named existing tests (LinearTime series,
+      TS7_JoinedSequenceGuard, VS16 series, ZWJInput series, and the
+      prompt-truncation tests) were already green in the 4a baseline.
+      Verified after implementation via go test ./... (full pass, no
+      regressions), gofmt -l . (empty, no diff), and git diff --stat
+      confirming only internal/ui/minibuffer.go, internal/ui/minibuffer_test.go
+      and go.mod changed (go.sum unchanged, as go.mod's uniseg version did
+      not change -- only its indirect marker was removed).
