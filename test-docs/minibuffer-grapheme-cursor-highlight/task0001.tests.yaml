@@ -1,0 +1,111 @@
+task_id: task0001
+baseline_failures: []   # go test ./... was fully green before any change
+final_failures: []      # go test ./... is fully green after the change (re-run, see notes)
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferHandleKey_GraphemeMovement_FamilyEmoji]
+    red_confirmed: true
+    red_reason: >
+      Observed against the pre-change minibuffer.go (production file
+      temporarily reverted via `git checkout`, test file and go.mod kept):
+      Left subtest failed with "key=left: cursorPos = 6, want 0" (moved by
+      one rune instead of to the previous cluster's start) and Right
+      subtest failed with "key=right: cursorPos = 1, want 7" (moved by one
+      rune instead of to the cluster's end). CtrlB/CtrlF failed identically.
+  AC-2:
+    tests:
+      - TestMinibufferHandleKey_GraphemeMovement_SetCursorInsideCluster
+      - TestMinibufferHandleKey_GraphemeMovement_TableDriven
+      - TestMinibufferHandleKey_GraphemeMovement_EmptyInput
+    red_confirmed: true
+    red_reason: >
+      Observed against the pre-change minibuffer.go (same revert as AC-1).
+      SetCursorInsideCluster failed with e.g. "k=1 key=right: cursorPos = 2,
+      want 7" and "k=2 key=left: cursorPos = 1, want 0". TableDriven failed
+      with e.g. input="éx" (e + U+0301 + x) "from=2 key=left: cursorPos = 1,
+      want 0" and "from=0 key=right: cursorPos = 1, want 2"; the heart-VS16
+      and flag-pair fixtures failed the same way. EmptyInput passed
+      unchanged both before and after (all four keys are already a no-op on
+      an empty input regardless of segmentation), so it contributes no red
+      observation of its own; it is kept as part of AC-2's coverage because
+      the task plan names the empty-input case explicitly.
+  AC-3:
+    tests: [TestMinibufferView_FamilyEmoji_SingleReversedRunWholeCluster]
+    red_confirmed: true
+    red_reason: >
+      Observed against the pre-change minibuffer.go. At cursor=0:
+      "reversed runs = []string{\"👨\"}, want exactly
+      [\"👨‍👩‍👧‍👦\"]" (only the first base rune was
+      reversed, not the whole cluster) and the emoji did not even appear
+      whole in the visible text ("visible text does not contain the whole
+      family emoji"). Same shape of failure for cursor=1..6.
+  AC-4:
+    tests: [TestMinibufferView_FamilyEmoji_FitsUntruncated_WidthCursorTable]
+    red_confirmed: true
+    red_reason: >
+      Observed against the pre-change minibuffer.go. At width=19/cursor=1:
+      "expected visible text to contain \"(search):
+      👨‍👩‍👧‍👦ls\", got \" (search): 👨‍👩‍  \""
+      -- the split-highlight escape codes inflated the measured width so
+      the scroll path truncated the input instead of showing it whole.
+  AC-5:
+    tests: [TestMinibufferView_FamilyEmoji_NarrowWidths_WholeOrNone]
+    red_confirmed: true
+    red_reason: >
+      Observed against the pre-change minibuffer.go. First failure at
+      width=15/cursor=1 (and repeating through width=18/cursor=6), e.g.
+      width=18/cursor=6: "partial family emoji runes rendered (neither
+      fully present nor fully absent): visible=\" (search):
+      👧‍👦 \"" -- part of the cluster was scrolled into view and part
+      was not, since the pre-change code windows by rune, not by cluster.
+  AC-6:
+    tests: [TestMinibufferView_NewGraphemeFixtures_BoundedSingleLine]
+    red_confirmed: false
+    red_reason: >
+      This is a guard-rail criterion (task plan Test Notes: "AC-6 ... are
+      guard rails that pass both before and after"). The dedicated new
+      test (fixtures: e+U+0301, two VS16 heart pairs, a regional-indicator
+      flag pair, a leading isolated combining mark, a leading isolated
+      ZWJ; width 10..30; every cursor 0..n; both color profiles) was run
+      against the pre-change minibuffer.go (same revert as AC-1) and
+      passed unchanged: `go test ./internal/ui/... -run
+      TestMinibufferView_NewGraphemeFixtures_BoundedSingleLine` reported
+      `ok`. The bounded-single-line invariant (no panic, no line break,
+      width <= m.width-2) was already guaranteed by the pre-existing fit
+      guard for any input shape; this task's fix changes the highlight
+      unit, not that invariant, so there is no observable red to induce.
+  AC-7:
+    tests:
+      - TestMinibufferHandleKey_EditingOpsStayRuneWise_FamilyEmoji
+      - TestMinibufferView_InsertionLeavesCursorInsideCluster_ReversesWholeCluster
+    red_confirmed: true
+    red_reason: >
+      Mixed criterion. TestMinibufferHandleKey_EditingOpsStayRuneWise_FamilyEmoji
+      (Backspace/Delete/InsertRune/Ctrl+K/Ctrl+U on familyEmojiLsInput,
+      cursor 3) passed unchanged against the pre-change minibuffer.go --
+      editing stays rune-wise by design (GD4; out of scope for this task),
+      so this half of the criterion has no observable red.
+      TestMinibufferView_InsertionLeavesCursorInsideCluster_ReversesWholeCluster
+      (insert "a" into "e"+U+0301 at cursor 1, landing the cursor inside
+      the resulting cluster) was observed to fail against the pre-change
+      minibuffer.go: "reversed runs = []string{\"́\"}, want exactly
+      [\"á\"]" -- the old code reversed only the bare combining mark, not
+      the whole "a"+combining cluster. Because at least one of this AC's
+      tests was actually observed red before implementation, red_confirmed
+      is true for the criterion as a whole; the unaffected sub-test is
+      listed for completeness per the task plan's explicit AC-7 wording.
+  AC-8:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      This criterion's verifiable outcomes are regression-freedom and
+      tooling/manifest state, not a new behavior with a natural red state:
+      every pre-existing test in internal/ui/minibuffer_test.go continuing
+      to pass with unweakened assertions, `go test ./...` and `go vet
+      ./...` succeeding, `gofmt -l .` reporting no files, and go.mod
+      listing github.com/rivo/uniseg v0.4.7 as a direct requirement with
+      no other requirement added/removed/re-versioned. All of these were
+      verified directly by running the commands after implementation
+      (all green/clean) rather than by inducing and then fixing a failure;
+      there is nothing here that could meaningfully be "red" beforehand
+      since the baseline (step 4a) was already a fully green suite.
