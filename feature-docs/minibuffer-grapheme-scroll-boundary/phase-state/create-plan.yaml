@@ -1,16 +1,30 @@
 schema_version: 1
 feature: minibuffer-grapheme-scroll-boundary
 phase: create-plan
-status: dispatching
+status: applying_patch
 generation: 1
 base_revision: 00f512fe1fb62cdc517a9c73f4201e0ff0ae73d1
 last_input_digest: sha256:279f879afa54ae08b36649b4dd50a680ab7f13262a53d5ae43ef1378af45bb07
 active_request_id: create-plan-run-0001
 packets: {}
 answers: {}
-worker_runs: []
-artifacts: []
-patches: []
+worker_runs:
+- request_id: create-plan-run-0001
+  status: completed
+  input_digest: sha256:279f879afa54ae08b36649b4dd50a680ab7f13262a53d5ae43ef1378af45bb07
+  output_digest: sha256:5198aebf04bc000ac9bf264a2a3cccfea9c98512defb7fa0c76a9ac200a7aa19
+artifacts:
+- path: feature-docs/minibuffer-grapheme-scroll-boundary/tasks/task0001.md
+  sha256: sha256:d9b497f150a769f8ee76cc4a0b4a522c8791f7d5b7225c827c00f43bf301ef7f
+  produced_by: create-plan-run-0001
+- path: feature-docs/minibuffer-grapheme-scroll-boundary/VERIFICATION.md
+  sha256: sha256:a8644219b512061ce6863534753c850eaef8fa2aaa43888ddd8181c7c79543c0
+  produced_by: create-plan-run-0001
+patches:
+- patch_id: create-plan-p0001
+  status: validated
+  base_input_digest: sha256:279f879afa54ae08b36649b4dd50a680ab7f13262a53d5ae43ef1378af45bb07
+  base_workflow_blob: 23a276ea9b1efbd8db491a4ff1636097c70f7f60
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
