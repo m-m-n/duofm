@@ -1,11 +1,11 @@
 schema_version: 1
 feature: drag-refresh-stale-anchor
 phase: create-spec
-status: awaiting_answers
+status: dispatching
 generation: 1
 base_revision: d3c0f4cac7ea1e56a754a7c88d63e09857e228bd
-last_input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
-active_request_id: null
+last_input_digest: sha256:395ac6dac0ae8cbfeca90525dbfe2672c301f2395d351bd2eb701d67fd14ddd6
+active_request_id: create-spec-run-0002
 packets:
   create-spec-q0001:
     status: answered
@@ -89,6 +89,10 @@ worker_runs:
   status: needs_user_input
   input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
   output_digest: sha256:50f9d790630fd27a95e653731c3167663e81b1542eca945cac39470136655791
+- request_id: create-spec-run-0002
+  status: dispatched
+  input_digest: sha256:395ac6dac0ae8cbfeca90525dbfe2672c301f2395d351bd2eb701d67fd14ddd6
+  output_digest: null
 artifacts: []
 patches: []
 progress_fingerprint: null
