@@ -110,7 +110,7 @@ tasks:
     - FR4
     - NFR1
     - NFR2
-    status: in_progress
+    status: merged
     branch: em-workflow/minibuffer-shrink-loop-linear/task0001
     notes: null
 review:
