@@ -2,37 +2,61 @@ schema_version: 1
 feature: minibuffer-grapheme-scroll-boundary
 created: '2026-09-27'
 base_branch: main
-goal: |
-  # ミニバッファのスクロール時に表示範囲の境界が書記素の途中になる
+goal: '# ミニバッファのスクロール時に表示範囲の境界が書記素の途中になる
+
 
   Notion: https://www.notion.so/3e73509ec8ee81aeb641c634741b31d7 (種別: バグ)
 
+
   ## 現象 (必須)
+
   ミニバッファの入力が実際の表示幅でも残りの幅に収まらず、スクロールが必要なとき、表示範囲の開始・終了位置が rune 単位で決まるため、境界が書記素（ZWJ 連結の絵文字など）の途中になることがある。途中で切れた結合文字列は別の絵文字や部品として表示される。
+
   minibuffer-zwj-cursor-end-scroll（PR #10）では、入力全体が実際の幅で収まる場合だけを修正対象にした（SPEC の前提 a2）。スクロールが必要な場合の境界はこの修正に含めていない。
 
+
   ## 再現手順 (必須)
+
   1. 内容幅が狭いミニバッファ（例: `m.width=24`、プロンプト `(search): ` 10 桁、残り 10 桁）を開く
-  2. 家族の絵文字（U+1F468 U+200D U+1F469 U+200D U+1F467 U+200D U+1F466）を含み、全体では残り幅に収まらない入力をする（例: 絵文字の前後に英字を数文字ずつ置く）
+
+  2. 家族の絵文字（U+1F468 U+200D U+1F469 U+200D U+1F467 U+200D U+1F466）を含み、全体では残り幅に収まらない入力をする（例:
+  絵文字の前後に英字を数文字ずつ置く）
+
   3. カーソルを動かして表示範囲の境界が絵文字にかかる位置までスクロールさせる
 
+
   ## 期待する挙動 (必須)
+
   スクロールで表示範囲が決まるときも、境界は書記素の境目に揃い、結合文字列を途中で切らずに表示する。
 
+
   ## 完了の定義 (必須)
+
   - [ ] 再現手順で現象が起きない
+
   - [ ] 再発を検出するテストがある
 
+
   ## 該当箇所 (任意)
+
   `internal/ui/minibuffer.go`（View のスクロール開始位置・終了位置の決定）
 
+
   ## 実害・発生条件 (任意)
+
   入力に ZWJ 連結などの結合文字列が含まれ、入力全体が残りの幅に収まらずスクロールが必要なとき。
 
+
   ## 追加指示
-  - 実装完了後、integration ブランチを remote へ push し、base_branch への PR を gh pr create で作成する。integration ブランチはローカル・remote とも残す（base_branch へ自動マージしない）
+
+  - 実装完了後、integration ブランチを remote へ push し、base_branch への PR を gh pr create で作成する。integration
+  ブランチはローカル・remote とも残す（base_branch へ自動マージしない）
+
   - 不明点は Codex に相談し、比較的良いと判断した選択肢を採用する
+
   - その議論の内容を Notion に記録する
+
+  '
 parent_branch: em-workflow/minibuffer-grapheme-scroll-boundary/integration
 tier: reduced
 tier_decision:
@@ -63,9 +87,24 @@ project:
   components:
     duofm:
       language: go
-      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm docker.io/library/golang:1.25.5-trixie make build
-      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test ./...
-      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w .
+      build_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=2 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main -e GIT_CONFIG_KEY_1=safe.directory -e GIT_CONFIG_VALUE_1=/home/sakura/go/src/duofm
+        docker.io/library/golang:1.25.5-trixie make build
+      test_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD" -v
+        /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie go test
+        ./...
+      format_command: podman run --rm --userns=keep-id -v "$PWD":"$PWD" -w "$PWD"
+        -v /home/sakura/go/src/duofm/.git:/home/sakura/go/src/duofm/.git:ro -v duofm-gomod:/gomod:U
+        -v duofm-gocache:/gocache:U -e GOMODCACHE=/gomod -e GOCACHE=/gocache -e GOTOOLCHAIN=local
+        -e DISPLAY=:0 -e GIT_CONFIG_COUNT=1 -e GIT_CONFIG_KEY_0=init.defaultBranch
+        -e GIT_CONFIG_VALUE_0=main docker.io/library/golang:1.25.5-trixie gofmt -w
+        .
       e2e_test_command: make test-e2e-build && make test-e2e
 workflow:
 - id: create-spec
@@ -78,7 +117,8 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: reduced tier で design step を削減。加えて既存のミニバッファ描画の表示範囲計算の不具合修正で、新しい UI 要素や見た目の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+  skipped_reason: reduced tier で design step を削減。加えて既存のミニバッファ描画の表示範囲計算の不具合修正で、新しい
+    UI 要素や見た目の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -93,7 +133,32 @@ workflow:
   status: pending
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: ミニバッファのスクロール時の表示範囲を書記素の境目に揃える
+    plan: tasks/task0001.md
+    files:
+    - internal/ui/minibuffer.go
+    - internal/ui/minibuffer_test.go
+    - go.mod
+    - go.sum
+    skills:
+    - frontend-impl
+    domains:
+    - ui
+    - input-handling
+    - config-infra
+    complexity: medium
+    requirements:
+    - FR1
+    - FR2
+    - FR3
+    - FR4
+    - NFR1
+    - NFR2
+    status: pending
+    notes: null
+    branch: null
 review:
   status: pending
   rounds_completed: 0
@@ -106,7 +171,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-3
@@ -116,7 +182,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-2
     - TS-3
@@ -126,7 +193,8 @@ requirements:
     status: assumed
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-3
     - TS-4
@@ -135,7 +203,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-1
     - TS-2
@@ -146,7 +215,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-5
   NFR2:
@@ -154,7 +224,8 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
+    tasks:
+    - task0001
     tests:
     - TS-5
 batch:
