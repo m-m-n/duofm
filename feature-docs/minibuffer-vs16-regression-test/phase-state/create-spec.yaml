@@ -1,7 +1,7 @@
 schema_version: 1
 feature: minibuffer-vs16-regression-test
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: 4b23a30b1c4ca2a92591d8a74124993299452f5e
 last_input_digest: sha256:c0a0a94a932aec28bcf9c94b4cc9334f4613900c75274bec8cab204b03c00f46

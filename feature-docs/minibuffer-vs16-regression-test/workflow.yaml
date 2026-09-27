@@ -1,0 +1,183 @@
+schema_version: 1
+feature: minibuffer-vs16-regression-test
+created: '2026-09-27'
+base_branch: main
+goal: '# ミニバッファの VS16 付き絵文字の幅に回帰テストを追加する
+
+
+  Notion task: https://www.notion.so/3e73509ec8ee81e781dafb7c728d0e6b (種別: バグ)
+
+
+  ## 現象 (必須)
+
+  ミニバッファで VS16（U+FE0F）付き絵文字の表示幅を過小評価して 2 行に折り返す不具合（レビュー指摘 stable_id: 1372160ec8ca2a16、high）は、minibuffer-wide-prompt-wrap の review 自動修正で直したが、再発を検出する回帰テストが追加されていない。
+
+  ## 再現手順 (必須)
+
+  1. ミニバッファ幅 37 で、プロンプト `(reverse-i-search)''日本語'': ` を表示する
+
+  2. 入力に U+2764 U+FE0F を 4 個並べ、カーソルを末尾に置く
+
+  3. 修正前の実装では 37 桁になり 2 行に折り返していた。現在この条件を検査するテストが無い
+
+  ## 期待する挙動 (必須)
+
+  VS16 付き絵文字を含む入力・プロンプトでも、ミニバッファは 1 行で描画され、それをテストが保証する。
+
+  ## 完了の定義 (必須)
+
+  - [ ] 再現手順で現象が起きない
+
+  - [ ] 再発を検出するテストがある
+
+  ## 該当箇所 (任意)
+
+  `internal/ui/minibuffer.go`（View の表示範囲決定と縮小ループ）/ `internal/ui/minibuffer_test.go`
+
+  ## 実害・発生条件 (任意)
+
+  現時点の実装では起きない。今後の変更で VS16 の幅計算が退行しても検出できない。
+
+
+  ## 追加指示
+
+  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作る。integration ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）
+
+  - 不明点は Codex に相談し、相対的に良いと判断した案を採用する
+
+  - その議論内容を Notion に記録する
+
+  '
+parent_branch: em-workflow/minibuffer-vs16-regression-test/integration
+tier: reduced
+tier_decision:
+  by: orchestrator
+  confidence:
+  - basis: description_only
+    probabilities:
+      '0': 0.0
+      '1': 0.99
+      '2': 0.01
+      '3': 0.0
+  - basis: description_plus_code
+    probabilities:
+      '0': 0.03
+      '1': 0.94
+      '2': 0.03
+      '3': 0.0
+  at: '2026-09-27T17:04:30+09:00'
+  reductions:
+  - REQUIREMENTS.md
+  - design step
+  - IMPLEMENTATION.md (single task / no shared files)
+project:
+  license: MIT
+  design_system:
+    kind: none
+    paths: []
+  components:
+    duofm:
+      language: go
+      build_command: make build
+      test_command: go test ./...
+      format_command: gofmt -w .
+      e2e_test_command: make test-e2e-build && make test-e2e
+workflow:
+- id: create-spec
+  artifacts:
+  - SPEC.md
+  status: completed
+  completed_at_commit: b3cab07ffeb40a5f79754059d3f4e6364dcfd00d
+- id: design
+  artifacts:
+  - DESIGN.md
+  - design/
+  status: skipped
+  skipped_reason: reduced tier で design step を削減。加えてテストのみの追加で、画面や操作の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+- id: create-plan
+  artifacts:
+  - IMPLEMENTATION.md
+  - VERIFICATION.md
+  - tasks/
+  status: pending
+- id: implement
+  status: pending
+- id: review
+  status: pending
+- id: verify
+  status: pending
+  result: null
+  failed_items: []
+- id: retrospect
+  status: pending
+tasks: {}
+review:
+  status: pending
+  rounds_completed: 0
+  residual_critical_high: 0
+  needs_rework: false
+requirements:
+  FR1:
+    title: 再現条件での 1 行描画の検査
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR2:
+    title: 再現条件での表示内容の検査
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR3:
+    title: 前提値の検査
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR4:
+    title: 幅とカーソル位置の網羅
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  FR5:
+    title: プロンプトに VS16 付き絵文字を含む場合の検査
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR1:
+    title: テストのみの変更
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR2:
+    title: 既存の書き方に合わせる
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+  NFR3:
+    title: 既存テストへの影響なし
+    status: ok
+    tbd_reason: null
+    excluded_reason: null
+    tasks: []
+    tests: []
+batch:
+  review_rework_count: 0
+  verify_rework:
+    rounds: 0
+    failed_id_counts: {}
+  infra_resume:
+    rounds: 0
+    cap: 2
