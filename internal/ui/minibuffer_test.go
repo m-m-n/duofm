@@ -2011,3 +2011,234 @@ func TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInp
 		})
 	}
 }
+
+// --- task0001 (minibuffer-grapheme-bounds-linear, AC-1..AC-4): time-bounded
+// regression tests for graphemeClusterBounds's linear-time forward scan.
+// Fixture: a "." followed by a very long run of spaces and a trailing "A" --
+// the shape whose sentence-boundary lookahead made the pre-change locator
+// (uniseg.NewGraphemes-based) quadratic in a single call. Named after this
+// fixture (period-then-spaces), distinct from TS1-4/TS7 above, which
+// regression-test View's range-selection logic rather than the locator
+// itself.
+
+// periodThenSpacesSpaceCount is the fixture's space count (Test Notes/A1):
+// large enough that the pre-change locator needs ~60s for one call (well
+// beyond linearTimeLimit), while staying the same order of magnitude as the
+// existing linear-time tests' fixtures.
+const periodThenSpacesSpaceCount = 100000
+
+// periodThenSpacesInput is "." + 100000 spaces + "A": 100002 runes.
+var periodThenSpacesInput = "." + strings.Repeat(" ", periodThenSpacesSpaceCount) + "A"
+
+// checkPeriodThenSpacesFixture asserts the numbers the tests below rely on --
+// same shape as checkFamilyEmojiFixture/checkVS16Premises/checkScrollBoundaryFixture
+// above -- so a later assertion failure can't be mistaken for a drifted
+// fixture.
+func checkPeriodThenSpacesFixture(t *testing.T) {
+	t.Helper()
+	runes := []rune(periodThenSpacesInput)
+	if got, want := len(runes), periodThenSpacesSpaceCount+2; got != want {
+		t.Fatalf("test fixture assumption broken: periodThenSpacesInput rune count = %d, want %d", got, want)
+	}
+	if got := runes[0]; got != '.' {
+		t.Fatalf("test fixture assumption broken: first rune = %q, want '.'", got)
+	}
+	if got := runes[len(runes)-1]; got != 'A' {
+		t.Fatalf("test fixture assumption broken: last rune = %q, want 'A'", got)
+	}
+}
+
+// runHandleKeyTimed mirrors runViewTimed (AC-2/AC-3, Test Notes' "timed
+// single-key helper"): it runs a single mb.HandleKey(msg) call in its own
+// goroutine, logs the measured duration, and fails the test if the call
+// panics or does not return within linearTimeLimit. A goroutine that times
+// out is abandoned (same treatment as runViewTimed). Callers must read
+// minibuffer state only after this helper returns, i.e. only after
+// completion has actually been observed -- never speculatively before that
+// -- so the read stays clean under the race detector.
+func runHandleKeyTimed(t *testing.T, mb *Minibuffer, msg tea.KeyMsg) {
+	t.Helper()
+
+	done := make(chan any, 1)
+	start := time.Now()
+
+	go func() {
+		var p any
+		defer func() {
+			p = recover()
+			done <- p
+		}()
+		mb.HandleKey(msg)
+	}()
+
+	select {
+	case p := <-done:
+		t.Logf("Minibuffer.HandleKey(%v) took %s", msg.Type, time.Since(start))
+		if p != nil {
+			t.Fatalf("Minibuffer.HandleKey(%v) panicked: %v", msg.Type, p)
+		}
+	case <-time.After(linearTimeLimit):
+		t.Fatalf("Minibuffer.HandleKey(%v) did not return within %s", msg.Type, linearTimeLimit)
+	}
+}
+
+// TestMinibufferView_PeriodThenSpaces_LinearTime is AC-1 (FR1, NFR1, TM-1):
+// with the cursor at rune count-1 (the "A"), a width the input does not fit
+// within, View timed with runViewTimed must return within linearTimeLimit
+// without panicking, and its result must contain no line break and have
+// display width at most m.width-2.
+func TestMinibufferView_PeriodThenSpaces_LinearTime(t *testing.T) {
+	checkPeriodThenSpacesFixture(t)
+	const width = 40
+	runes := []rune(periodThenSpacesInput)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt("!: ")
+	mb.SetWidth(width)
+	mb.SetInput(periodThenSpacesInput)
+	mb.SetCursorPos(len(runes) - 1)
+	mb.Show()
+
+	result := runViewTimed(t, mb)
+	if strings.ContainsAny(result, "\n\r") {
+		t.Errorf("result contains a line break: %q", result)
+	}
+	if w := lipgloss.Width(result); w > width-2 {
+		t.Errorf("display width = %d, want <= %d", w, width-2)
+	}
+}
+
+// TestMinibufferHandleKey_PeriodThenSpaces_LeftLike_LinearTime is AC-2 (FR1,
+// FR2, NFR1, TM-1): with the cursor at the end, one Left press and,
+// separately on a fresh minibuffer, one Ctrl+B press must each return within
+// linearTimeLimit without panicking, and afterwards leave the cursor at rune
+// count-1.
+func TestMinibufferHandleKey_PeriodThenSpaces_LeftLike_LinearTime(t *testing.T) {
+	checkPeriodThenSpacesFixture(t)
+	runes := []rune(periodThenSpacesInput)
+
+	run := func(t *testing.T, key tea.KeyType) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(periodThenSpacesInput)
+		mb.SetCursorPos(len(runes))
+
+		runHandleKeyTimed(t, mb, tea.KeyMsg{Type: key})
+
+		if got, want := mb.CursorPos(), len(runes)-1; got != want {
+			t.Errorf("key=%v: cursorPos = %d, want %d", key, got, want)
+		}
+	}
+
+	t.Run("Left", func(t *testing.T) { run(t, tea.KeyLeft) })
+	t.Run("CtrlB", func(t *testing.T) { run(t, tea.KeyCtrlB) })
+}
+
+// TestMinibufferHandleKey_PeriodThenSpaces_RightLike_LinearTime is AC-3 (FR1,
+// FR2, NFR1, TM-1): with the cursor at rune count-1, one Right press and,
+// separately on a fresh minibuffer, one Ctrl+F press must each return within
+// linearTimeLimit without panicking, and afterwards leave the cursor at the
+// rune count.
+func TestMinibufferHandleKey_PeriodThenSpaces_RightLike_LinearTime(t *testing.T) {
+	checkPeriodThenSpacesFixture(t)
+	runes := []rune(periodThenSpacesInput)
+
+	run := func(t *testing.T, key tea.KeyType) {
+		mb := NewMinibuffer()
+		mb.Show()
+		mb.SetInput(periodThenSpacesInput)
+		mb.SetCursorPos(len(runes) - 1)
+
+		runHandleKeyTimed(t, mb, tea.KeyMsg{Type: key})
+
+		if got, want := mb.CursorPos(), len(runes); got != want {
+			t.Errorf("key=%v: cursorPos = %d, want %d", key, got, want)
+		}
+	}
+
+	t.Run("Right", func(t *testing.T) { run(t, tea.KeyRight) })
+	t.Run("CtrlF", func(t *testing.T) { run(t, tea.KeyCtrlF) })
+}
+
+// --- task0001 (AC-5): direct locator edge-case tests. Regional-indicator
+// pairing and ZWJ-joined sequences are context-dependent -- the locator must
+// match whole-input segmentation for them -- and out-of-range p must return
+// the defensive (p, p+1) without panicking.
+
+// mustNotPanicLocator calls graphemeClusterBounds, recovering any panic and
+// failing the test if one occurs (AC-5b), same recover-and-fail shape as
+// mustNotPanic above.
+func mustNotPanicLocator(t *testing.T, runes []rune, p int) (start, end int) {
+	t.Helper()
+	defer func() {
+		if r := recover(); r != nil {
+			t.Fatalf("graphemeClusterBounds panicked: %v", r)
+		}
+	}()
+	return graphemeClusterBounds(runes, p)
+}
+
+// TestGraphemeClusterBounds_ThreeRegionalIndicatorsPlusLetter is AC-5a's
+// first fixture (Test Notes): three consecutive regional indicators followed
+// by an ASCII letter. Regional-indicator pairing (GB12/GB13) groups the
+// first two into one cluster (a flag), leaving the third standalone: [0,2)
+// [2,3) [3,4).
+func TestGraphemeClusterBounds_ThreeRegionalIndicatorsPlusLetter(t *testing.T) {
+	// U+1F1EF, U+1F1F5, U+1F1EE: three regional indicator symbols, then "a".
+	const input = "\U0001F1EF\U0001F1F5\U0001F1EE" + "a"
+	runes := []rune(input)
+	want := [][2]int{{0, 2}, {0, 2}, {2, 3}, {3, 4}}
+
+	for p := range runes {
+		start, end := mustNotPanicLocator(t, runes, p)
+		if start != want[p][0] || end != want[p][1] {
+			t.Errorf("p=%d: bounds = (%d, %d), want (%d, %d)", p, start, end, want[p][0], want[p][1])
+		}
+	}
+}
+
+// TestGraphemeClusterBounds_ZWJFamilySequencePlusLetters is AC-5a's second
+// fixture (Test Notes): an ASCII letter, a ZWJ-joined man-woman-girl sequence
+// (5 runes), then another ASCII letter. The whole ZWJ sequence is one
+// cluster: [0,1) [1,6) [1,6) [1,6) [1,6) [1,6) [6,7).
+func TestGraphemeClusterBounds_ZWJFamilySequencePlusLetters(t *testing.T) {
+	// U+1F468 (man) U+200D (ZWJ) U+1F469 (woman) U+200D (ZWJ) U+1F467 (girl).
+	const zwjSequence = "\U0001F468‍\U0001F469‍\U0001F467"
+	const input = "a" + zwjSequence + "b"
+	runes := []rune(input)
+	if len(runes) != 7 {
+		t.Fatalf("test fixture assumption broken: input rune count = %d, want 7", len(runes))
+	}
+	want := [][2]int{{0, 1}, {1, 6}, {1, 6}, {1, 6}, {1, 6}, {1, 6}, {6, 7}}
+
+	for p := range runes {
+		start, end := mustNotPanicLocator(t, runes, p)
+		if start != want[p][0] || end != want[p][1] {
+			t.Errorf("p=%d: bounds = (%d, %d), want (%d, %d)", p, start, end, want[p][0], want[p][1])
+		}
+	}
+}
+
+// TestGraphemeClusterBounds_OutOfRangeP is AC-5b: for p equal to or greater
+// than the rune count (including an empty input with p = 0), the locator
+// returns (p, p+1) without panicking.
+func TestGraphemeClusterBounds_OutOfRangeP(t *testing.T) {
+	cases := []struct {
+		name  string
+		runes []rune
+		p     int
+	}{
+		{"empty_input_p0", []rune(""), 0},
+		{"at_rune_count", []rune("ab"), 2},
+		{"beyond_rune_count", []rune("ab"), 5},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			start, end := mustNotPanicLocator(t, c.runes, c.p)
+			if start != c.p || end != c.p+1 {
+				t.Errorf("bounds = (%d, %d), want (%d, %d)", start, end, c.p, c.p+1)
+			}
+		})
+	}
+}
