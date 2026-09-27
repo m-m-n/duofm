@@ -108,8 +108,8 @@ workflow:
   completed_at_commit: 5659fa5bdec56b9792fe83727f79e95d00fbd907
   base_commit: ca6e3bee5850ccd8f650c12ffcabde3381774677
 - id: review
-  status: in_progress
-  completed_at_commit: bd1a654aaff2f59fb7974bcb6bf73d7a0a0ad981
+  status: completed
+  completed_at_commit: 8397575cd3abad215f412f215e10cab8b673d59e
 - id: verify
   status: pending
   result: fail
@@ -197,7 +197,7 @@ review:
     - spec
     discretionary: []
     cross_validation: false
-  rounds_completed: 2
+  rounds_completed: 3
   perspectives:
   - comprehensive
   - security
