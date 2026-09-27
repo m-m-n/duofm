@@ -1,0 +1,104 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (4a)
+final_failures: []             # re-run after implementation; still fully green, no regressions
+acceptance_tests:
+  AC-1:
+    tests: [TestMinibufferView_GuardCapCursorAtEnd_ShowsBlockCursor]
+    red_confirmed: true
+    red_reason: >-
+      Ran this test against the unmodified View: it failed with "reversed
+      runs = []string(nil), want exactly [\" \"]" -- the trailing block
+      cursor disappeared entirely once guardFit's re-measurement cap was
+      reached, exactly the P1 defect this task fixes. Premise checks
+      (prompt+whole input does not fit content width 6; prompt+cursor-alone
+      line does fit) passed before this failure, so the failure is the
+      behavior under test, not fixture drift.
+  AC-2:
+    tests: [TestMinibufferView_GuardCapAfterThenBeforeTrim_ShowsCursorChar]
+    red_confirmed: true
+    red_reason: >-
+      Ran this test against the unmodified View: it failed with "reversed
+      runs = []string(nil), want exactly [\"x\"]" -- the cursor's own
+      grapheme disappeared once guardFit's cap was reached while more than
+      the cursor remained (P2). Premise checks passed first.
+  AC-3:
+    tests: [TestMinibufferView_GuardCapScrollLeft_ShowsCursorChar]
+    red_confirmed: true
+    red_reason: >-
+      Ran this test against the unmodified View: it failed with "reversed
+      runs = []string(nil), want exactly [\"x\"]" -- same defect as AC-2, on
+      the P3 (scroll-left) path. Premise checks passed first.
+  AC-4:
+    tests: [TestMinibufferView_GuardCapCursorAloneAlsoDoesNotFit_HidesInput]
+    red_confirmed: false
+    red_reason: >-
+      This criterion's outcome (hide input and cursor when the cursor-alone
+      line itself does not fit) is unchanged by this task on every path
+      that can reach it: both the pre-fix code (always hides on any
+      guardFit failure) and the new cursorAloneFallback (hides when the
+      cursor-alone line, measured or already known, still does not fit)
+      produce the identical result for this criterion. For the specific
+      fixture used here the window guardFit last measured was already the
+      cursor-alone line from its very first render call (there is nothing
+      else in the input to trim), so this test exercises
+      cursorAloneFallback's alreadyAlone=true branch, which performs no
+      extra measurement and was true under the pre-fix code's unconditional
+      hide as well -- confirmed by running this test against the unmodified
+      View, where it already passed. There is no input for which this
+      criterion's specific claim (cursor-alone measured-but-still-too-wide
+      leads to hiding) could differ before and after this change, since the
+      fix never changes the "does not fit" outcome, only adds a new "fits"
+      outcome for situation (a). Recorded in the task report's
+      unconfirmed_reds.
+  AC-5:
+    tests: [TestMinibufferView_LinearTime_TS1_CursorAtEndWideWidth, TestMinibufferView_LinearTime_TS2_CursorAtEndNarrowWidth, TestMinibufferView_LinearTime_TS3_CursorNearStartWideWidth, TestMinibufferView_LinearTime_TS4_PromptTruncationWideWidth]
+    red_confirmed: false
+    red_reason: >-
+      A dedicated new performance test is out of scope; the existing
+      TestMinibufferView_LinearTime_TS1..TS4 detect superlinear blowups by
+      failing outside their 10-second limit, and they were green in the 4a
+      baseline and remain green after implementation (verified: none of
+      them ever call cursorAloneFallback -- confirmed by temporary
+      instrumentation during implementation, reverted before commit -- so
+      they do not exercise this task's new code path and no red state
+      occurred for this change on them). The "at most one measurement, no
+      loop" claim itself is verified two ways: by code inspection
+      (cursorAloneFallback is straight-line code with a single
+      lipgloss.Width call gated by one `if`, no loop, and its cost is
+      bounded by the cursor-alone window's own length, not the input's), and
+      empirically via the same temporary instrumentation, which showed
+      exactly one cursorAloneFallback call (alreadyAlone=false) per View()
+      call in TestMinibufferView_GuardCapCursorAtEnd_ShowsBlockCursor,
+      TestMinibufferView_GuardCapAfterThenBeforeTrim_ShowsCursorChar and
+      TestMinibufferView_GuardCapScrollLeft_ShowsCursorChar (situation (a)),
+      and zero extra lipgloss.Width calls (alreadyAlone=true) in
+      TestMinibufferView_GuardCapCursorAloneAlsoDoesNotFit_HidesInput
+      (situation (b)).
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-6 asserts continuity (every existing test in minibuffer_test.go
+      and pane_render_test.go, and the whole suite, keeps passing
+      unmodified), not new behavior, so there is no failing state to
+      observe before implementation: the full suite was already green in
+      the 4a baseline. Verified after implementation via the project's test
+      command (go test ./... inside the pinned container): full pass, no
+      regressions, and no existing test's source was modified (git diff
+      only adds test functions and helpers to minibuffer_test.go; no
+      existing test function body changed).
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      AC-7 constrains the diff's shape (file scope; HandleKey and
+      cursorPos unchanged; no test-only hook added to production code), not
+      runtime behavior, so there is no executable red/green state for it.
+      Verified by inspection: git diff --name-only lists exactly
+      internal/ui/minibuffer.go and internal/ui/minibuffer_test.go;
+      HandleKey's body is byte-for-byte unchanged (diff shows no hunk
+      touching it); cursorPos is never reassigned by this task's change;
+      cursorAloneFallback and its call sites are ordinary production code
+      reachable from View() in normal operation, not a test-only injection
+      point (no function value or interface is now settable from tests
+      that wasn't before).
