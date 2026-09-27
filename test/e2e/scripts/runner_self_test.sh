@@ -5,7 +5,7 @@
 #              to prove the run-list guard (unregistered tests/*.sh files),
 #              run_test's undefined-function handling, and the existing
 #              undefined/missing run-list checks all still work together.
-#              Scenarios TS-1 through TS-5 are documented in the task plan.
+#              Scenarios TS-1 through TS-6 are documented in the task plan.
 #
 # Usage:
 #   ./runner_self_test.sh
@@ -97,14 +97,14 @@ apply_fixture_lists() {
     local runner_copy="$1" test_files_body="$2" full_run_list_body="$3"
     local tmp
 
-    tmp="$(mktemp)"
+    tmp="$(mktemp "${SELF_TMPDIR}/apply_fixture_lists.XXXXXX")"
     awk -v body="$test_files_body" '
         /^declare -A TEST_FILES=\($/ { print; print body; skip = 1; next }
         skip == 1 { if ($0 ~ /^\)$/) { print; skip = 0 }; next }
         { print }
     ' "$runner_copy" > "$tmp" && mv "$tmp" "$runner_copy"
 
-    tmp="$(mktemp)"
+    tmp="$(mktemp "${SELF_TMPDIR}/apply_fixture_lists.XXXXXX")"
     awk -v body="$full_run_list_body" '
         /^FULL_RUN_LIST=\($/ { print; print body; skip = 1; next }
         skip == 1 { if ($0 ~ /^\)$/) { print; skip = 0 }; next }
@@ -351,6 +351,48 @@ EOF
     [ "$ok" -eq 1 ]
 }
 
+# TS-6: apply_fixture_lists must create its intermediate rewrite files inside
+# SELF_TMPDIR, never wherever TMPDIR happens to point. A sentinel directory
+# under SELF_TMPDIR is exported as TMPDIR, then apply_fixture_lists is called
+# with a runner-copy path that is never created, so both awk rewrite steps
+# fail right after creating their intermediate file and no mv happens. The
+# sentinel directory must still exist and be empty (hidden entries included)
+# afterwards; a stray file there means an intermediate file was created
+# outside SELF_TMPDIR. The TMPDIR export happens inside this function, which
+# run_scenario always invokes through a command substitution subshell, so it
+# never leaks to the main script or to any other scenario.
+scenario_ts6() {
+    local dir="${SELF_TMPDIR}/ts6"
+    local sentinel="${dir}/sentinel"
+    mkdir -p "$sentinel"
+
+    export TMPDIR="$sentinel"
+
+    local test_files_body='    ["a"]="a_tests.sh"'
+    local full_run_list_body='    "Fixture Tests|test_pass_a"'
+
+    # The runner-copy path below is never created, so both awk rewrite steps
+    # fail after creating their intermediate file, and mv never runs. The
+    # helper's return value on this forced-failure path is not asserted
+    # (SPEC.md Notes); only the sentinel directory's contents are checked.
+    apply_fixture_lists "${dir}/run_all_tests.sh" "$test_files_body" "$full_run_list_body" >/dev/null 2>&1
+
+    if [ ! -d "$sentinel" ]; then
+        echo "  sentinel directory is missing: $sentinel"
+        return 1
+    fi
+
+    local leftovers
+    leftovers="$(find "$sentinel" -mindepth 1)"
+    if [ -n "$leftovers" ]; then
+        echo "  sentinel directory is not empty:"
+        printf '%s\n' "$leftovers" | sed 's/^/    /'
+        return 1
+    fi
+
+    return 0
+}
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -375,6 +417,7 @@ main() {
     run_scenario "TS-3" "check-list OK and full run Failed=0 when fully registered" scenario_ts3
     run_scenario "TS-4" "check-list reports an unregistered file together with a missing entry" scenario_ts4
     run_scenario "TS-5" "run_test given an undefined name never invokes it" scenario_ts5
+    run_scenario "TS-6" "apply_fixture_lists creates its intermediate files inside SELF_TMPDIR, not TMPDIR" scenario_ts6
 
     exit "$OVERALL_STATUS"
 }

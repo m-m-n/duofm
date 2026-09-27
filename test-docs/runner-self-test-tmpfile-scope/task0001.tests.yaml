@@ -1,0 +1,82 @@
+task_id: task0001
+baseline_failures: []          # bash test/e2e/scripts/runner_self_test.sh: TS-1..TS-5 all PASS, exit 0
+final_failures: []             # same command after implementation: TS-1..TS-6 all PASS, exit 0
+acceptance_tests:
+  AC-1:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts6]
+    red_confirmed: true
+    red_reason: >
+      With apply_fixture_lists still using plain mktemp (pre-fix), running
+      the self-test with TS-6 added printed "TS-6 ...: FAIL" with diagnostic
+      "sentinel directory is not empty: <sentinel>/tmp.wAIAlJ7XKQ
+      <sentinel>/tmp.S8VXeEIX0i" — two default-named tmp.XXXXXXXXXX files had
+      leaked into the sentinel TMPDIR, one per mktemp call.
+  AC-2:
+    tests:
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts1
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts2
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts3
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts4
+    red_confirmed: false
+    red_reason: >
+      TS-1 to TS-4 assert apply_fixture_lists' unchanged contract (list
+      replacement, chmod +x restoration, fail-closed return value). Their
+      assertions were not modified; they were already PASS in the baseline
+      run (before any change in this task) and remain PASS after. This
+      criterion verifies non-regression of pre-existing behavior, not new
+      behavior, so no red state was produced or expected for it.
+  AC-3:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts6]
+    red_confirmed: true
+    red_reason: >
+      Same observed run as AC-1: pre-fix, the self-test printed
+      "TS-6 ...: FAIL" and the script exited 1; post-fix it prints
+      "TS-6 ...: PASS" and the script exits 0 (directly observed both times).
+  AC-4:
+    tests: [test/e2e/scripts/runner_self_test.sh::scenario_ts6]
+    red_confirmed: true
+    red_reason: >
+      Mutation check performed and then reverted. Reverting only the first
+      creation site (the mktemp call before the TEST_FILES rewrite) to plain
+      mktemp() produced "TS-6 ...: FAIL" with one leftover tmp.XXXXXXXXXX
+      file under the sentinel and script exit 1; restored to the fixed
+      version, then reverting only the second creation site (the mktemp call
+      before the FULL_RUN_LIST rewrite) produced the same FAIL/exit 1 with a
+      different leftover file. Both mutations were reverted afterward; `diff`
+      against the pre-mutation fixed file showed no difference.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >
+      No executable check asserts these structural facts, so none could be
+      made to fail. Verified by inspection instead: scenario_ts6 defines
+      dir="${SELF_TMPDIR}/ts6" and sentinel="${dir}/sentinel", so both the
+      sentinel directory and the runner-copy path passed to
+      apply_fixture_lists are under SELF_TMPDIR by construction. The
+      `export TMPDIR="$sentinel"` executes inside scenario_ts6, which
+      run_scenario always invokes through a command-substitution subshell
+      ("$("$fn" 2>&1)"), so the export is confined to that subshell and
+      never reaches the main script or any other scenario (all of TS-1..TS-6
+      pass within the same run, see AC-6). scenario_ts6 calls only
+      apply_fixture_lists, never run_all_tests.sh, so it starts no tmux
+      session and no duofm process. Searched test/e2e/scripts and test/ for
+      existing coverage of this, by both the path
+      "test/e2e/scripts/runner_self_test.sh" and by filename "tmux"; found
+      none beyond the E2E Dockerfile's CMD chain, which is out of scope for
+      this task.
+  AC-6:
+    tests:
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts1
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts2
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts3
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts4
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts5
+      - test/e2e/scripts/runner_self_test.sh::scenario_ts6
+    red_confirmed: true
+    red_reason: >
+      Before the fix, `bash test/e2e/scripts/runner_self_test.sh` exited 1
+      with TS-1..TS-5 PASS but TS-6 FAIL; after the fix it exits 0 with all
+      six lines ending ": PASS" (directly observed both runs). The header
+      comment's scenario range ("Scenarios TS-1 through TS-6") has no
+      automated check; that part is confirmed by direct inspection of the
+      diff, not by an observed red/green transition.
