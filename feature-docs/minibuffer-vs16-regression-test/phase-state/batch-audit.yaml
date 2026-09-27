@@ -1,0 +1,39 @@
+schema_version: 1
+feature: minibuffer-vs16-regression-test
+records:
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-27T17:20:00+09:00'
+  source: batch-decision-table
+  answer_mode: select_or_freeform
+  selected_option_ids:
+  - auto_record
+  freeform: make build
+  normalized_answer: make build
+  resolution_note: 'gate: create-spec.command-approval; command: make build (project.components.duofm.build_command);
+    basis: batch-policies.yaml auto_record, no refusal pattern matched; host Go per
+    repo commit 9db8b81'
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-27T17:20:00+09:00'
+  source: batch-decision-table
+  answer_mode: select_or_freeform
+  selected_option_ids:
+  - auto_record
+  freeform: go test ./...
+  normalized_answer: go test ./...
+  resolution_note: 'gate: create-spec.command-approval; command: go test ./... (project.components.duofm.test_command);
+    basis: batch-policies.yaml auto_record, no refusal pattern matched; host Go per
+    repo commit 9db8b81'
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-27T17:20:00+09:00'
+  source: batch-decision-table
+  answer_mode: select_or_freeform
+  selected_option_ids:
+  - auto_record
+  freeform: gofmt -w .
+  normalized_answer: gofmt -w .
+  resolution_note: 'gate: create-spec.command-approval; command: gofmt -w . (project.components.duofm.format_command);
+    basis: batch-policies.yaml auto_record, no refusal pattern matched; host Go per
+    repo commit 9db8b81'
