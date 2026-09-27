@@ -1,0 +1,98 @@
+task_id: task0001
+baseline_failures: []          # go test ./... was fully green before any change (4a)
+final_failures: []             # re-run after implementation; still fully green, no regressions
+acceptance_tests:
+  AC-1:
+    tests:
+      - TestMinibufferView_VS16Input_Width37CursorAtEnd
+      - TestMinibufferView_VS16Input_WidthCursorTable_BoundedSingleLine
+      - TestMinibufferView_VS16Prompt_TruncationWidths_BoundedSingleLine
+      - TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs
+    red_confirmed: true
+    red_reason: >-
+      checkVS16Premises (the Premise check) runs first in every test above.
+      Temporarily changed the vs16PromptJA fixture constant from
+      "(reverse-i-search)'日本語': " to "(reverse-i-search)'日本語日': " and
+      re-ran TestMinibufferView_VS16Input_Width37CursorAtEnd: it failed
+      fatally with "test fixture assumption broken: P-JA display width = 30,
+      want 28", naming the premise, the expected value (28) and the
+      observed value (30), exactly as AC-1 requires. Reverted immediately
+      after (verified vs16PromptJA is back to the committed value); not
+      committed.
+  AC-2:
+    tests: [TestMinibufferView_VS16Input_Width37CursorAtEnd]
+    red_confirmed: true
+    red_reason: >-
+      Observed under AC-6's combined temporary change to
+      internal/ui/minibuffer.go (partitionUnits estimating a unit's width as
+      the sum of its runes' own widths, plus guardFit always returning its
+      first rendering unchanged): the test failed with "result contains a
+      line break" (assertBoundedSingleLine's no-line-break check). Both
+      temporary changes were reverted afterward (git diff against HEAD for
+      internal/ui/minibuffer.go is empty); neither was committed.
+  AC-3:
+    tests: [TestMinibufferView_VS16Input_Width37CursorAtEnd]
+    red_confirmed: true
+    red_reason: >-
+      Observed under AC-6's first temporary change alone (partitionUnits
+      estimating a unit's width as the sum of its runes' own widths): the
+      content assertion failed with "expected visible text to contain
+      \"(reverse-i-search)'日本語': ❤️❤️\", got \" (reverse-i-search)'日本語':
+      \"" -- the guardFit shrink loop, working from the wrong (too-small)
+      estimate, dropped both pairs instead of keeping two. Reverted
+      afterward; not committed.
+  AC-4:
+    tests: [TestMinibufferView_VS16Input_WidthCursorTable_BoundedSingleLine]
+    red_confirmed: true
+    red_reason: >-
+      Observed under the same combined temporary change used for AC-2/AC-6
+      (partitionUnits sum-based estimate + guardFit disabled): 61 of the 162
+      width/cursor subtests failed (e.g. width=33/cursor=0..8), each with
+      "result contains a line break". This goes beyond what AC-6 explicitly
+      names, but was directly observed during the same experiment and
+      reverted along with it; not committed.
+  AC-5:
+    tests:
+      - TestMinibufferView_VS16Prompt_TruncationWidths_BoundedSingleLine
+      - TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs
+    red_confirmed: true
+    red_reason: >-
+      Observed under AC-6's temporary changes. With partitionUnits alone
+      changed (sum-based estimate), TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs's
+      content check failed: "expected visible text to contain
+      \"(reverse-i-search)'❤️❤️❤️\", got \" (reverse-i-search)'❤️❤️ \"" (only
+      two pairs kept instead of three). With guardFit additionally disabled,
+      TestMinibufferView_VS16Prompt_TruncationWidths_BoundedSingleLine failed
+      at widths 24 and 26-32 with "result contains a line break", and
+      TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs failed the same
+      way at width 29. Both temporary changes were reverted afterward; not
+      committed.
+  AC-6:
+    tests:
+      - TestMinibufferView_VS16Input_Width37CursorAtEnd
+      - TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs
+    red_confirmed: true
+    red_reason: >-
+      This criterion IS the temporary-change exercise: applied the
+      partitionUnits sum-based-estimate change alone and confirmed the AC-3
+      failure (content check, see AC-3's red_reason) and the AC-5 m.width-29
+      content failure (see AC-5's red_reason); then additionally disabled
+      guardFit and confirmed the AC-2 failure (line break, see AC-2's
+      red_reason). Verified afterward that internal/ui/minibuffer.go is
+      byte-identical to HEAD (git diff empty) before committing anything.
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Searched internal/ui/ (by path and by filename) for any existing test
+      that already checks the shape of this task's own diff (file scope,
+      test naming convention, helper reuse, gofmt cleanliness, dependency
+      set); none exists -- this criterion is about the committed change's
+      shape and the build/format/full-suite outcome, not about
+      Minibuffer.View's behavior, so there is no pre-implementation "red"
+      state for it to have been observed in. Verified post-hoc instead: the
+      committed diff touches only internal/ui/minibuffer_test.go (git diff
+      --stat), go.mod/go.sum are unchanged, all four new tests are named
+      TestMinibufferView_{Scenario} and use assertBoundedSingleLine /
+      mustNotPanic / stripANSI, `gofmt -l .` reports no files, and
+      `go test ./...` passes in full.

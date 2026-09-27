@@ -986,3 +986,167 @@ func TestMinibufferView_TS7_JoinedSequenceGuard(t *testing.T) {
 		t.Errorf("expected visible result to contain U+1F600, got %q", visible)
 	}
 }
+
+// --- task0001 (AC-1..AC-7, FR1-FR5, NFR1-NFR3): VS16 (U+FE0F) emoji width
+// regression tests. These reproduce, on both the input side and the prompt
+// side, the condition under which the minibuffer previously underestimated
+// the display width of a VS16-suffixed emoji pair and wrapped to a second
+// line. internal/ui/minibuffer.go is not modified by this task (NFR1).
+
+// vs16PromptJA is the task plan's P-JA fixture: display width 28.
+const vs16PromptJA = "(reverse-i-search)'日本語': "
+
+// vs16Pair is the task plan's PAIR fixture: U+2764 HEAVY BLACK HEART
+// immediately followed by U+FE0F VARIATION SELECTOR-16. Display width of the
+// pair is 2; the sum of the two runes' own display widths is 1 (verified by
+// checkVS16Premises).
+const vs16Pair = "❤️"
+
+// vs16Input4Pairs is the task plan's IN-4 fixture: vs16Pair repeated 4
+// times, 8 runes.
+var vs16Input4Pairs = strings.Repeat(vs16Pair, 4)
+
+// vs16PromptVS is the task plan's P-VS fixture: display width 30.
+var vs16PromptVS = "(reverse-i-search)'" + strings.Repeat(vs16Pair, 4) + "': "
+
+// checkVS16Premises is the task plan's Premise check (Design; AC-1, FR3): it
+// verifies the fixture values every VS16 test below relies on before any
+// other assertion, and stops the test immediately (fatal), naming the
+// premise, the expected value and the observed value, when one has drifted.
+// checkPVS additionally requires P-VS's display width to be 30 -- only the
+// P-VS tests (TS-3, TS-4) need that extra premise.
+func checkVS16Premises(t *testing.T, checkPVS bool) {
+	t.Helper()
+	if got := lipgloss.Width(vs16PromptJA); got != 28 {
+		t.Fatalf("test fixture assumption broken: P-JA display width = %d, want 28", got)
+	}
+	if got := lipgloss.Width(vs16Pair); got != 2 {
+		t.Fatalf("test fixture assumption broken: PAIR display width = %d, want 2", got)
+	}
+	pairRunes := []rune(vs16Pair)
+	sum := 0
+	for _, r := range pairRunes {
+		sum += lipgloss.Width(string(r))
+	}
+	if sum != 1 {
+		t.Fatalf("test fixture assumption broken: PAIR per-rune width sum = %d, want 1", sum)
+	}
+	if checkPVS {
+		if got := lipgloss.Width(vs16PromptVS); got != 30 {
+			t.Fatalf("test fixture assumption broken: P-VS display width = %d, want 30", got)
+		}
+	}
+}
+
+// checkVS16PairingIntact is the task plan's Pairing check (Design): visible
+// must already be ANSI-stripped. It reports a non-fatal test error when any
+// U+2764 is not immediately followed by U+FE0F, or any U+FE0F is not
+// immediately preceded by U+2764 -- i.e. it detects a split VS16 pair. It
+// reports nothing when visible contains neither rune.
+func checkVS16PairingIntact(t *testing.T, visible string) {
+	t.Helper()
+	runes := []rune(visible)
+	for i, r := range runes {
+		switch r {
+		case '❤':
+			if i+1 >= len(runes) || runes[i+1] != '️' {
+				t.Errorf("split VS16 pair: U+2764 at rune index %d is not immediately followed by U+FE0F in %q", i, visible)
+			}
+		case '️':
+			if i == 0 || runes[i-1] != '❤' {
+				t.Errorf("split VS16 pair: U+FE0F at rune index %d is not immediately preceded by U+2764 in %q", i, visible)
+			}
+		}
+	}
+}
+
+// TestMinibufferView_VS16Input_Width37CursorAtEnd is TS-1 (AC-2, AC-3; FR1,
+// FR2): the reproduction condition on the input side -- P-JA, m.width 37,
+// input IN-4, cursor at the end -- must render as one line with both VS16
+// pairs intact.
+func TestMinibufferView_VS16Input_Width37CursorAtEnd(t *testing.T) {
+	checkVS16Premises(t, false)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(vs16PromptJA)
+	mb.SetWidth(37)
+	mb.SetInput(vs16Input4Pairs)
+	mb.SetCursorPos(len([]rune(vs16Input4Pairs)))
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 37, result)
+
+	visible := stripANSI(result)
+	want := vs16PromptJA + vs16Pair + vs16Pair
+	if !strings.Contains(visible, want) {
+		t.Errorf("expected visible text to contain %q, got %q", want, visible)
+	}
+	checkVS16PairingIntact(t, visible)
+}
+
+// TestMinibufferView_VS16Input_WidthCursorTable_BoundedSingleLine is TS-2
+// (AC-4; FR4): P-JA, input IN-4, every m.width 24..41 and every cursor
+// position 0..8 (162 combinations, including positions on a U+FE0F rune)
+// must render without panic, without a line break, within m.width-2.
+func TestMinibufferView_VS16Input_WidthCursorTable_BoundedSingleLine(t *testing.T) {
+	checkVS16Premises(t, false)
+
+	for width := 24; width <= 41; width++ {
+		for pos := 0; pos <= 8; pos++ {
+			t.Run(fmt.Sprintf("width=%d/cursor=%d", width, pos), func(t *testing.T) {
+				mb := NewMinibuffer()
+				mb.SetPrompt(vs16PromptJA)
+				mb.SetWidth(width)
+				mb.SetInput(vs16Input4Pairs)
+				mb.SetCursorPos(pos)
+				mb.Show()
+
+				result := mustNotPanic(t, "Minibuffer.View", mb.View)
+				assertBoundedSingleLine(t, width, result)
+			})
+		}
+	}
+}
+
+// TestMinibufferView_VS16Prompt_TruncationWidths_BoundedSingleLine is TS-3
+// (AC-5; FR5): P-VS, empty input, every m.width 24..34 (the prompt
+// truncation range) must render without panic, without a line break, within
+// m.width-2.
+func TestMinibufferView_VS16Prompt_TruncationWidths_BoundedSingleLine(t *testing.T) {
+	checkVS16Premises(t, true)
+
+	for width := 24; width <= 34; width++ {
+		t.Run(fmt.Sprintf("width=%d", width), func(t *testing.T) {
+			mb := NewMinibuffer()
+			mb.SetPrompt(vs16PromptVS)
+			mb.SetWidth(width)
+			mb.Show()
+
+			result := mustNotPanic(t, "Minibuffer.View", mb.View)
+			assertBoundedSingleLine(t, width, result)
+		})
+	}
+}
+
+// TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs is TS-4 (AC-5; FR5):
+// P-VS, empty input, m.width 29 -- the prompt-truncation path keeps
+// "(reverse-i-search)'" (19 columns) plus three PAIRs (6 columns).
+func TestMinibufferView_VS16Prompt_Width29_KeepsThreePairs(t *testing.T) {
+	checkVS16Premises(t, true)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(vs16PromptVS)
+	mb.SetWidth(29)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, 29, result)
+
+	visible := stripANSI(result)
+	want := "(reverse-i-search)'" + vs16Pair + vs16Pair + vs16Pair
+	if !strings.Contains(visible, want) {
+		t.Errorf("expected visible text to contain %q, got %q", want, visible)
+	}
+	checkVS16PairingIntact(t, visible)
+}
