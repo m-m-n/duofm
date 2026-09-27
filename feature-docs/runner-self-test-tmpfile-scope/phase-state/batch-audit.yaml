@@ -1,0 +1,21 @@
+schema_version: 1
+feature: runner-self-test-tmpfile-scope
+records:
+- question_id: create-spec.command-approval
+  packet_id: null
+  answered_at: '2026-09-27T19:58:00+09:00'
+  source: batch-auto-record
+  answer_mode: select
+  selected_option_ids: []
+  freeform: null
+  normalized_answer: 'auto_record: bash test/e2e/scripts/runner_self_test.sh'
+  resolution_note: 'gate: create-spec.command-approval; 新規に自動承認したコマンド: `bash test/e2e/scripts/runner_self_test.sh`（component runner-self-test の test_command。runner の自己テストで、tmux・duofm を起動せず SELF_TMPDIR 内だけに書く）; 既承認で再利用: duofm の build / test / format（podman + golang:1.25.5-trixie）と e2e_test_command `make test-e2e-build && make test-e2e`; refusal パターン該当なし'
+- question_id: create-spec.requirement-clarification
+  packet_id: null
+  answered_at: '2026-09-27T19:55:00+09:00'
+  source: analyst-assumption
+  answer_mode: select
+  selected_option_ids: []
+  freeform: null
+  normalized_answer: 'requirements-analyst が question packet を返さず completed。可逆な仮定 A-1〜A-5 を SPEC.md に記録'
+  resolution_note: 'gate: create-spec.requirement-clarification（packet なし）; 記録した仮定: A-1 回帰テストは runner_self_test.sh 内の TS-6 として追加 / A-2 TS-6 は mktemp と mv の間で失敗させて観測 / A-3 SELF_TMPDIR 内に残った一時ファイルは既存 EXIT trap が削除し、呼び出しごとの後始末は足さない / A-4 冒頭コメントのシナリオ範囲を TS-6 まで更新 / A-5 チケットの追加指示（push・PR・Codex・Notion）は機能要件に含めない; codex_consulted: false; opus_escalation: false'
