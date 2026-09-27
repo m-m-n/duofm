@@ -96,7 +96,27 @@ workflow:
   status: pending
 - id: retrospect
   status: pending
-tasks: {}
+tasks:
+  task0001:
+    title: Keep runner self-test temporary files inside SELF_TMPDIR and add regression scenario TS-6
+    plan: tasks/task0001.md
+    files:
+    - test/e2e/scripts/runner_self_test.sh
+    skills:
+    - infra-impl
+    domains:
+    - config-infra
+    - external-io
+    complexity: low
+    requirements:
+    - FR1
+    - FR2
+    - NFR1
+    - NFR2
+    - NFR3
+    status: pending
+    notes: null
+    branch: null
 review:
   status: pending
   rounds_completed: 0
@@ -106,36 +126,49 @@ requirements:
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
+    - MUT-1
   FR2:
     title: SELF_TMPDIR 外の一時ファイルを検出する回帰シナリオ
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
+    - MUT-1
   NFR1:
     title: 自己テストの書き込み範囲
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
+    - REG-1
   NFR2:
     title: tmux セッションと duofm プロセスを起動しない
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - TS-6
   NFR3:
     title: 既存動作の維持
     status: ok
     tbd_reason: null
     excluded_reason: null
-    tasks: []
-    tests: []
+    tasks:
+    - task0001
+    tests:
+    - REG-1
 batch:
   review_rework_count: 0
   verify_rework:
