@@ -2011,3 +2011,255 @@ func TestMinibufferView_ScrollBoundary_CursorGraphemeWiderThanRemaining_HidesInp
 		})
 	}
 }
+
+// --- task0001 (minibuffer-guardfit-cursor-cap, AC-1..AC-4): once guardFit's
+// re-measurement cap is reached (or shrink is exhausted) while the window
+// still holds more than the cursor alone, View narrows the window to the
+// cursor alone and shows it whenever that line fits the content width;
+// only when the cursor alone does not fit either does it hide input and
+// cursor. Shared fixture per the task plan's Acceptance Criteria: prompt
+// U+0600 (display width 1), m.width 10 (content width 6, width left for
+// input 5).
+
+// guardCapPrompt/guardCapWidth/guardCapContentWidth are the task plan's
+// shared fixture (Acceptance Criteria).
+const guardCapPrompt = "؀"
+const guardCapWidth = 10
+const guardCapContentWidth = guardCapWidth - 4
+
+// guardCapG1..guardCapG4 are the task plan's shared fixture graphemes: g1 is
+// U+1F600 U+FE0E; g2/g3/g4 each chain one more "U+2764 U+200D" (heart + ZWJ)
+// pair in front of the previous grapheme, so each of g1..g4 is a single
+// ZWJ-joined grapheme cluster of increasing rune count (2, 4, 6, 8).
+const guardCapG1 = "\U0001F600︎"
+const guardCapG2 = "❤‍" + guardCapG1
+const guardCapG3 = "❤‍" + guardCapG2
+const guardCapG4 = "❤‍" + guardCapG3
+
+// checkGuardCapPremises is this task's Premise check (Test Notes), run
+// fatally before any other assertion in AC-1..AC-4 so fixture drift is
+// never mistaken for a regression. It verifies, under the color profile
+// already active when it's called (so it reflects exactly what the calling
+// test's View() call will measure), the two facts Test Notes calls out:
+// the prompt plus the whole input -- assembled and highlighted exactly as
+// View's Step 1 fit-check assembles it -- does not fit the content width,
+// and the prompt plus the cursor-alone line -- assembled exactly as View
+// assembles its final line (Design "Contracts": Measured equals displayed)
+// -- fits the content width iff wantCursorAloneFits says so.
+func checkGuardCapPremises(t *testing.T, input string, cursorPos int, wantCursorAloneFits bool) {
+	t.Helper()
+	if got := lipgloss.Width(guardCapPrompt); got != 1 {
+		t.Fatalf("test fixture assumption broken: prompt display width = %d, want 1", got)
+	}
+
+	runes := []rune(input)
+	gs, ge := len(runes), len(runes)
+	if cursorPos < len(runes) {
+		gs, ge = graphemeClusterBounds(runes, cursorPos)
+	}
+
+	fullLine := guardCapPrompt + buildLine(runes, gs, ge)
+	if w := lipgloss.Width(fullLine); w <= guardCapContentWidth {
+		t.Fatalf("test fixture assumption broken: prompt + whole input fits the content width (got %d, content width %d); this input never reaches the failure-handling path", w, guardCapContentWidth)
+	}
+
+	var cursorAloneLine string
+	if gs == len(runes) {
+		cursorAloneLine = guardCapPrompt + buildLine(nil, 0, 0)
+	} else {
+		cursorAloneLine = guardCapPrompt + buildLine(runes[gs:ge], 0, ge-gs)
+	}
+	fits := lipgloss.Width(cursorAloneLine) <= guardCapContentWidth
+	if fits != wantCursorAloneFits {
+		t.Fatalf("test fixture assumption broken: prompt + cursor-alone line fits the content width = %v, want %v (measured width %d, content width %d)", fits, wantCursorAloneFits, lipgloss.Width(cursorAloneLine), guardCapContentWidth)
+	}
+}
+
+// TestMinibufferView_GuardCapCursorAtEnd_ShowsBlockCursor is AC-1 (FR1, FR3,
+// FR4; SPEC AC1): P1, the cursor-at-end path. Input g1+g2+g3+g4, cursor at
+// the end (rune 20). guardFit's re-measurement cap is reached while the
+// window still holds more than the trailing block cursor; View must narrow
+// the window to the block cursor alone and show it, instead of hiding the
+// cursor entirely (the defect this task fixes).
+//
+// Red first (Test Notes): against the unmodified View, this fails -- zero
+// reversed runs, because the cursor disappears.
+func TestMinibufferView_GuardCapCursorAtEnd_ShowsBlockCursor(t *testing.T) {
+	fix256ColorProfile(t)
+
+	input := guardCapG1 + guardCapG2 + guardCapG3 + guardCapG4
+	cursorPos := len([]rune(input))
+	checkGuardCapPremises(t, input, cursorPos, true)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(guardCapPrompt)
+	mb.SetWidth(guardCapWidth)
+	mb.SetInput(input)
+	mb.SetCursorPos(cursorPos)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, guardCapWidth, result)
+
+	runs := reversedRuns(result)
+	if len(runs) != 1 || runs[0] != " " {
+		t.Fatalf("reversed runs = %#v, want exactly [%q]", runs, " ")
+	}
+
+	visible := stripANSI(result)
+	if !strings.ContainsRune(visible, '؀') {
+		t.Errorf("expected visible text to contain the prompt U+0600, got %q", visible)
+	}
+	if strings.ContainsRune(visible, '\U0001F600') || strings.ContainsRune(visible, '❤') {
+		t.Errorf("expected visible text to contain neither U+1F600 nor U+2764, got %q", visible)
+	}
+}
+
+// TestMinibufferView_GuardCapAfterThenBeforeTrim_ShowsCursorChar is AC-2
+// (FR1, FR3, FR4; SPEC AC2): P2, the path that trims after-cursor units
+// from the back before before-cursor units from the front. Input
+// g2+g3+g4+"xyz", cursor 18 (on "x"). guardFit's cap is reached while the
+// window still holds more than the cursor's own grapheme; View must narrow
+// to the cursor's grapheme alone and show it as one reversed run.
+//
+// Red first (Test Notes): against the unmodified View, this fails -- zero
+// reversed runs.
+func TestMinibufferView_GuardCapAfterThenBeforeTrim_ShowsCursorChar(t *testing.T) {
+	fix256ColorProfile(t)
+
+	input := guardCapG2 + guardCapG3 + guardCapG4 + "xyz"
+	const cursorPos = 18
+	checkGuardCapPremises(t, input, cursorPos, true)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(guardCapPrompt)
+	mb.SetWidth(guardCapWidth)
+	mb.SetInput(input)
+	mb.SetCursorPos(cursorPos)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, guardCapWidth, result)
+
+	runs := reversedRuns(result)
+	if len(runs) != 1 || runs[0] != "x" {
+		t.Fatalf("reversed runs = %#v, want exactly [%q]", runs, "x")
+	}
+
+	visible := stripANSI(result)
+	if !strings.ContainsRune(visible, '؀') {
+		t.Errorf("expected visible text to contain the prompt U+0600, got %q", visible)
+	}
+	if strings.ContainsRune(visible, '\U0001F600') || strings.ContainsRune(visible, '❤') {
+		t.Errorf("expected visible text to contain neither U+1F600 nor U+2764, got %q", visible)
+	}
+}
+
+// TestMinibufferView_GuardCapScrollLeft_ShowsCursorChar is AC-3 (FR1, FR3,
+// FR4; SPEC AC3): P3, the path that scrolls left with the cursor's
+// grapheme pinned at the right edge. Input "z"+g1+g2+g3+g4+"x", cursor 21
+// (on "x"). Same assertions as AC-2.
+//
+// Red first (Test Notes): against the unmodified View, this fails -- zero
+// reversed runs.
+func TestMinibufferView_GuardCapScrollLeft_ShowsCursorChar(t *testing.T) {
+	fix256ColorProfile(t)
+
+	input := "z" + guardCapG1 + guardCapG2 + guardCapG3 + guardCapG4 + "x"
+	const cursorPos = 21
+	checkGuardCapPremises(t, input, cursorPos, true)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(guardCapPrompt)
+	mb.SetWidth(guardCapWidth)
+	mb.SetInput(input)
+	mb.SetCursorPos(cursorPos)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, guardCapWidth, result)
+
+	runs := reversedRuns(result)
+	if len(runs) != 1 || runs[0] != "x" {
+		t.Fatalf("reversed runs = %#v, want exactly [%q]", runs, "x")
+	}
+
+	visible := stripANSI(result)
+	if !strings.ContainsRune(visible, '؀') {
+		t.Errorf("expected visible text to contain the prompt U+0600, got %q", visible)
+	}
+	if strings.ContainsRune(visible, '\U0001F600') || strings.ContainsRune(visible, '❤') {
+		t.Errorf("expected visible text to contain neither U+1F600 nor U+2764, got %q", visible)
+	}
+}
+
+// fixNoStyleColorProfile fixes the default lipgloss renderer's color
+// profile to Ascii (emits no escape sequences at all, including the
+// reverse attribute) for the duration of the calling test, restoring the
+// previous profile at cleanup -- mirrors fix256ColorProfile above. AC-4's
+// fixture relies on the boundary-joining effect between the prompt's last
+// rune (U+0600, a Prepend grapheme-cluster-break character that joins with
+// whatever text immediately follows it) and the cursor's grapheme: under a
+// styled profile, a reverse-attribute escape sequence sits between the
+// prompt and the highlighted cursor text, blocking that join; under Ascii,
+// there is no escape sequence, so the join happens exactly as it would in
+// the two texts assembled directly. The profile is process-global, so
+// callers of this helper must not run in parallel (no test in this package
+// calls t.Parallel()).
+func fixNoStyleColorProfile(t *testing.T) {
+	t.Helper()
+	previous := lipgloss.ColorProfile()
+	lipgloss.SetColorProfile(termenv.Ascii)
+	t.Cleanup(func() {
+		lipgloss.SetColorProfile(previous)
+	})
+
+	sample := lipgloss.NewStyle().Reverse(true).Render("x")
+	if sample != "x" {
+		t.Fatalf("fixNoStyleColorProfile: reverse attribute produced an escape sequence under the Ascii profile (got %q); AC-4 needs plain text so the prompt and cursor grapheme sit adjacent", sample)
+	}
+}
+
+// TestMinibufferView_GuardCapCursorAloneAlsoDoesNotFit_HidesInput is AC-4
+// (FR2, FR3, FR4, TM-2; SPEC AC4): when the prompt plus the cursor-alone
+// line is still wider than the content width, View renders neither input
+// nor cursor. The fixture is guardCapG4 with one more "heart + ZWJ" pair
+// prepended (making the whole input a single grapheme cluster) at cursor
+// 0, run under the no-style color profile (Test Notes: under this profile
+// the prompt's trailing U+0600 joins with the cursor's grapheme, so their
+// combined measured width exceeds their separately-measured widths -- SPEC
+// Edge Cases' "prompt boundary joins with the input side").
+//
+// This input's cursor-alone line already does not fit at guardFit's very
+// first measurement (there is nothing else in the input to trim), so
+// guardFit itself reports "does not fit" without this task's new
+// cursor-alone fallback ever running its own extra measurement --
+// situation (b), not (a). The outcome (hidden) is unchanged from before
+// this task; see the task report's unconfirmed_reds for why this
+// criterion has no observed red.
+func TestMinibufferView_GuardCapCursorAloneAlsoDoesNotFit_HidesInput(t *testing.T) {
+	fixNoStyleColorProfile(t)
+
+	input := "❤‍" + guardCapG4
+	const cursorPos = 0
+	checkGuardCapPremises(t, input, cursorPos, false)
+
+	mb := NewMinibuffer()
+	mb.SetPrompt(guardCapPrompt)
+	mb.SetWidth(guardCapWidth)
+	mb.SetInput(input)
+	mb.SetCursorPos(cursorPos)
+	mb.Show()
+
+	result := mustNotPanic(t, "Minibuffer.View", mb.View)
+	assertBoundedSingleLine(t, guardCapWidth, result)
+
+	if len(reversedRuns(result)) != 0 {
+		t.Errorf("expected no reversed run, got %#v", reversedRuns(result))
+	}
+
+	visible := stripANSI(result)
+	if strings.ContainsRune(visible, '\U0001F600') || strings.ContainsRune(visible, '❤') {
+		t.Errorf("expected no input rune in the visible output, got %q", visible)
+	}
+}
