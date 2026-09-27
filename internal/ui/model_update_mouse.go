@@ -6,11 +6,12 @@ import (
 
 // dragSession holds the state of an in-progress mouse drag gesture.
 type dragSession struct {
-	armed    bool
-	active   bool
-	pane     PanePosition
-	anchor   int
-	baseline map[string]bool
+	armed          bool
+	active         bool
+	pane           PanePosition
+	anchor         int
+	baseline       map[string]bool
+	displayedNames []string // press-time snapshot of the drag pane's displayed names (see snapshotDisplayedNames)
 }
 
 // isMouseModal reports whether the Model is in a state that suppresses all
@@ -155,10 +156,11 @@ func (m *Model) handleEntryPress(pane PanePosition, index int) tea.Cmd {
 	}
 
 	m.mouseDrag = dragSession{
-		armed:    true,
-		pane:     pane,
-		anchor:   index,
-		baseline: p.snapshotMarks(),
+		armed:          true,
+		pane:           pane,
+		anchor:         index,
+		baseline:       p.snapshotMarks(),
+		displayedNames: p.snapshotDisplayedNames(),
 	}
 	return nil
 }
@@ -178,7 +180,24 @@ func (m *Model) cancelDragOnLoadComplete(pane PanePosition) {
 
 // updateDrag applies a motion or release row to the armed drag session. x is
 // never used, and the other pane is never touched.
+//
+// Before resolving the target row, it checks the session's press-time
+// displayed-name snapshot against the drag pane's current displayed names
+// (see snapshotDisplayedNames / displayedNamesMatch). On a mismatch the
+// session is reset to the zero value and nothing else about this event
+// changes: the pane's marks, cursor and scroll offset are left untouched.
+// On a match, the session baseline is first restricted to names that still
+// exist (existingMarks) so a continuing drag never revives a mark for a
+// file that no longer exists, then row resolution, the still-a-click check,
+// activation and mark application proceed unchanged.
 func (m *Model) updateDrag(y int) {
+	p := m.paneAt(m.mouseDrag.pane)
+	if !p.displayedNamesMatch(m.mouseDrag.displayedNames) {
+		m.mouseDrag = dragSession{}
+		return
+	}
+	m.mouseDrag.baseline = p.existingMarks(m.mouseDrag.baseline)
+
 	target, ok := m.mouseDragIndexAt(m.mouseDrag.pane, y)
 	if !ok {
 		return
@@ -195,6 +214,5 @@ func (m *Model) updateDrag(y int) {
 		m.mouseDetector().reset()
 	}
 
-	p := m.paneAt(m.mouseDrag.pane)
 	p.applyDragMarks(m.mouseDrag.anchor, target, m.mouseDrag.baseline)
 }

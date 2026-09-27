@@ -1,0 +1,36 @@
+task_id: task0001
+baseline_failures: []          # `go test ./...` was fully green before any change (4a)
+final_failures: []             # `go test ./...` re-run after implementation: fully green
+acceptance_tests:
+  AC-1:
+    tests: [TestHandleMouse_DragRefresh_CancelledWhenFileAddedBeforeMotion]
+    red_confirmed: true
+    red_reason: "session after motion = {armed:true active:true pane:0 anchor:2 baseline:map[]}, want neither armed nor active"
+  AC-2:
+    tests: [TestHandleMouse_DragRefresh_CancelledWhenUnmarkedFileDeletedDuringActiveDrag]
+    red_confirmed: true
+    red_reason: "session after motion = {armed:true active:true pane:0 anchor:2 baseline:map[]}, want neither armed nor active"
+  AC-3:
+    tests: [TestHandleMouse_DragRefresh_SurvivesWhenDisplayedListUnchanged]
+    red_confirmed: false
+    red_reason: "this criterion pins continuation behavior (session survives an unchanged displayed list) that already held before this task: with no cancellation check yet added, the pre-fix code never disarms the session, so all three subtests (no file change, content-only change, filter-hidden addition) already passed before the implementation. There is no failure to observe for this criterion; it guards against a future regression rather than proving new behavior."
+  AC-4:
+    tests: [TestHandleMouse_DragRefresh_UnaffectedWhenOnlyOtherPaneChanges]
+    red_confirmed: false
+    red_reason: "this criterion pins pre-existing behavior (a change to the other pane never affects this pane's armed session), which already held before this task since the pre-fix code never inspected the drag pane's displayed list at all. The test passed before the implementation existed; there is no failure to observe."
+  AC-5:
+    tests: [TestHandleMouse_DragRefresh_CancelledByExecOrShellCompletion]
+    red_confirmed: true
+    red_reason: "session after motion = {armed:true active:true pane:0 anchor:2 baseline:map[]}, want neither armed nor active (observed for both the exec-completion and shell-command-completion subtests)"
+  AC-6:
+    tests: [TestHandleMouse_DragRefresh_RestrictsBaselineToExistingHiddenMarks]
+    red_confirmed: true
+    red_reason: "deleted file's name must not be in the mark set (the pre-fix applyDragMarks call replayed the session's stale baseline verbatim on the next motion, reviving the mark for the just-deleted, filter-hidden file)"
+  AC-7:
+    tests: [TestSnapshotDisplayedNames_IncludesParentAndIsIndependentOfLaterChanges, TestDisplayedNamesMatch, TestExistingMarks_DropsVanishedKeepsFilterHiddenLeavesInputUnchanged]
+    red_confirmed: true
+    red_reason: "compile failure before pane_drag.go was touched: 'pane.snapshotDisplayedNames undefined (type *Pane has no field or method snapshotDisplayedNames)' (go vet ./internal/ui/...), confirming the three helpers did not exist yet"
+  AC-8:
+    tests: []
+    red_confirmed: false
+    red_reason: "this criterion is a whole-suite invariant (go test ./... passes including every existing ui test unchanged, gofmt reports nothing, go vet reports nothing), not a single behavior this task introduces. It was already true before this task's changes (verified in 4a: `go test ./...` fully green) and remains true after (verified after implementation: `go test ./...`, `gofmt -l .`, `go vet ./...` all clean, and every pre-existing test in the ui package -- including the drag-dir-load-stale-marks TS-1..TS-5 tests and the existing click/drag/double-click tests -- still passes with unchanged assertions). No existing test file was found (searched internal/ui by path and filename) that exercises this aggregate check on its own; there is no failure to observe for a criterion that must hold both before and after."
