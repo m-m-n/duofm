@@ -1,0 +1,67 @@
+schema_version: 2
+feature: minibuffer-guardfit-cursor-cap
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.03
+    confidence: 0.97
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.97
+      '2': 0.03
+      '3': 0.0
+  observed_at: '2026-09-28T07:58:00+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.05
+    confidence: 0.94
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  observed_at: '2026-09-28T08:05:00+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 100
+  new_functions_needed: 1
+  new_files_needed: 0
+  new_dependencies_needed: 0
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: internal/ui/minibuffer.go:361–370 の guardFit は、初回計測後に最大3回再計測し、幅超過が残ると
+    false を返す。View の533–537行、608–611行、644–647行は、その場合に表示範囲を空にして hlStart/hlEnd を -1
+    にする。プロンプトとカーソルだけを組み立てて収まりを確認する処理はなく、上限到達時にカーソルを無条件で消す分岐が残っている。minibuffer_test.go:513、959、1464
+    にはカーソル表示・幅差・反転表示の関連テストがあるが、再計測上限到達時のカーソル保持を明示的に検証するテストはない。現在の partitionUnits は書記素全体を計測するため、旧レビューの再現入力が現在も上限に到達するかは未確認で、テスト実行はしていない。見積もりは
+    View 内の3分岐修正と、既存の表示検証用補助関数を再利用する3ケースのテスト1関数追加を前提とする。呼出・依存数は、本番の呼出元 Pane.viewInternal
+    1関数、View が直接使う内部補助関数10個、外部パッケージ lipgloss 1個として数えた
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 3
+  body_change_kind: new_logic
+  change_containment: single_function
+  caller_and_dependency_count: 12
+  changes_external_contract: false
+  changes_behavior: true
+decided_at: '2026-09-28T07:56:11+09:00'
