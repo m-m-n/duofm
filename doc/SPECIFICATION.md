@@ -94,6 +94,7 @@ graph TB
 - Mouse wheel, right button, and middle button events are ignored
 - Mouse input is ignored while a dialog, the sort dialog, or the minibuffer is active, or while the background command output area is focused
 - Hit-testing accounts for wrapped pane headers, active background command output, and directory reloads or refreshes that occur mid-drag, so a drag session is invalidated (without discarding marks already made) if the pane's entry list changes before the drag ends
+- Scroll position captured at the moment of a press is preserved through pane activation, so releasing on the same screen row after an activation-triggered list shrink does not add a range mark
 
 ### File Operations
 
@@ -127,10 +128,13 @@ graph TB
 
 #### Multi-file Operations
 - Mark files with Space key
+- Parent directory (`..`) cannot be marked
 - Batch copy/move/delete on marked files
 - Header shows marked count and total size
+- Header shows partition free space (right side of the header, base-1024 auto unit conversion)
 - Visual highlighting for marked files (different colors for active/inactive panes)
 - Marks cleared on directory change
+- Marked files are processed in the pane's display order; marked files no longer in the displayed list (e.g., hidden by a filter) are processed afterward in filename order
 
 #### Permission Management
 - Change file/directory permissions (chmod) with Shift+P
@@ -196,6 +200,7 @@ Three display modes toggled with `I` key:
 - Configurable ambiguous character width (1 or 2 cells) via `[display]` section
 - Improved support for complex Unicode symbols (☆, ü, ①, →, etc.)
 - Minibuffer (search and shell command input) renders wide characters, ZWJ-joined emoji, and other grapheme clusters within a single line without breaking a cluster across the display boundary, and stays within the terminal width regardless of prompt or input content
+- Minibuffer cursor movement (Left/Right, Ctrl+B/Ctrl+F) moves by grapheme cluster boundaries; the cursor's containing grapheme cluster is rendered as a single reverse-video range, and text editing operations (insert, Backspace, Delete, Ctrl+K, Ctrl+U, Ctrl+A/Ctrl+E) remain rune-based
 
 ### Search and Filter
 
@@ -453,6 +458,7 @@ Press `?` for help dialog with:
 - Status bar messages for warnings
 - Directory permission errors shown with navigation preserved
 - Proper error handling for directory access errors (path not updated on failure)
+- Pane, minibuffer, and full-screen rendering do not panic at pane or terminal widths of 0-4 columns
 
 ### Dialog System
 
@@ -844,6 +850,7 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
 
 - Async directory loading for responsive UI
 - Independent pane operations
+- Minibuffer rendering (prompt truncation, input display range, line assembly) runs in time linear in prompt and input length, so redrawing does not stall with inputs containing many combining characters
 - File marks preserved during filter/refresh/auto-refresh
 - Efficient sorting with directory-first ordering
 - History limited to 100 entries per pane (configurable: 20,000 for shell commands)
