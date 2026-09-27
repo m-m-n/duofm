@@ -91,7 +91,7 @@ workflow:
   base_commit: 9e2eb177f7a9a49da74aff60bc330b607c1fed21
   completed_at_commit: 7be7442f834338bb4d34f3576b19b2d53684e3cf
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
 - id: retrospect
@@ -123,9 +123,20 @@ tasks:
     notes: null
     branch: em-workflow/minibuffer-grapheme-scroll-boundary/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
   perspectives: []
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary:
+    - perspective: license
+      reason: diff が go.mod を変更（github.com/rivo/uniseg を indirect から direct 依存へ昇格）
+    - perspective: vulnerability
+      reason: diff が go.mod を変更（依存マニフェストの変更による脆弱性検査）
+    cross_validation: false
   residual_critical_high: 0
   needs_rework: false
 requirements:
