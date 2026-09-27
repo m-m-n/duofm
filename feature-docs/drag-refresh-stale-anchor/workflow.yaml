@@ -88,7 +88,7 @@ workflow:
   base_commit: 195f72bf943943804d5025e15513701ae8c64d85
   completed_at_commit: f21b36ac3982025ccc9c9035ffeb0a5c52fb0efa
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
   result: null
@@ -127,8 +127,15 @@ tasks:
     branch: em-workflow/drag-refresh-stale-anchor/task0001
     notes: null
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: 表示一覧の変化でドラッグを取り消す
