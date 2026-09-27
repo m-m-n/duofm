@@ -1,0 +1,21 @@
+schema_version: 1
+feature: minibuffer-shrink-loop-linear
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: e331ede326ad74b5b1127847e4c7f353067ec3f5
+last_input_digest: sha256:059fe65383d1c8979a3918fffb0f97998e0610ee035be5add0dc45a09c7e07e7
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:059fe65383d1c8979a3918fffb0f97998e0610ee035be5add0dc45a09c7e07e7
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
