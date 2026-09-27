@@ -16,14 +16,18 @@ source "${SCRIPT_DIR}/../helpers.sh"
 # file-list row behind the dialog (e.g. "before_rename.txt") and the
 # search-filter display (e.g. "/before_ren"), so it passes even when the
 # input field itself is empty or holds the wrong value. This helper instead
-# requires the match to occur on a single captured row, in this order: a
-# vertical border character, only whitespace, the base name, only
-# whitespace, another vertical border character, whitespace, and the fixed
-# extension. No non-whitespace character next to the base name is
-# tolerated, including a single one on either side: the cursor is drawn by
-# reverse video only, and the capture drops attributes. That structure is
-# unique to the input field's own row and cannot be produced by the
-# file-list row, the title row, or the search-filter display.
+# requires the match to occur on a single captured row, anchored at the
+# row's start and at the row's end: only whitespace, the dialog's left
+# border, only whitespace, the input field's left border, only whitespace,
+# the base name, only whitespace, the input field's right border, only
+# whitespace, the extension, only whitespace, the dialog's right border,
+# only whitespace to the end of the row. Every border character on a
+# passing row is at one of those four structural positions, so a border
+# character typed into the input value cannot act as either of the input
+# field's own borders. No other non-whitespace character next to the base
+# name is tolerated, including a single one on either side: the cursor is
+# drawn by reverse video only, and the capture drops attributes. Extra
+# whitespace-only characters around the base name stay out of scope.
 #
 # Usage: assert_input_field_value <session_name> <expected_base_name> <extension> <description>
 # ===========================================
@@ -46,9 +50,15 @@ assert_input_field_value() {
     escaped_ext=$(printf '%s' "$extension" | sed -e 's/[][\.^$*+?(){}|]/\\&/g')
 
     # │ = U+2502 BOX DRAWINGS LIGHT VERTICAL: the border character drawn by
-    # lipgloss.RoundedBorder() around the input field.
+    # lipgloss.RoundedBorder() around both the dialog and the input field.
     local border='│'
-    local pattern="${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}"
+    # Anchored at the row's start (^) and end ($): only whitespace, the
+    # dialog's left border, only whitespace, the input field's left
+    # border, only whitespace, the base name, only whitespace, the input
+    # field's right border, only whitespace, the extension, only
+    # whitespace, the dialog's right border, only whitespace to the end of
+    # the row.
+    local pattern="^[[:space:]]*${border}[[:space:]]*${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}[[:space:]]*${border}[[:space:]]*$"
 
     # Force a UTF-8 locale for this match only (independent of the E2E
     # container's ambient locale, which is POSIX/C): the border character
