@@ -1,0 +1,24 @@
+schema_version: 1
+feature: minibuffer-guardfit-cursor-cap
+records:
+- question_id: requirement.a3.regression-test-approach
+  packet_id: null
+  answered_at: '2026-09-28T08:07:40+09:00'
+  source: batch-codex-consultation
+  answer_mode: select_or_freeform
+  selected_option_ids: []
+  freeform: '案 C を採用: View 経由の回帰テストを 3 経路それぞれに置く。共通条件は SetPrompt("؀")・SetWidth(10)・Show()（内容幅
+    6、プロンプト幅 1、入力に使える幅 5）。g1 = "😀︎"、g2 = "❤‍" + g1、g3 = "❤‍" + g2、g4 = "❤‍" + g3（いずれも
+    1 書記素で単独の lipgloss.Width は 1、プロンプト U+0600（Prepend）と直接連結すると幅 3/4/5/6）。末尾カーソルの経路:
+    入力 g1+g2+g3+g4、カーソル 20。右側を削ってから左側を削る経路: 入力 g2+g3+g4+"xyz"、カーソル 18（"x"）。左側をスクロールする経路:
+    入力 "z"+g1+g2+g3+g4+"x"、カーソル 21（"x"）。3 例とも再計測上限で失敗し、プロンプト + カーソル単独なら幅 2 で収まる（Codex
+    がコードと uniseg v0.4.7 の幅計算を読み再現計算で確認。Go での実行は未確認）。検証は既存の fix256ColorProfile と reversedRuns
+    を使い、反転区間が末尾では空白 1 文字、それ以外では "x" の 1 区間だけになること、プロンプトが残ること、g1〜g4 の文字が残らないこと、assertBoundedSingleLine
+    を満たすことを確かめる。末尾カーソルは反転区間の検証が必須（幅や空白だけでは見逃す）。本体をテストのためだけに分割しない。回数契約を固定する内部テストは任意。'
+  normalized_answer: '仮定 a3 を差し替え: 再発を検出するテストは View 経由で 3 経路それぞれに置き、具体的な入力（プロンプト U+0600
+    と、VS15・ZWJ で連結した絵文字の書記素 g1〜g4）で再計測上限に到達させ、反転区間でカーソルの表示を確かめる。入力が Go 実行で上限に達しないと判明した場合は、同じ性質（プロンプトとの境界で見積もりが実測より小さくなる）を持つ入力に置き換える。'
+  resolution_note: 'gate: create-spec.requirement-clarification（requirements-analyst
+    の仮定 a3 と warning: View 経由で上限に達する入力が確定できない）; options: A) 内部テストだけ / B) View テスト
+    + 内部テスト / C) View テストを 3 経路に置き、内部テストは任意; choice: C; codex_consulted: true（View
+    から到達できる具体入力が 3 経路とも見つかったため、A の前提が崩れる。C は実際の不具合を 3 経路で検出でき、既存のテスト方針（setter と View
+    だけでテスト）に合い、本体を分割しない。B は回数契約まで固定できるが保守が増える）; opus_escalation: false'
