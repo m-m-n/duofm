@@ -94,10 +94,16 @@ worker_runs:
   input_digest: sha256:395ac6dac0ae8cbfeca90525dbfe2672c301f2395d351bd2eb701d67fd14ddd6
   output_digest: sha256:f4255e99f89c388863e408fb9f90601b2a077502119e5893c1a5ffa8a311ac98
 - request_id: create-spec-run-0003
-  status: dispatched
+  status: completed
   input_digest: null
   output_digest: null
-artifacts: []
+artifacts:
+- path: feature-docs/drag-refresh-stale-anchor/REQUIREMENTS.md
+  sha256: sha256:8d5143f32963bf4cb7a4f48768ef4d6da2e5d8c1dffbafc785ef7ff46420b5dd
+  produced_by: create-spec-run-0003
+- path: feature-docs/drag-refresh-stale-anchor/SPEC.md
+  sha256: sha256:1074df7ef2055586c1c35fe00216b9a7d7cef47d82355838b57062693eda21d3
+  produced_by: create-spec-run-0003
 patches: []
 progress_fingerprint: sha256:46620bc6b60f2e7c9df6ad13252e751fc9e8fefee4fe3d3889e33cc557156482
 stale_redispatch_count: 0
