@@ -1,0 +1,31 @@
+feature: minibuffer-vs16-regression-test
+collected_at: "2026-09-27T17:41:00+09:00"
+session_ids: [01a0e1fa-fcb0-76f4-84b4-064da619338c]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives: []
+  declined_findings: []
+  tier_decision:
+    tier: reduced
+    rationale: "description_plus_code の最終読みでバケット 1（確率 0.94）。ルール追加とテスト追加の小規模変更と判定"
+    bases:
+      - basis: description_only
+        score: {type: score, score: 1.0, confidence: 0.99}
+        observed_at: "2026-09-27T17:01:00+09:00"
+      - basis: description_plus_code
+        score: {type: score, score: 1.0, confidence: 0.94}
+        observed_at: "2026-09-27T17:04:00+09:00"
+    pre_survey_estimate:
+      files_expected: [internal/ui/minibuffer_test.go]
+      changed_lines_approx: 15
+      new_functions_needed: 1
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: true
+      work_still_required: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review round 1 の spec 観点で litellm (muse-spark-contributor) が rate_limited で skip、codex へのフォールバックで補完された"
