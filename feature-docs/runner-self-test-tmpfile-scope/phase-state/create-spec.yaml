@@ -1,0 +1,17 @@
+schema_version: 1
+feature: runner-self-test-tmpfile-scope
+phase: create-spec
+status: in_progress
+generation: 1
+base_revision: 08ae97f9512a5b752e921bac389352cd7ac153ae
+last_input_digest: null
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
