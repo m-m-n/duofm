@@ -122,6 +122,15 @@ tasks:
 review:
   status: pending
   rounds_completed: 0
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary:
+    - perspective: performance
+      reason: guardFit の縮退ループに分岐を追加する変更で、NFR2（線形時間の維持）の退行がないか確認するため
+    cross_validation: false
 requirements:
   FR1:
     title: 再計測上限に達したときはカーソル単独に縮める
