@@ -96,7 +96,8 @@ workflow:
   base_commit: ff215f7a8b8a737ddf1ca633e720d00e3ad02a63
   completed_at_commit: a06175f6a1e493354dd337afb5a71ba2b848228d
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 58f9f72b3026528e57165c91f8b6764a37caf002
 - id: verify
   status: pending
 - id: retrospect
@@ -124,7 +125,15 @@ tasks:
     branch: em-workflow/minibuffer-grapheme-bounds-linear/task0001
     notes: null
 review:
-  status: in_progress
+  status: completed
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - spec
+  - performance
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor:
     - comprehensive
