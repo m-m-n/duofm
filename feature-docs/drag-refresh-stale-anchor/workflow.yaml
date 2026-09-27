@@ -91,9 +91,11 @@ workflow:
   status: completed
   completed_at_commit: 0b35895fa3184bbd792f0f176e86c263ce047d1d
 - id: verify
-  status: in_progress
-  result: null
+  status: completed
+  result: pass
   failed_items: []
+  completed_at_commit: 149d77b458dfeb7a369bba3246fd232ba9a69ebc
+  summary: 'make build OK; go test ./... all pass (TS-1..TS-8 incl. subtests for TS-3/6/7); gofmt no diff; go vet clean; AC8: new test file on base 195f72b fails TS-1/TS-2 (and TS-5/TS-8); E2E 264/264 passed'
 - id: retrospect
   status: pending
 tasks:
