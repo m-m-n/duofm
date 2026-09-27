@@ -112,9 +112,11 @@ workflow:
   status: completed
   completed_at_commit: 53391bcdfd0491355cc301f9717e2aa51e043636
 - id: verify
-  status: in_progress
-  result: null
+  status: completed
+  result: pass
   failed_items: []
+  completed_at_commit: 2f96f9641821fd7ccaa2933892ead38af20c80d4
+  summary: 'make build / go test ./... / gofmt / go vet pass. TS-1..TS-4 pass. TS-5 mutation (unit width = rune sum) fails TS-1 and TS-4 content checks; TS-6 mutation (+ guardFit returns first render) fails TS-1 single-line check; both reverted. TS-8: only internal/ui/minibuffer_test.go changed outside feature-docs/test-docs; minibuffer.go, go.mod, go.sum unchanged. E2E: none for this feature (SPEC A5). Excluded requirements: none.'
 - id: retrospect
   status: pending
 tasks:
