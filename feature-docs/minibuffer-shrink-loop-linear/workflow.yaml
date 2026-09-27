@@ -103,7 +103,8 @@ workflow:
     manual_m1: not executed (batch run; covered at View level by TS-1/TS-2)
     excluded_requirements: []
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: e9ff0356a198b95e2f5802855ef7b86f1cdbfbe9
 tasks:
   task0001:
     title: Linear-time Minibuffer.View range selection with regression tests
