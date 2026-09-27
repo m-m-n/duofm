@@ -88,9 +88,20 @@ workflow:
   status: completed
   completed_at_commit: 53f65873cdc20fc47f75a72aa6d19d7282d5efde
 - id: verify
-  status: in_progress
-  result: null
+  status: completed
+  result: pass
   failed_items: []
+  completed_at_commit: 2ea403dc749e9029babc98d4486c54f5dc484784
+  summary:
+    build: pass
+    test: pass (go test ./... all packages ok; TS-1..TS-5, TS-7 included)
+    format: pass (gofmt -w . left no changes)
+    ts6_race_durations: [TS1 40.7ms, TS2 43.9ms, TS3 44.8ms, TS4 39.8ms]
+    ts8_change_scope: pass (only internal/ui/minibuffer.go and minibuffer_test.go outside feature-docs; View and private helpers only; go.mod/go.sum unchanged; no new import)
+    ts9_pre_change_failure: pass (TS1..TS4 each failed at the 10 s limit on base_commit 214148b)
+    e2e: pass (265/265)
+    manual_m1: not executed (batch run; covered at View level by TS-1/TS-2)
+    excluded_requirements: []
 - id: retrospect
   status: pending
 tasks:
