@@ -45,6 +45,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Cancelable operations: Esc to cancel with proper cleanup
 
 - **Display & UI**
+  - Header info: Marked file count/size and partition free space always shown in the pane header
   - Three display modes: Minimal, Basic (size+date), Detail (permissions+owner)
   - Unicode support: Proper display for Japanese, Chinese, Korean and emoji with East Asian Width config
   - Context menu: Press `@` for visual action selection with number key shortcuts (1-9)
