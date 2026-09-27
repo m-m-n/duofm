@@ -1,20 +1,33 @@
 schema_version: 1
 feature: drag-refresh-stale-anchor
 phase: create-plan
-status: dispatching
+status: applying_patch
 generation: 1
 base_revision: 9bf18b2e02a8099b7443677250acddade2e4e469
 last_input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
 - request_id: create-plan-run-0001
-  status: dispatched
+  status: completed
   input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b
   output_digest: null
-artifacts: []
-patches: []
+artifacts:
+- path: feature-docs/drag-refresh-stale-anchor/IMPLEMENTATION.md
+  sha256: sha256:01d796d657bc9cd9b5ce5f608e3b2b24d46e0f3366e5b321803362984acfdd53
+  produced_by: create-plan-run-0001
+- path: feature-docs/drag-refresh-stale-anchor/VERIFICATION.md
+  sha256: sha256:63f55a3f4327f51b2b2fe2f9d9504eb00082cb595b35670b810710d03c8ce9a2
+  produced_by: create-plan-run-0001
+- path: feature-docs/drag-refresh-stale-anchor/tasks/task0001.md
+  sha256: sha256:200e4cdf7f144691b75a90e29975710010faa915c25d06f9dc47587c43b7309d
+  produced_by: create-plan-run-0001
+patches:
+- patch_id: create-plan-p0001
+  status: applied
+  base_input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b
+  base_workflow_blob: 79475e3d4ed86289a49eb9afc8f5a71e6db025bd
 progress_fingerprint: null
 stale_redispatch_count: 0
 resolved_input_cache: {}
