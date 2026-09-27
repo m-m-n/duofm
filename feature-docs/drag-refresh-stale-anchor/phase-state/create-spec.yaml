@@ -1,18 +1,94 @@
 schema_version: 1
 feature: drag-refresh-stale-anchor
 phase: create-spec
-status: dispatching
+status: awaiting_answers
 generation: 1
 base_revision: d3c0f4cac7ea1e56a754a7c88d63e09857e228bd
 last_input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
-active_request_id: create-spec-run-0001
-packets: {}
-answers: {}
+active_request_id: null
+packets:
+  create-spec-q0001:
+    status: answered
+    issued_at: '2026-09-27T17:12:22+09:00'
+    questions:
+    - question_id: requirement.change-detection
+      status: answered
+    - question_id: requirement.route-scope
+      status: answered
+    - question_id: requirement.marks-on-cancel
+      status: answered
+    - question_id: requirement.test-level
+      status: answered
+    - question_id: design-step.decision
+      status: answered
+answers:
+  requirement.change-detection:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T17:12:22+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - compare_displayed_names
+    freeform: null
+    normalized_answer: ドラッグ中のペインの表示一覧（フィルタ適用後の entries）の名前の並びが押下時と違えば、ドラッグを取り消す。名前と順序が同じでサイズや時刻だけが変わった場合は取り消さない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: compare_displayed_names / remap_anchor_by_name / compare_entry_count; chosen: compare_displayed_names; codex_consulted: true (codex
+      entry, 1 turn); opus_escalation: false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 範囲マークも行対応も表示中の entries（フィルタ後）を使うので名前の並び比較が合う。件数比較は同数入れ替えを見逃し、名前で付け直す方式は増えたファイルまで範囲に含める。Q2 手動更新は Pane.Refresh、削除後は
+      ReloadDirectoryWithFilter、bg 完了は bgCleanupAndRefresh と経路が多く、関数単位の対象指定は取りこぼすため経路を問わず表示一覧の変化で判定する。Q3 既存の取り消しもマークに触れず、RefreshDirectoryPreserveCursor が消えた名前のマークを外すので保持が一貫する。baseline に戻すと正しく付けたマークが失われ、削除処理が消したマークが復活しうる。Q4
+      autoRefreshMsg を直接 Update に渡す既存ヘルパーで待ち時間なしに再現できる。E2E は固定待機と自動更新待ちが重なり不安定。実装注記: 押下時に表示一覧の名前を独立配列へコピーし、updateDrag の行判定前で比較する。'
+  requirement.route-scope:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T17:12:22+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - any_list_change
+    freeform: null
+    normalized_answer: 経路を問わず、ドラッグ中のペインの表示一覧が押下時から変わっていれば、次の移動・解放で古いアンカーと baseline を使わない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: any_list_change / all_refresh_preserve_cursor / named_routes_only; chosen: any_list_change; codex_consulted: true (codex entry,
+      1 turn); opus_escalation: false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 範囲マークも行対応も表示中の entries（フィルタ後）を使うので名前の並び比較が合う。件数比較は同数入れ替えを見逃し、名前で付け直す方式は増えたファイルまで範囲に含める。Q2 手動更新は Pane.Refresh、削除後は
+      ReloadDirectoryWithFilter、bg 完了は bgCleanupAndRefresh と経路が多く、関数単位の対象指定は取りこぼすため経路を問わず表示一覧の変化で判定する。Q3 既存の取り消しもマークに触れず、RefreshDirectoryPreserveCursor が消えた名前のマークを外すので保持が一貫する。baseline に戻すと正しく付けたマークが失われ、削除処理が消したマークが復活しうる。Q4
+      autoRefreshMsg を直接 Update に渡す既存ヘルパーで待ち時間なしに再現できる。E2E は固定待機と自動更新待ちが重なり不安定。実装注記: 押下時に表示一覧の名前を独立配列へコピーし、updateDrag の行判定前で比較する。'
+  requirement.marks-on-cancel:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T17:12:22+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - keep_marks_until_next_press
+    freeform: null
+    normalized_answer: 取り消し時点で残っているマークはそのまま残し、次の押下まで移動・解放でマークを変えない。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: keep_marks_until_next_press / revert_to_baseline; chosen: keep_marks_until_next_press; codex_consulted: true (codex entry, 1 turn);
+      opus_escalation: false; key points: Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 範囲マークも行対応も表示中の entries（フィルタ後）を使うので名前の並び比較が合う。件数比較は同数入れ替えを見逃し、名前で付け直す方式は増えたファイルまで範囲に含める。Q2 手動更新は Pane.Refresh、削除後は ReloadDirectoryWithFilter、bg
+      完了は bgCleanupAndRefresh と経路が多く、関数単位の対象指定は取りこぼすため経路を問わず表示一覧の変化で判定する。Q3 既存の取り消しもマークに触れず、RefreshDirectoryPreserveCursor が消えた名前のマークを外すので保持が一貫する。baseline に戻すと正しく付けたマークが失われ、削除処理が消したマークが復活しうる。Q4 autoRefreshMsg
+      を直接 Update に渡す既存ヘルパーで待ち時間なしに再現できる。E2E は固定待機と自動更新待ちが重なり不安定。実装注記: 押下時に表示一覧の名前を独立配列へコピーし、updateDrag の行判定前で比較する。'
+  requirement.test-level:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T17:12:22+09:00'
+    source: batch-codex-consultation
+    answer_mode: single_select
+    selected_option_ids:
+    - unit_only
+    freeform: null
+    normalized_answer: 単体テスト（一時ディレクトリのモデルと autoRefreshMsg）で再現・回帰を検出する。既存 E2E は回帰確認にだけ使う。
+    resolution_note: 'gate: create-spec.requirement-clarification; options: unit_only / unit_and_e2e; chosen: unit_only; codex_consulted: true (codex entry, 1 turn); opus_escalation: false; key points:
+      Codex 1 ターンで全問が収束（codex entry, 1 turn）。Q1 範囲マークも行対応も表示中の entries（フィルタ後）を使うので名前の並び比較が合う。件数比較は同数入れ替えを見逃し、名前で付け直す方式は増えたファイルまで範囲に含める。Q2 手動更新は Pane.Refresh、削除後は ReloadDirectoryWithFilter、bg 完了は bgCleanupAndRefresh
+      と経路が多く、関数単位の対象指定は取りこぼすため経路を問わず表示一覧の変化で判定する。Q3 既存の取り消しもマークに触れず、RefreshDirectoryPreserveCursor が消えた名前のマークを外すので保持が一貫する。baseline に戻すと正しく付けたマークが失われ、削除処理が消したマークが復活しうる。Q4 autoRefreshMsg を直接 Update に渡す既存ヘルパーで待ち時間なしに再現できる。E2E
+      は固定待機と自動更新待ちが重なり不安定。実装注記: 押下時に表示一覧の名前を独立配列へコピーし、updateDrag の行判定前で比較する。'
+  design-step.decision:
+    packet_id: create-spec-q0001
+    answered_at: '2026-09-27T17:12:22+09:00'
+    source: batch-decision-table
+    answer_mode: single_select
+    selected_option_ids:
+    - decide_autonomously
+    freeform: null
+    normalized_answer: design_step_recommendation（skip）をそのまま採用する。
+    resolution_note: 'gate: create-spec.design-step; batch-policies.yaml option_id decide_autonomously'
 worker_runs:
 - request_id: create-spec-run-0001
-  status: dispatched
+  status: needs_user_input
   input_digest: sha256:3df67ba29cc1e6119e7f430f70719420fd91ebe3ad01130b4dbd72c103c43c1b
-  output_digest: null
+  output_digest: sha256:50f9d790630fd27a95e653731c3167663e81b1542eca945cac39470136655791
 artifacts: []
 patches: []
 progress_fingerprint: null
