@@ -5,7 +5,7 @@ status: dispatching
 generation: 1
 base_revision: 4b23a30b1c4ca2a92591d8a74124993299452f5e
 last_input_digest: sha256:c0a0a94a932aec28bcf9c94b4cc9334f4613900c75274bec8cab204b03c00f46
-active_request_id: create-spec-run-0002
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
@@ -14,10 +14,13 @@ worker_runs:
   input_digest: sha256:92a75704edcee19d7831f5a6609dbfee27c87acaa007e37fe0a34c4647c155fd
   output_digest: sha256:37309be9ea0937a785feccd7b9d0c45b0d40fb0b388662568b1b809c8a36808c
 - request_id: create-spec-run-0002
-  status: dispatched
+  status: completed
   input_digest: sha256:c0a0a94a932aec28bcf9c94b4cc9334f4613900c75274bec8cab204b03c00f46
   output_digest: null
-artifacts: []
+artifacts:
+- path: feature-docs/minibuffer-vs16-regression-test/SPEC.md
+  sha256: sha256:cd12898b6bef481677dd2c6f2ede01ace768c3f184c6412867c21a1a36ed7891
+  produced_by: create-spec-run-0002
 patches: []
 progress_fingerprint: null
 stale_redispatch_count: 0
