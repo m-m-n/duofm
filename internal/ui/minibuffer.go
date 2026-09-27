@@ -389,6 +389,41 @@ func buildLine(dr []rune, hs, he int) string {
 	}
 }
 
+// cursorAloneFallback is the "New failure handling" shared by all three
+// input-window paths (P1/P2/P3) in View's remaining-width>=1 branch, run
+// after guardFit reports "does not fit" (steps 2-5 of the task plan's
+// Design): guardFit's own last measurement was of the window in its
+// current state (the Design's "Invariant relied upon"), so alreadyAlone --
+// whether that state already IS the cursor alone (no unit besides the
+// cursor's own grapheme/block cursor remains) -- tells situation (b),
+// already exhausted, apart from situation (a), the cap reached while more
+// than the cursor remained.
+//
+//   - situation (b) (alreadyAlone true): guardFit's own measurement already
+//     covers this exact line and it did not fit; hide with no extra
+//     measurement (FR2, NFR2).
+//   - situation (a) (alreadyAlone false): narrow to the cursor-alone window
+//     [cursorAloneStart, cursorAloneEnd) -- for P1 this is the empty range
+//     with the trailing block cursor (cursorAloneStart == cursorAloneEnd ==
+//     len(runes)); for P2/P3 it is exactly the cursor's own grapheme
+//     cluster -- assemble it exactly as View assembles its final line
+//     (Design "Contracts": Measured equals displayed) and measure it once
+//     (NFR2, TM-1). Display it if that fits the content width (FR1);
+//     otherwise hide (FR2).
+//
+// The returned (start, end, hs, he) is what the caller assigns directly to
+// displayStart, displayEnd, hlStart, hlEnd.
+func cursorAloneFallback(contentWidth int, promptToRender string, runes []rune, alreadyAlone bool, cursorAloneStart, cursorAloneEnd int) (start, end, hs, he int) {
+	if !alreadyAlone {
+		aloneWidth := cursorAloneEnd - cursorAloneStart
+		line := promptToRender + buildLine(runes[cursorAloneStart:cursorAloneEnd], 0, aloneWidth)
+		if lipgloss.Width(line) <= contentWidth {
+			return cursorAloneStart, cursorAloneEnd, 0, aloneWidth
+		}
+	}
+	return cursorAloneStart, cursorAloneStart, -1, -1
+}
+
 // View renders the minibuffer
 func (m *Minibuffer) View() string {
 	if !m.visible {
@@ -531,9 +566,15 @@ func (m *Minibuffer) View() string {
 			}
 
 			if _, fits := guardFit(contentWidth, render, shrink); !fits {
-				// CD4: even the cursor block alone overflows.
-				displayStart, displayEnd = len(runes), len(runes)
-				hlStart, hlEnd = -1, -1
+				// CD4/task0001 FR1-FR2: len(kept) == 0 means the window
+				// guardFit last measured already was the block cursor
+				// alone (situation (b)); otherwise the cap was reached
+				// while more than the block cursor remained (situation
+				// (a)), so narrow to it and measure once more.
+				displayStart, displayEnd, hlStart, hlEnd = cursorAloneFallback(
+					contentWidth, promptToRender, runes,
+					len(kept) == 0, len(runes), len(runes),
+				)
 			}
 
 		default:
@@ -606,8 +647,17 @@ func (m *Minibuffer) View() string {
 					}
 
 					if _, fits := guardFit(contentWidth, render, shrink); !fits {
-						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
-						hlStart, hlEnd = -1, -1
+						// task0001 FR1-FR2: both afterKept and beforeKept
+						// empty means the window guardFit last measured
+						// already was the cursor's own grapheme alone
+						// (situation (b)); otherwise the cap was reached
+						// while more than the cursor remained (situation
+						// (a)), so narrow to it and measure once more.
+						displayStart, displayEnd, hlStart, hlEnd = cursorAloneFallback(
+							contentWidth, promptToRender, runes,
+							len(afterKept) == 0 && len(beforeKept) == 0,
+							cursorUnit.start, cursorUnit.end,
+						)
 					}
 				} else {
 					// Step 6: scroll so the cursor's grapheme sits at the
@@ -642,8 +692,16 @@ func (m *Minibuffer) View() string {
 					}
 
 					if _, fits := guardFit(contentWidth, render, shrink); !fits {
-						displayStart, displayEnd = cursorUnit.start, cursorUnit.start
-						hlStart, hlEnd = -1, -1
+						// task0001 FR1-FR2: len(kept) == 0 means the window
+						// guardFit last measured already was the cursor's
+						// own grapheme alone (situation (b)); otherwise the
+						// cap was reached while more than the cursor
+						// remained (situation (a)), so narrow to it and
+						// measure once more.
+						displayStart, displayEnd, hlStart, hlEnd = cursorAloneFallback(
+							contentWidth, promptToRender, runes,
+							len(kept) == 0, cursorUnit.start, cursorUnit.end,
+						)
 					}
 				}
 			}
