@@ -99,7 +99,16 @@ workflow:
   status: completed
   completed_at_commit: 58f9f72b3026528e57165c91f8b6764a37caf002
 - id: verify
-  status: in_progress
+  status: completed
+  completed_at_commit: d97d822681a2866a8b05a09aa6c969b2047baadc
+  result: pass
+  failed_items: []
+  summary: |
+    make build: pass / go test ./...: pass / gofmt -w .: no diff / go vet ./...: pass
+    TS1-TS5: pass（PeriodThenSpaces の View・Left/Ctrl+B・Right/Ctrl+F テスト、既存テストは無変更で全 pass、go.mod/go.sum 変更なし）
+    E2E 回帰（make test-e2e-build && make test-e2e）: 264/264 pass
+    M1（手動確認）: batch 実行のため未実施。自動化された対応物 TS1-TS3（空白 100000 個）で代替
+    除外シナリオ: なし
 - id: retrospect
   status: pending
 tasks:
