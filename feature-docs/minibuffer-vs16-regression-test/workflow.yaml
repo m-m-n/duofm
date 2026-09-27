@@ -10,7 +10,8 @@ goal: '# ミニバッファの VS16 付き絵文字の幅に回帰テストを�
 
   ## 現象 (必須)
 
-  ミニバッファで VS16（U+FE0F）付き絵文字の表示幅を過小評価して 2 行に折り返す不具合（レビュー指摘 stable_id: 1372160ec8ca2a16、high）は、minibuffer-wide-prompt-wrap の review 自動修正で直したが、再発を検出する回帰テストが追加されていない。
+  ミニバッファで VS16（U+FE0F）付き絵文字の表示幅を過小評価して 2 行に折り返す不具合（レビュー指摘 stable_id: 1372160ec8ca2a16、high）は、minibuffer-wide-prompt-wrap
+  の review 自動修正で直したが、再発を検出する回帰テストが追加されていない。
 
   ## 再現手順 (必須)
 
@@ -41,7 +42,8 @@ goal: '# ミニバッファの VS16 付き絵文字の幅に回帰テストを�
 
   ## 追加指示
 
-  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作る。integration ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）
+  - 実装完了後、integration ブランチを remote に push し、base_branch に対して gh pr create で PR を作る。integration
+  ブランチはローカル・リモートとも残す（base_branch へ自動マージしない）
 
   - 不明点は Codex に相談し、相対的に良いと判断した案を採用する
 
@@ -93,7 +95,8 @@ workflow:
   - DESIGN.md
   - design/
   status: skipped
-  skipped_reason: reduced tier で design step を削減。加えてテストのみの追加で、画面や操作の変更がない（create-spec.design-step = decide_autonomously で推奨 skip を採用）
+  skipped_reason: reduced tier で design step を削減。加えてテストのみの追加で、画面や操作の変更がない（create-spec.design-step
+    = decide_autonomously で推奨 skip を採用）
 - id: create-plan
   artifacts:
   - IMPLEMENTATION.md
@@ -106,7 +109,7 @@ workflow:
   base_commit: d42e6da8e837bd3f118bd7df37159a8f9b905f29
   completed_at_commit: a9dd8c0b46bc516cf2f83a341280233b0b70105f
 - id: review
-  status: pending
+  status: in_progress
 - id: verify
   status: pending
   result: null
@@ -136,10 +139,17 @@ tasks:
     notes: null
     branch: em-workflow/minibuffer-vs16-regression-test/task0001
 review:
-  status: pending
+  status: in_progress
   rounds_completed: 0
   residual_critical_high: 0
   needs_rework: false
+  plan:
+    floor:
+    - comprehensive
+    - security
+    - spec
+    discretionary: []
+    cross_validation: false
 requirements:
   FR1:
     title: 再現条件での 1 行描画の検査
