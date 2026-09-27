@@ -1,11 +1,11 @@
 schema_version: 1
 feature: runner-self-test-tmpfile-scope
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: d82f55e1f64743cb79ad969ff8b73bfa4bde9782
 last_input_digest: sha256:c238c749cf9b7f9a1c1d04ce19f0f82f669222605e6672ce259e9eb786484d8d
-active_request_id: create-plan-run-0001
+active_request_id: null
 packets: {}
 answers: {}
 worker_runs:
