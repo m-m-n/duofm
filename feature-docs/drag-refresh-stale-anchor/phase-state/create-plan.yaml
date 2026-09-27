@@ -1,7 +1,7 @@
 schema_version: 1
 feature: drag-refresh-stale-anchor
 phase: create-plan
-status: applying_patch
+status: completed
 generation: 1
 base_revision: 9bf18b2e02a8099b7443677250acddade2e4e469
 last_input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b

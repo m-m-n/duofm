@@ -2,59 +2,36 @@ schema_version: 1
 feature: drag-refresh-stale-anchor
 created: '2026-09-27'
 base_branch: main
-goal: '# 自動更新などの一覧再読み込みでドラッグ中の古いアンカーが新しい一覧に適用される
-
+goal: |
+  # 自動更新などの一覧再読み込みでドラッグ中の古いアンカーが新しい一覧に適用される
 
   Notion タスク: https://www.notion.so/3e73509ec8ee81d6961ddfaf7c7904fb （種別: バグ）
 
-
   ## 現象 (必須)
-
   `autoRefreshMsg`（`refreshRate` 秒ごとに `RefreshDirectoryPreserveCursor` で両ペインを再読み込み）や、exec / シェルコマンド / 一括操作の後の再読み込みは、ドラッグ中でも `mouseDrag`（押下時のアンカー index と baseline）を残したまま一覧を置き換える。ファイルの増減で index がずれると、古い一覧の範囲で意図しないファイルがマークされうる。
-
   drag-dir-load-stale-marks（`handleDirectoryLoadComplete` のみ修正）でスコープ外とした残件。一律にドラッグを解除すると、変化が無い定期更新でも長いドラッグが途中で切れる回帰になるため、一覧が実際に変わったときだけ解除する等の判定が要る。
 
-
   ## 再現手順 (必須)
-
   1. 自動更新が有効な状態で、ペイン上でドラッグを開始する
-
   2. ドラッグ中に、別の手段でそのディレクトリにファイルを追加・削除する
-
   3. 自動更新で一覧が置き換わった後、別の行へポインタを動かす
-
   4. 意図しないファイルがマークされる
 
-
   ## 期待する挙動 (必須)
-
   再読み込みで一覧が変わった後に、古い一覧の範囲でマークされない。一覧が変わらない定期更新ではドラッグが途切れない。
 
-
   ## 完了の定義 (必須)
-
   - [ ] 再現手順で現象が起きない
-
   - [ ] 再発を検出するテストがある
 
-
   ## 該当箇所 (任意)
-
   - `internal/ui/model_update.go` の `autoRefreshMsg` 処理
-
   - `internal/ui/pane_filter.go:241` `RefreshDirectoryPreserveCursor`
 
-
   ## 追加指示
-
-  Once the implementation is finished, push the integration branch to the remote and create a Pull Request against base_branch with gh pr create. Keep the integration branch both locally and on the remote
-  (do not auto-merge it into base_branch).
-
+  Once the implementation is finished, push the integration branch to the remote and create a Pull Request against base_branch with gh pr create. Keep the integration branch both locally and on the remote (do not auto-merge it into base_branch).
   Consult Codex on any unclear points and adopt the option judged to be comparatively better.
-
   Record the content of that discussion in Notion.
-
-  '
 parent_branch: em-workflow/drag-refresh-stale-anchor/integration
 tier: full
 tier_decision:
@@ -104,7 +81,8 @@ workflow:
   - IMPLEMENTATION.md
   - VERIFICATION.md
   - tasks/
-  status: pending
+  status: completed
+  completed_at_commit: ca487eaa374b46eced2187d21966daf1fbe85914
 - id: implement
   status: pending
 - id: review
