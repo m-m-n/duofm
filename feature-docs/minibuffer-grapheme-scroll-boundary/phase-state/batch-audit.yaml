@@ -1,0 +1,29 @@
+schema_version: 1
+feature: minibuffer-grapheme-scroll-boundary
+records:
+- question_id: create-spec.requirement-clarification
+  packet_id: null
+  answered_at: '2026-09-27T18:02:30+09:00'
+  source: batch-codex-consultation
+  answer_mode: select
+  selected_option_ids: &id001 []
+  freeform: カーソルが書記素の途中にあるときも、表示範囲はカーソルを含む書記素全体を含め、境界を書記素の境目に揃える（前提 a3 / FR3）
+  normalized_answer: 'A: カーソルを含む書記素を丸ごと表示範囲に含める。rune 単位の反転表示とカーソル移動は変えない'
+  resolution_note: 'gate: create-spec 要件の不明点（カーソルが書記素の途中にあるときの扱い）; chosen: A（カーソルを含む書記素全体を表示範囲に含め、その書記素が残り幅を超えるときは既存どおり入力を表示しない）;
+    not chosen: B（カーソルが書記素の途中なら従来の rune 単位のまま。rune 単位の移動で到達できる位置に分断が残る）/ C（カーソル移動・描画も書記素単位にする。範囲が広すぎる）;
+    key points: HandleKey は rune 単位で移動するため途中位置に到達できる（minibuffer.go:145, 508）、収まらないときの非表示は既存方針（同:499）に沿う、幅超過で縮める処理（同:359,
+    535）も書記素境界を守る; codex_consulted: true; opus_escalation: false'
+- question_id: create-spec.requirement-clarification
+  packet_id: null
+  answered_at: '2026-09-27T18:02:30+09:00'
+  source: batch-codex-consultation
+  answer_mode: select
+  selected_option_ids: *id001
+  freeform: 書記素の区切りには github.com/rivo/uniseg を直接使う（前提 a6）
+  normalized_answer: 'A: 間接依存の uniseg v0.4.7 を直接依存にする。go.mod の // indirect 表記を外す'
+  resolution_note: 'gate: create-spec 要件の不明点（書記素の区切りを求める手段）; chosen: A（uniseg v0.4.7
+    を直接 import。go.sum は通常変わらない）; not chosen: B（charmbracelet/x/ansi の FirstGraphemeCluster
+    を使う、または ZWJ・地域指示子などの独自判定。x/ansi も内部で uniseg を呼ぶだけで直接依存化が要り利点が小さい。独自判定は規則の取りこぼしが出る）;
+    key points: uniseg は書記素の列挙機能を持つ（grapheme.go:41）、go.mod:27 / go.sum:36 に同版が登録済み、リポジトリ内に再利用できる書記素境界の列挙処理は無い、幅の判定は
+    lipgloss.Width を維持（minibuffer.go:346）; codex_consulted: true; opus_escalation:
+    false'
