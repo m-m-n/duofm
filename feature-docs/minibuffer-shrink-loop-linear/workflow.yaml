@@ -85,7 +85,8 @@ workflow:
   completed_at_commit: 400dcbbf06e1cfb768ee36126e175745326608cd
   base_commit: 214148b3c9abf69d0c295a12434d6d36411fc55c
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 53f65873cdc20fc47f75a72aa6d19d7282d5efde
 - id: verify
   status: pending
   result: null
