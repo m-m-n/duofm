@@ -1,11 +1,11 @@
 schema_version: 1
 feature: drag-refresh-stale-anchor
 phase: create-spec
-status: dispatching
+status: completed
 generation: 1
 base_revision: d3c0f4cac7ea1e56a754a7c88d63e09857e228bd
 last_input_digest: sha256:395ac6dac0ae8cbfeca90525dbfe2672c301f2395d351bd2eb701d67fd14ddd6
-active_request_id: create-spec-run-0003
+active_request_id: null
 packets:
   create-spec-q0001:
     status: answered
