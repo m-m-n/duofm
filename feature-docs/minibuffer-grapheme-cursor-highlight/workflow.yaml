@@ -92,7 +92,12 @@ workflow:
   status: completed
   completed_at_commit: 871393655e508edaf0a6e0cc3edc760077a25aa0
 - id: verify
-  status: in_progress
+  status: completed
+  completed_at_commit: 358299e19a4e5314376f1da94464dd93147210f0
+  result: pass
+  failed_items: []
+  summary: make build ok; go test ./... ok (TS1-TS10 unit scenarios incl. linear-time tests); go vet ok; gofmt no diff; go.mod diff vs implement base_commit is rivo/uniseg v0.4.7 indirect->direct only; E2E 264/264 passed
+  excluded: []
 - id: retrospect
   status: pending
 tasks:
