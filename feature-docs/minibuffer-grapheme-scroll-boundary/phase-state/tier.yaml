@@ -1,0 +1,68 @@
+schema_version: 2
+feature: minibuffer-grapheme-scroll-boundary
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.04
+    confidence: 0.96
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.96
+      '2': 0.04
+      '3': 0.0
+  observed_at: '2026-09-27T17:53:00+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.13
+    confidence: 0.87
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.87
+      '2': 0.13
+      '3': 0.0
+  observed_at: '2026-09-27T18:02:00+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 100
+  new_functions_needed: 0
+  new_files_needed: 0
+  new_dependencies_needed: []
+  covering_tests_exist: false
+  spillover_modules: []
+  work_still_required: true
+  work_still_required_evidence: 'ローカルの HEAD・main・origin/main は 3fc3c3f4cc2861fdd12e4b472526a7e31bc1b0c0
+    で一致していて、不具合は残っているよ。internal/ui/minibuffer.go:255 の partitionUnits は、幅がある rune
+    と直後の幅0の rune をまとめるため、家族の絵文字を複数の単位に分割する。スクロール開始位置はこの単位から決まり（同:464、同:470）、終了位置も単位の末尾か
+    cursorPos+1 になる（同:525、同:569）。静的に処理を追うと、幅24・プロンプト ''(search): ''・入力 ''aaaaa👨‍👩‍👧‍👦bbbbb''
+    では、カーソル末尾で開始位置が rune 9となり ''👧‍👦bbbbb'' が残り、カーソル先頭では終了位置が rune 9となり ''aaaaa👨‍👩‍''
+    まで残る。既存の全体保持テストは入力が収まる場合を対象とし（internal/ui/minibuffer_test.go:663、同:691）、スクロール関連テストは幅・改行と末尾の
+    ''ls'' を検証していて、ZWJ列の分断を検出しない（同:742、同:764、同:768）。開始・終了位置を書記素境界に揃える処理と、その両境界を検証するテストが必要だよ。ファイル変更もテスト実行もしていないよ'
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 3
+  body_change_kind: new_logic
+  change_containment: single_module
+  caller_and_dependency_count: 10
+  changes_external_contract: false
+  changes_behavior: true
+decided_at: '2026-09-27T17:54:41+09:00'

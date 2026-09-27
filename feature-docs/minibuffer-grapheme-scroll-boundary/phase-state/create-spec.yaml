@@ -1,0 +1,28 @@
+schema_version: 1
+feature: minibuffer-grapheme-scroll-boundary
+phase: create-spec
+status: completed
+generation: 1
+base_revision: 05b429fcdf2446b235a49330ea528530a0f81a50
+last_input_digest: sha256:9b155c84eac4ef4fa18d63b87e3b58575c362e6b773287c5c4b4aa0aa546c4ec
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: completed
+  input_digest: sha256:a28e60ecfd3c375f9d2d9a5f4a284f008b1d09cd67e9b782f72b42b09e1c3e01
+  output_digest: sha256:adccd431f3d2384d8dcdb8d39b521f0099f54ba63b15f92df867cd7fa764779e
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:9b155c84eac4ef4fa18d63b87e3b58575c362e6b773287c5c4b4aa0aa546c4ec
+  output_digest: null
+artifacts:
+- path: feature-docs/minibuffer-grapheme-scroll-boundary/SPEC.md
+  sha256: sha256:8b00dd365a148606f0aee1317b5a2ffdbee2950c3a2d17526642450c2a2c799c
+  produced_by: create-spec-run-0002
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
