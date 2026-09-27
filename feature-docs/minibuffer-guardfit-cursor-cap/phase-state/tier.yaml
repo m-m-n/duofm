@@ -20,7 +20,7 @@ bases:
       '1': 0.97
       '2': 0.03
       '3': 0.0
-  observed_at: '2026-09-28T07:58:00+09:00'
+  observed_at: '2026-09-28T07:53:12+09:00'
 - basis: description_plus_code
   score:
     type: score
@@ -39,7 +39,7 @@ bases:
       '1': 0.95
       '2': 0.05
       '3': 0.0
-  observed_at: '2026-09-28T08:05:00+09:00'
+  observed_at: '2026-09-28T07:55:54+09:00'
 pre_survey_estimate:
   files_expected:
   - internal/ui/minibuffer.go
