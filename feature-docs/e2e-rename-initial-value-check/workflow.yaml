@@ -121,7 +121,7 @@ workflow:
     script: base name passes, all 12 border/extra-character/empty/full-name values fail for both base names, counters
     +1 each / AC-1, AC-6 source inspection pass (pattern anchored at row start and end). Excluded requirements: none'
 - id: retrospect
-  status: pending
+  status: in_progress
 tasks:
   task0001:
     title: Input-line-only initial-value checks for the rename E2E tests, and removal of the always-passing
