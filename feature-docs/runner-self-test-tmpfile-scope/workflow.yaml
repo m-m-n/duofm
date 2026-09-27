@@ -97,7 +97,12 @@ workflow:
   status: completed
   completed_at_commit: bea3fa00dc1c18ff426b34313d17e6513be8f244
 - id: verify
-  status: in_progress
+  status: completed
+  result: pass
+  failed_items: []
+  excluded: []
+  summary: build / go test / gofmt (no diff) / runner self-test TS-1..TS-6 PASS / MUT-1 both sites FAIL+exit1 then restored / whole-run write scope empty / E2E 264 passed 0 failed with TS-6 in container / NFR2 & NFR3 inspection OK
+  completed_at_commit: 89e2a0bfa08d88a0c66ae309b7316a5e5c41c7e4
 - id: retrospect
   status: pending
 tasks:
