@@ -13,6 +13,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
   - Permission editing: Change permissions (chmod) with Shift+P, including recursive and batch modes
   - File creation: Create new files (N) and directories (Shift+N) with cursor positioning
   - Multi-file marking: Select multiple files with Space for batch operations
+  - Mouse support: Click to move the cursor, drag to mark a range, double-click to act like Enter
   - Symbolic link support: Display targets, detect broken links, navigate to physical/logical paths
   - Overwrite handling: Smart conflict resolution with overwrite, skip, or rename options
   - Cursor management: Smart cursor positioning preserved across operations and navigation
@@ -57,7 +58,7 @@ A terminal-based dual-pane file manager written in Go, inspired by classic file 
 - **External Integration**
   - External viewer: Configurable Enter key behavior (pager, xdg-open, custom app, or MIME-based)
   - MIME-type based opening: Map file types to applications with wildcard support and command fallback
-  - External editor: Edit files with $EDITOR (`E` key) in file's directory
+  - External editor: Edit files with $EDITOR, falling back to vim then vi (`E` key) in file's directory
   - Shell commands: Execute commands with `!` key in current directory (auto-return after 2 seconds)
   - Background shell commands: Press `!` twice to run commands in background while using the TUI; real-time output displayed in bottom 1/3 of pane; TAB to focus output area; Ctrl+C to cancel
   - Shell command TAB completion: Auto-complete command names (from PATH) and file paths

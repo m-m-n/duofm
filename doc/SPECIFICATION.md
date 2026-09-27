@@ -86,6 +86,15 @@ graph TB
 - Async directory loading with proper pane identification
 - Parent directory (..) shows actual metadata (modification time, permissions, owner)
 
+#### Mouse Support
+- Click an entry to move the cursor to it (marks unchanged); clicking an entry in the inactive pane activates that pane first
+- Click empty space, a header row, or an entry-less area of a pane to activate that pane without changing cursor or marks
+- Drag across entries to mark the range from the start row to the release row, added to existing marks; the range is clamped to the visible entries and does not scroll the list
+- Double-click (within 500 ms) an entry to perform the same action as pressing Enter on it
+- Mouse wheel, right button, and middle button events are ignored
+- Mouse input is ignored while a dialog, the sort dialog, or the minibuffer is active, or while the background command output area is focused
+- Hit-testing accounts for wrapped pane headers, active background command output, and directory reloads or refreshes that occur mid-drag, so a drag session is invalidated (without discarding marks already made) if the pane's entry list changes before the drag ends
+
 ### File Operations
 
 #### Basic Operations
@@ -186,6 +195,7 @@ Three display modes toggled with `I` key:
 - East Asian Width configuration for ambiguous characters
 - Configurable ambiguous character width (1 or 2 cells) via `[display]` section
 - Improved support for complex Unicode symbols (☆, ü, ①, →, etc.)
+- Minibuffer (search and shell command input) renders wide characters, ZWJ-joined emoji, and other grapheme clusters within a single line without breaking a cluster across the display boundary, and stays within the terminal width regardless of prompt or input content
 
 ### Search and Filter
 
@@ -248,7 +258,8 @@ Three display modes toggled with `I` key:
 - `Enter` on file also opens viewer (or configured behavior)
 
 #### File Editor (E)
-- Opens file with $EDITOR (default: vim)
+- Opens file with $EDITOR
+- Fallback chain when $EDITOR is not set: `vim` if available, otherwise `vi`
 - Working directory set to file's directory
 - Both panes reload after exit
 - Cursor position preserved after exit
@@ -292,6 +303,8 @@ Three display modes toggled with `I` key:
 - All file management operations remain available during background execution
 - All existing shell command features (history, Ctrl+R, TAB completion) work in background mode
 - Output area header shows the running command
+- Separator line between the file list and output area is gray by default, and pink and bold when the output area is focused via TAB
+- File list cursor is constrained to the visible area above the output area during background execution
 - Press TAB to focus the output area; Ctrl+C in focused mode cancels the background command
 - Output area closes automatically 2 seconds after command completion
 - Both panes reload when the output area closes
@@ -804,6 +817,7 @@ ext IN ('go', 'rs', 'py')
 - github.com/charmbracelet/lipgloss - Styling
 - github.com/BurntSushi/toml - Configuration parsing
 - github.com/mattn/go-runewidth - Unicode display width
+- github.com/rivo/uniseg - Grapheme cluster segmentation
 
 ## Archive Dependencies (Linux only)
 
@@ -881,6 +895,7 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
   - Comprehensive tests for permission handling (security focus)
   - Manager components fully tested (archive, batch, bookmark)
 - Refactored E2E test scripts for better maintainability
+- E2E runner self-test validates the test harness itself (undefined test functions, tests missing from or not registered in the run list) before the full E2E suite runs
 
 ## Future Extensibility
 
