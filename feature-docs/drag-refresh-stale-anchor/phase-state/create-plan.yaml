@@ -1,0 +1,21 @@
+schema_version: 1
+feature: drag-refresh-stale-anchor
+phase: create-plan
+status: dispatching
+generation: 1
+base_revision: 9bf18b2e02a8099b7443677250acddade2e4e469
+last_input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b
+active_request_id: create-plan-run-0001
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-plan-run-0001
+  status: dispatched
+  input_digest: sha256:e4fd650c88e15cdf379ff234b46414e7a30abfc7702f79d10851c6767d29f18b
+  output_digest: null
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
+last_error: null
