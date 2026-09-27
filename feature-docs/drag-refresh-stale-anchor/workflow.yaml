@@ -97,7 +97,8 @@ workflow:
   completed_at_commit: 149d77b458dfeb7a369bba3246fd232ba9a69ebc
   summary: 'make build OK; go test ./... all pass (TS-1..TS-8 incl. subtests for TS-3/6/7); gofmt no diff; go vet clean; AC8: new test file on base 195f72b fails TS-1/TS-2 (and TS-5/TS-8); E2E 264/264 passed'
 - id: retrospect
-  status: pending
+  status: completed
+  completed_at_commit: 3c29e2599f8dfd31cf02a6ea540c66ddd14f8311
 tasks:
   task0001:
     title: Cancel a drag session when its pane's displayed list changes
