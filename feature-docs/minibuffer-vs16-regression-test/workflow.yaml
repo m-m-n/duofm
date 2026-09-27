@@ -109,7 +109,8 @@ workflow:
   base_commit: d42e6da8e837bd3f118bd7df37159a8f9b905f29
   completed_at_commit: a9dd8c0b46bc516cf2f83a341280233b0b70105f
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: 53391bcdfd0491355cc301f9717e2aa51e043636
 - id: verify
   status: pending
   result: null
@@ -139,8 +140,8 @@ tasks:
     notes: null
     branch: em-workflow/minibuffer-vs16-regression-test/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
   residual_critical_high: 0
   needs_rework: false
   plan:
@@ -150,6 +151,10 @@ review:
     - spec
     discretionary: []
     cross_validation: false
+  perspectives:
+  - comprehensive
+  - security
+  - spec
 requirements:
   FR1:
     title: 再現条件での 1 行描画の検査
