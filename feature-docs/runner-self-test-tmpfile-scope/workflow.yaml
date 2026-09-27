@@ -94,7 +94,8 @@ workflow:
   base_commit: 0a01bbf22c9d790b09ce72e1ae3e1a549a395282
   completed_at_commit: 9e4073cbe73c8c84a9ec97dc937e768337ae9690
 - id: review
-  status: in_progress
+  status: completed
+  completed_at_commit: bea3fa00dc1c18ff426b34313d17e6513be8f244
 - id: verify
   status: pending
 - id: retrospect
@@ -121,8 +122,15 @@ tasks:
     notes: null
     branch: em-workflow/runner-self-test-tmpfile-scope/task0001
 review:
-  status: in_progress
-  rounds_completed: 0
+  status: completed
+  rounds_completed: 1
+  perspectives:
+  - comprehensive
+  - security
+  - performance
+  - spec
+  residual_critical_high: 0
+  needs_rework: false
   plan:
     floor:
     - comprehensive

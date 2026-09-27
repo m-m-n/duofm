@@ -1,0 +1,42 @@
+round: 1
+executed_at: "2026-09-27T20:21:43+09:00"
+scope:
+  review_mode: diff
+  base_commit: 0a01bbf22c9d790b09ce72e1ae3e1a549a395282
+  head_commit: bea3fa00dc1c18ff426b34313d17e6513be8f244
+  changed_files:
+  - test-docs/runner-self-test-tmpfile-scope/task0001.tests.yaml
+  - test/e2e/scripts/runner_self_test.sh
+plan:
+  floor: [comprehensive, security, performance, spec]
+  discretionary: []
+  cross_validation: false
+perspective_runs:
+  - {run_id: "security#0", perspective: security, role: primary, source: codex, status: completed}
+  - {run_id: "comprehensive#0", perspective: comprehensive, role: primary, source: codex, status: completed}
+  - {run_id: "performance#0", perspective: performance, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: "rate_limited"}
+  - {run_id: "performance#1", perspective: performance, role: primary, source: codex, status: completed}
+  - {run_id: "spec#0", perspective: spec, role: primary, source: litellm, model: muse-spark-contributor, status: skipped, skip_reason: "rate_limited"}
+  - {run_id: "spec#1", perspective: spec, role: primary, source: codex, status: completed}
+  - {run_id: "evaluator", role: evaluator, source: claude, status: completed}
+findings: []
+evaluation:
+  round_summary: "ラウンド 1（diff モード、cross_validation=false）。4 観点すべてで完了したレビュー実行の指摘は 0 件。performance#0 と spec#0 は rate_limited でスキップ、performance#1 と spec#1（codex）が完了。apply_fixture_lists の 2 箇所の mktemp は \"${SELF_TMPDIR}/apply_fixture_lists.XXXXXX\" の明示テンプレートを使い TMPDIR を見ない。TS-6 は SELF_TMPDIR/ts6/sentinel を TMPDIR として export し、存在しない runner copy を渡して両 rewrite を失敗させ、番兵ディレクトリが空であることを find -mindepth 1 で確認する。export は run_scenario のサブシェル内に閉じる。TS-6 は tmux も duofm も起動しない。問題にはしない気づき: TS-6 には一時ファイルが SELF_TMPDIR 内に実際に作られたことを確かめる陽性対照が無い（現時点の検出力は MUT-1 で確認済み）。カバレッジ: security / comprehensive / performance / spec すべて corroborated。"
+  recommended_action: "complete"
+  action_rationale: "完了したレビュー実行がどれも medium 以上の指摘を出しておらず、評価者自身の確認でも 4 観点で裏付けが取れた。critical/high の指摘も却下箇所も無い。"
+dismissed_sites: []
+dismissed_sites_dropped: []
+unreviewed_perspectives: []
+auto_fix:
+  loops_run: 0
+  applied_total: 0
+  termination: clean
+residual_critical_high: 0
+rework_required: false
+triage_filing:
+  executed: false
+  branch: null
+  filed: []
+  appended: []
+  duplicates_suppressed: []
+  report_path: null
