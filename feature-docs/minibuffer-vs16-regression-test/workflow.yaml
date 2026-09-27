@@ -131,9 +131,9 @@ tasks:
     - NFR1
     - NFR2
     - NFR3
-    status: pending
+    status: in_progress
     notes: null
-    branch: null
+    branch: em-workflow/minibuffer-vs16-regression-test/task0001
 review:
   status: pending
   rounds_completed: 0
