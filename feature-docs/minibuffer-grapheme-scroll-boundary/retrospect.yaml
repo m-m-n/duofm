@@ -1,0 +1,46 @@
+feature: minibuffer-grapheme-scroll-boundary
+collected_at: "2026-09-27T19:05:00+09:00"
+session_ids: [01a0e249-7c94-779f-9dd7-626ea9197fce]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives:
+    - perspective: license
+      reason: diff が go.mod を変更（github.com/rivo/uniseg を indirect から direct 依存へ昇格）
+    - perspective: vulnerability
+      reason: diff が go.mod を変更（依存マニフェストの変更による脆弱性検査）
+  declined_findings: []
+  tier_decision:
+    tier: reduced
+    rationale: "description_plus_code の最終読みでバケット 1（確率 0.87、score 1.13）。単一モジュール内の新規ロジックとテスト追加"
+    bases:
+      - basis: description_only
+        score: {type: score, score: 1.04, confidence: 0.96, probabilities: {'0': 0.0, '1': 0.96, '2': 0.04, '3': 0.0}}
+        observed_at: "2026-09-27T17:53:00+09:00"
+      - basis: description_plus_code
+        score: {type: score, score: 1.13, confidence: 0.87, probabilities: {'0': 0.0, '1': 0.87, '2': 0.13, '3': 0.0}}
+        observed_at: "2026-09-27T18:02:00+09:00"
+    pre_survey_estimate:
+      files_expected: [internal/ui/minibuffer.go, internal/ui/minibuffer_test.go]
+      changed_lines_approx: 100
+      new_functions_needed: 0
+      new_files_needed: 0
+      new_dependencies_needed: []
+      covering_tests_exist: false
+      spillover_modules: []
+      work_still_required: true
+      test_change_kind: new_behavior_tests
+      added_test_cases_approx: 3
+      body_change_kind: new_logic
+      change_containment: single_module
+      caller_and_dependency_count: 10
+      changes_external_contract: false
+      changes_behavior: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review で medium 1 件（stable_id 587742bf38d12e29）が unresolved のまま残った。ANSI 反転表示が有効な環境で、カーソルが書記素の内側かつ残り幅 2〜3 のとき入力とカーソルが消える退行。SPEC 前提 a2（カーソル位置の rune だけを反転）が原因で、仕様段階で反転表示と書記素境界の相互作用を検討していれば防げた"
+  - "追加テストは Ascii プロファイルで動くため ANSI 経路を通らない。assertWholeOrNone は全消失も合格にする"
+  - "vulnerability 観点の道具は go_tool_not_found で未実行（podman 経由の Go 環境をホスト側の検査が使えていない）"
+  - "implementer の報告（conflict_retries / deviations）は agents.jsonl に残っておらず、conflict_reworks / file_prediction_misses は journal とコミット差分から判定した（単一タスク・衝突なし・予測外ファイルなし。予測した go.sum は変更なし）"
