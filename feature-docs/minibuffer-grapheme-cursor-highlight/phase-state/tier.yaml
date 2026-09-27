@@ -1,0 +1,68 @@
+schema_version: 2
+feature: minibuffer-grapheme-cursor-highlight
+tier: full
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.28
+    confidence: 0.71
+    legend:
+      '0': '0: Only a wording or rule-text change: no new logic, and no test change.'
+      '1': '1: A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.'
+      '2': '2: New logic, a change reaching across several modules, or a change to
+        an external contract.'
+      '3': '3: A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.72
+      '2': 0.27
+      '3': 0.01
+  observed_at: '2026-09-27T18:37:30+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.36
+    confidence: 0.63
+    legend:
+      '0': '0: Only a wording or rule-text change: no new logic, and no test change.'
+      '1': '1: A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.'
+      '2': '2: New logic, a change reaching across several modules, or a change to
+        an external contract.'
+      '3': '3: A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.64
+      '2': 0.35
+      '3': 0.01
+  observed_at: '2026-09-27T18:39:49+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  - go.mod
+  changed_lines_approx: 160
+  new_functions_needed: 1
+  new_files_needed: 0
+  new_dependencies_needed: []
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 6
+  body_change_kind: new_logic
+  change_containment: single_module
+  caller_and_dependency_count: 3
+  changes_external_contract: false
+  changes_behavior: true
+  evidence: 不具合は残っているよ。internal/ui/minibuffer.go:145 の左右移動は rune 単位で、:359 の buildLine
+    は該当する 1 rune だけを反転する。:449 は反転後の幅で収まりを判定し、:508・:516・:569 の表示範囲もカーソルの rune を境界にしている。既存テストは
+    internal/ui/minibuffer_test.go:572・:729 で書記素内部の位置を扱うが、検証は改行と幅だけで、:691 の全文保持テストは絵文字外の位置だけを扱う。数値は書記素全体を反転し表示範囲も合わせる案の概算で、新規関数は製品コードの補助関数を数えたよ。追加テストは
+    ZWJ・結合文字・VS16・幅内保持・スクロール・幅不足の6観点を想定した。uniseg は go.mod:27、go.sum:36 に既存で、直接利用なら
+    go.mod の依存区分を変更する。呼出元・依存数は pane_render.go:111 の描画呼出元1件と lipgloss・uniseg の2件を数えた。カーソル位置の公開仕様を維持する案なので、model_update_keyboard.go:355・:363
+    の補完連携は変更対象に含めていない。静的確認のみで、ファイル変更とテスト実行はしていないよ
+decided_at: '2026-09-27T18:40:03+09:00'
