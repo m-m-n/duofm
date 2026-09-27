@@ -9,6 +9,79 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../helpers.sh"
 
 # ===========================================
+# Helper: Check the extension-preserving rename dialog's input field for an
+# exact base-name value.
+#
+# A bare substring check (assert_contains "$base_name") also matches the
+# file-list row behind the dialog (e.g. "before_rename.txt") and the
+# search-filter display (e.g. "/before_ren"), so it passes even when the
+# input field itself is empty or holds the wrong value. This helper instead
+# requires the match to occur on a single captured row, anchored at the
+# row's start and at the row's end: only whitespace, the dialog's left
+# border, only whitespace, the input field's left border, only whitespace,
+# the base name, only whitespace, the input field's right border, only
+# whitespace, the extension, only whitespace, the dialog's right border,
+# only whitespace to the end of the row. Every border character on a
+# passing row is at one of those four structural positions, so a border
+# character typed into the input value cannot act as either of the input
+# field's own borders. No other non-whitespace character next to the base
+# name is tolerated, including a single one on either side: the cursor is
+# drawn by reverse video only, and the capture drops attributes. Extra
+# whitespace-only characters around the base name stay out of scope.
+#
+# Usage: assert_input_field_value <session_name> <expected_base_name> <extension> <description>
+# ===========================================
+assert_input_field_value() {
+    local session_name="$1"
+    local expected_base_name="$2"
+    local extension="$3"
+    local description="$4"
+
+    TESTS_RUN=$((TESTS_RUN + 1))
+
+    local screen
+    screen=$(capture_screen "$session_name")
+
+    # Escape ERE metacharacters so the base name and extension are matched
+    # as literal text (in particular, the "." in the extension must not
+    # match an arbitrary character).
+    local escaped_base escaped_ext
+    escaped_base=$(printf '%s' "$expected_base_name" | sed -e 's/[][\.^$*+?(){}|]/\\&/g')
+    escaped_ext=$(printf '%s' "$extension" | sed -e 's/[][\.^$*+?(){}|]/\\&/g')
+
+    # │ = U+2502 BOX DRAWINGS LIGHT VERTICAL: the border character drawn by
+    # lipgloss.RoundedBorder() around both the dialog and the input field.
+    local border='│'
+    # Anchored at the row's start (^) and end ($): only whitespace, the
+    # dialog's left border, only whitespace, the input field's left
+    # border, only whitespace, the base name, only whitespace, the input
+    # field's right border, only whitespace, the extension, only
+    # whitespace, the dialog's right border, only whitespace to the end of
+    # the row.
+    local pattern="^[[:space:]]*${border}[[:space:]]*${border}[[:space:]]*${escaped_base}[[:space:]]*${border}[[:space:]]*${escaped_ext}[[:space:]]*${border}[[:space:]]*$"
+
+    # Force a UTF-8 locale for this match only (independent of the E2E
+    # container's ambient locale, which is POSIX/C): the border character
+    # is multi-byte and is matched as literal text here, with no "any
+    # single character" element in the pattern. grep without -z already
+    # evaluates each line independently, so a match never spans two
+    # captured rows.
+    if echo "$screen" | LC_ALL=C.utf8 grep -qE -- "$pattern"; then
+        echo -e "${GREEN}✓${NC} $description"
+        TESTS_PASSED=$((TESTS_PASSED + 1))
+        return 0
+    else
+        echo -e "${RED}✗${NC} $description"
+        echo -e "  ${YELLOW}Expected input field base name:${NC} $expected_base_name"
+        echo -e "  ${YELLOW}Expected extension:${NC} $extension"
+        echo -e "  ${YELLOW}Screen content:${NC}"
+        echo "$screen" | sed 's/^/    /'
+        TESTS_FAILED=$((TESTS_FAILED + 1))
+        return 1
+    fi
+}
+
+# ===========================================
 # Test: Cannot delete root-owned file
 # ===========================================
 test_cannot_delete_root_file() {
@@ -192,7 +265,9 @@ test_rename_file() {
     assert_contains "$CURRENT_SESSION" "Rename (extension: .txt):" \
         "Extension-preserving rename dialog appears with extension in title"
 
-    assert_contains "$CURRENT_SESSION" "before_rename" \
+    # Limited to the input field row: a bare substring check would also
+    # match "before_rename.txt" in the file list behind the dialog.
+    assert_input_field_value "$CURRENT_SESSION" "before_rename" ".txt" \
         "Rename dialog is pre-filled with the base name"
 
     # Clear the input and type only the new base name (extension is fixed)
@@ -436,7 +511,10 @@ test_navigation_after_rename() {
     assert_contains "$CURRENT_SESSION" "Rename (extension: .txt):" \
         "Extension-preserving rename dialog appears with extension in title"
 
-    assert_contains "$CURRENT_SESSION" "navren_before" \
+    # Limited to the input field row: a bare substring check would also
+    # match "navren_before.txt" in the file list and "/navren_before" in
+    # the search-filter display, both still on screen behind the dialog.
+    assert_input_field_value "$CURRENT_SESSION" "navren_before" ".txt" \
         "Rename dialog is pre-filled with the base name"
 
     # Clear the input and type only the new base name (extension is fixed)

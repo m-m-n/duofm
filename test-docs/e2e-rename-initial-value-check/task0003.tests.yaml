@@ -1,0 +1,170 @@
+task_id: task0003
+baseline_failures: []          # go test ./... (project_commands.test), run before any edit (4a): all packages ok
+final_failures: []             # go test ./... re-run after implementation: all packages ok, no failures
+acceptance_tests:
+  AC-1:
+    tests: [file_operation_tests.sh::assert_input_field_value (scratch AC-1 script)]
+    red_confirmed: true
+    red_reason: >-
+      A scratch script (never committed; lived at
+      /tmp/.../scratchpad/ac1_check.sh) sourced this task's fixed
+      file_operation_tests.sh, replaced capture_screen with a stub that
+      returns a simulated rename-dialog screen built from the observed row
+      format `        │  │ {value}{padding}│ .txt     │`, and called
+      assert_input_field_value once per value for base names
+      before_rename and navren_before, extension .txt. All 26 calls (13
+      values x 2 base names) produced the exact expected pass/fail
+      verdict: base name alone passes; x│{base}, │{base}, │ {base},
+      x│ {base}, {base}│ .txt, {base} │.txt, {base}│, {base}., x{base},
+      {base}x, empty value, and {base}.txt all fail. Every call increased
+      TESTS_RUN by exactly 1 and exactly one of TESTS_PASSED/TESTS_FAILED
+      by 1 (verified via before/after counter deltas printed by the
+      script). This IS the red-then-green pair for AC-1/AC-2 together: the
+      same script run against the merged (pre-fix) file (AC-2 below) is
+      the red state; this run against the fixed file is the green state
+      that confirms the fix. Full run showed TOTAL: run=26 passed=2
+      failed=24, matching AC-1's expected outcome table exactly (no
+      MISMATCH lines).
+  AC-2:
+    tests: ["file_operation_tests.sh::assert_input_field_value (scratch AC-1 script, run against pre-fix content)"]
+    red_confirmed: true
+    red_reason: >-
+      The identical AC-1 scratch script was run against the merged
+      (pre-fix) content of file_operation_tests.sh, obtained via `git show
+      HEAD:test/e2e/scripts/tests/file_operation_tests.sh` (HEAD = the
+      task's starting commit, before this task's edit) and temporarily
+      swapped into place (then restored from a saved copy of the fixed
+      file; git status confirmed the restore was byte-identical, and the
+      final committed content is the fixed version, never the swapped-back
+      pre-fix one). Under the merged assertion, 8 of the 12
+      "should fail" values incorrectly PASSED for both base names:
+      x│before_rename, │before_rename, │ before_rename, x│ before_rename,
+      before_rename│ .txt, before_rename │.txt (and the four navren_before
+      counterparts) all passed, confirming the unanchored-match defect
+      described in the task plan (the merged pattern accepts a │ that is
+      part of the input value as either input-field border). This
+      satisfies AC-2's requirement that at least x│before_rename,
+      │before_rename, x│navren_before and │navren_before are observed
+      passing under the merged assertion, and the same run after the
+      change (AC-1 above) shows every AC-1 result failing as required.
+  AC-3:
+    tests: [test_rename_file, test_navigation_after_rename]
+    red_confirmed: true
+    red_reason: >-
+      Three separate uncommitted mutation variants, each reverted
+      immediately after its run (restored from a saved copy of the fixed
+      file; git status/diff confirmed byte-identical restoration each
+      time), were run via `run_all_tests.sh file-ops` inside a freshly
+      built E2E container image per variant: (a) send_keys End then "."
+      immediately before each assert_input_field_value call -- both
+      "Rename dialog is pre-filled with the base name" checks failed
+      (30 run / 28 passed / 2 failed); (b) send_keys Home then "x" --
+      both checks failed (30 run / 25 passed / 5 failed; the 3 extra
+      failures are downstream on-disk/listing checks in the same test
+      functions, out of scope per the task's Test Notes, which say only
+      the initial-value checks' results are evaluated in a mutated run);
+      (c) send_keys End then "x" -- both checks failed (30 run / 28
+      passed / 2 failed). In every variant the failure was specifically
+      "Rename dialog is pre-filled with the base name" in both
+      test_rename_file and test_navigation_after_rename.
+  AC-4:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Verifiable outcome is a full `make test-e2e` run (build/lint-style
+      check, no named test). Searched test/e2e/scripts for any existing
+      test of this outcome by path and by basename; none exists beyond the
+      full suite itself. No red state applies: this task's change does not
+      remove passing coverage, it tightens an assertion that was already
+      satisfied by the correct (non-mutated) rename flow, so the
+      unmodified suite was already green before this task's edit and stays
+      green after. Confirmed via `make test-e2e-build && make test-e2e`
+      (the project_commands.e2e command, run as one background invocation
+      whose docker build layer captured the file state before any AC-3
+      mutation edit was made -- confirmed because the run's own output
+      shows both "Rename dialog is pre-filled with the base name" checks
+      passing in test_rename_file and test_navigation_after_rename, which
+      only the fixed, unmutated file produces): Total 264, Passed 264,
+      Failed 0, container exit code 0.
+  AC-5:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Source-inspection criterion; no test/build/lint check is named for
+      it, and no existing test statically inspects the assertion's regex
+      shape (searched test/e2e/scripts by path and by basename: only the
+      two call sites reference assert_input_field_value, neither performs
+      a source check of it). Verified by direct review of the new pattern
+      `^[[:space:]]*│[[:space:]]*│[[:space:]]*${escaped_base}[[:space:]]*│[[:space:]]*${escaped_ext}[[:space:]]*│[[:space:]]*$`:
+      anchored with ^ at the start and $ at the end; the only
+      non-whitespace elements are the four literal │ characters, the
+      escaped base name, and the escaped extension, in that exact order
+      (dialog-left-border, input-field-left-border, base name,
+      input-field-right-border, extension, dialog-right-border); every
+      other element is `[[:space:]]*` (zero or more whitespace, not "any
+      character" or "any non-whitespace character" -- no `.`, no
+      `[^...]`, no `?` elsewhere in the pattern). The helper's comment
+      was rewritten to describe this anchored structure and states only
+      what it enforces (a border character in the value cannot act as
+      either input-field border; whitespace-only extras are out of
+      scope), matching the Design section's Guarantee/Whitespace text.
+      The criterion's behavioral substance is exercised by AC-1/AC-2/AC-3
+      above.
+  AC-6:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Structural diff-scope check, not a test/build/lint outcome. Before
+      any edit the diff against the task's starting commit was empty,
+      which vacuously satisfies "touches only file_operation_tests.sh", so
+      no meaningful red state exists for this criterion. Verified directly
+      after implementation: `git diff --name-only HEAD` lists exactly
+      test/e2e/scripts/tests/file_operation_tests.sh; no *.go file and no
+      change to test/e2e/scripts/helpers.sh.
+  AC-7:
+    tests: []
+    red_confirmed: false
+    red_reason: >-
+      Both checks (`bash -n` and `run_all_tests.sh --check-list`) are
+      build/lint-style outcomes that were already true before this task's
+      edit (the starting file had valid syntax and the helper's name
+      already did not start with test_), so no red state was ever produced
+      by this change to observe. Confirmed on the host both before and
+      after the edit: `bash -n test/e2e/scripts/tests/file_operation_tests.sh`
+      exits 0; `bash test/e2e/scripts/run_all_tests.sh --check-list`
+      reports "OK: run list matches defined tests (123 entries)" both
+      times (same 123 entries, unchanged), because no test_ function was
+      added, removed, or renamed and assert_input_field_value's name is
+      unchanged.
+notes: >-
+  Confirmed the observed input-row structure against a real E2E capture
+  before writing the pattern (Design section instruction): built a
+  task-local E2E image (test/e2e/Dockerfile) and ran
+  `/e2e/scripts/interactive.sh` with the same key sequence as
+  test_rename_file (search/enter user_owned, create before_rename.txt via
+  the "n" dialog, search-filter to it, press "r"). The captured dialog row
+  was exactly `    │  │ before_rename                      │ .txt     │`:
+  leading whitespace, dialog left border, whitespace, input-field left
+  border, one padding space, the base name, padding, input-field right
+  border, one space, the extension, padding, dialog right border -- matching
+  the Design section's assumed structure with no deviation, so the pattern
+  was built directly on this structure (anchored at ^ and $, with
+  [[:space:]]* at each "only whitespace" position per the contract's
+  Whitespace-scope row).
+
+  The regex is unchanged in every other respect: literal escaping of the
+  base name and extension (unchanged sed expression), the forced
+  LC_ALL=C.utf8 for the match only, one row per match via default
+  (non -z) grep line semantics, the assertion's name, its four positional
+  inputs, the two call sites and their arguments (before_rename/.txt,
+  navren_before/.txt), the run/passed/failed counting, the pass/fail output
+  lines and the return status.
+
+  All temporary E2E docker images built for verification
+  (duofm-e2e-task0003[:latest], -mut-a, -mut-b, -mut-c) were removed after
+  use (`docker rmi`); none were committed. The AC-1 scratch script was
+  never added to the repository or to the E2E suite, per Out of Scope.
+  A stray `.config/go/telemetry/...` directory and a `duofm` build binary,
+  both produced as side effects of running project_commands.build/test via
+  podman in this worktree, were removed via `gio trash` (temp-file-placement
+  rule); neither is part of this task's diff.

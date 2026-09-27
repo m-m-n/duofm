@@ -1,0 +1,11 @@
+schema_version: 1
+feature: e2e-rename-initial-value-check
+phase: rework
+status: initialized
+spec_change:
+  reason: 'tier upgrade reduced -> full: verify failed (AC-2)'
+  origin_kind: verify
+  origin_id: AC-2
+  recorded_at_commit: e9335ffa3e745fd78f8429ea4c393cf3349daea7
+  consumed: true
+  replan_authorized: false
