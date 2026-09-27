@@ -4,8 +4,8 @@ phase: create-spec
 status: in_progress
 generation: 1
 base_revision: f268f55b081bee16563cf580200e7e05fd562999
-last_input_digest: sha256:e72b7488962dbd62feae603797c9a9ad2028c62140a5c84f6e607345ac73485b
-active_request_id: create-spec-run-0001
+last_input_digest: sha256:dbf2fefd10b326f444f244d16605acfe5967e8c1203fb79af5d4eb6854a27474
+active_request_id: create-spec-run-0002
 packets: {}
 answers:
   requirement.a3.regression-test-approach:
@@ -34,6 +34,10 @@ worker_runs:
 - request_id: create-spec-run-0001
   status: completed
   input_digest: sha256:e72b7488962dbd62feae603797c9a9ad2028c62140a5c84f6e607345ac73485b
+  output_digest: null
+- request_id: create-spec-run-0002
+  status: running
+  input_digest: sha256:dbf2fefd10b326f444f244d16605acfe5967e8c1203fb79af5d4eb6854a27474
   output_digest: null
 artifacts: []
 patches: []
