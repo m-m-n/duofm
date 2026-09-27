@@ -1,0 +1,16 @@
+schema_version: 1
+feature: minibuffer-shrink-loop-linear
+phase: create-spec
+status: in_progress
+generation: 1
+base_revision: 9ad9ab8b4ba0d1dda0304937da051c32a2286221
+last_input_digest: sha256:f94eb2eb3cddafa21b3b02e3c32080a276daae6db4bf590dd0dce499ee4cdbd2
+active_request_id: create-spec-run-0001
+packets: {}
+answers: {}
+worker_runs: []
+artifacts: []
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache: {}
