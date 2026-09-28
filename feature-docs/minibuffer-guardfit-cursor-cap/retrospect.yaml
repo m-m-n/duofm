@@ -1,0 +1,47 @@
+feature: minibuffer-guardfit-cursor-cap
+collected_at: "2026-09-28T09:06:00+09:00"
+session_ids: [01a0e552-fedc-7485-926d-ba7f18690158]
+signals:
+  review_critical_high: []
+  conflict_reworks: []
+  file_prediction_misses: []
+  verification_failures: []
+  discretionary_perspectives:
+    - perspective: performance
+      reason: "guardFit の縮退ループに分岐を追加する変更で、NFR2（線形時間の維持）の退行がないか確認するため"
+  declined_findings: []
+  tier_decision:
+    tier: reduced
+    rationale: "タスク記述とコード事前調査の最終読みでバケット 1（ルール追加 + テスト追加の小規模変更）の確率が 0.95 となり reduced を採用"
+    bases:
+      - basis: description_only
+        score:
+          score: 1.03
+          confidence: 0.97
+          probabilities: {'0': 0.0, '1': 0.97, '2': 0.03, '3': 0.0}
+        observed_at: "2026-09-28T07:53:12+09:00"
+      - basis: description_plus_code
+        score:
+          score: 1.05
+          confidence: 0.94
+          probabilities: {'0': 0.0, '1': 0.95, '2': 0.05, '3': 0.0}
+        observed_at: "2026-09-28T07:55:54+09:00"
+    pre_survey_estimate:
+      files_expected: [internal/ui/minibuffer.go, internal/ui/minibuffer_test.go]
+      changed_lines_approx: 100
+      new_functions_needed: 1
+      new_files_needed: 0
+      new_dependencies_needed: 0
+      covering_tests_exist: true
+      test_change_kind: new_behavior_tests
+      added_test_cases_approx: 3
+      body_change_kind: new_logic
+      change_containment: single_function
+      caller_and_dependency_count: 12
+      changes_external_contract: false
+      changes_behavior: true
+follow_up_drafts: []
+lessons_candidates:
+  - "review round1 で spec / performance の LiteLLM 実行が rate_limited で skip され、Codex 実行で補われた"
+  - "review 評価者のしきい値未満の気付き: AC-4 のテストは termenv.Ascii 下で reversedRuns が常に空になり反転区間なしの確認が必ず通る。状況 (a) でカーソル単独の行が収まらない枝を通るテストが無い（tests.yaml の unconfirmed_reds に記録済み）"
+  - "implementer 報告の conflict_retries / deviations はセッションログから特定できなかったため、計画 files と実際の変更ファイルの一致（minibuffer.go / minibuffer_test.go、加えて test-docs の tests.yaml）から空とした"
