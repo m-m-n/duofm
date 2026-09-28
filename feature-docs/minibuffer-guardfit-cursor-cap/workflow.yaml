@@ -98,7 +98,8 @@ workflow:
   failed_items: []
   completed_at_commit: 47a343577c5cdb86f9e6498456f09af51360f286
 - id: retrospect
-  status: in_progress
+  status: completed
+  completed_at_commit: 495e6da7cdd346a710774c10722a8f892c93fa9b
 tasks:
   task0001:
     title: Keep the cursor visible when guardFit reaches its re-measurement cap
