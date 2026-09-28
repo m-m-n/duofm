@@ -1,0 +1,66 @@
+schema_version: 2
+feature: minibuffer-grapheme-bounds-linear
+tier: reduced
+bases:
+- basis: description_only
+  score:
+    type: score
+    score: 1.03
+    confidence: 0.97
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.97
+      '2': 0.03
+      '3': 0.0
+  observed_at: '2026-09-28T07:53:19+09:00'
+- basis: description_plus_code
+  score:
+    type: score
+    score: 1.05
+    confidence: 0.95
+    legend:
+      '0': 'Only a wording or rule-text change: no new logic, and no test change.'
+      '1': A rule addition combined with a test addition, or a small change spread
+        across a few files together with a small test change.
+      '2': New logic, a change reaching across several modules, or a change to an
+        external contract.
+      '3': 'A broad cross-cutting change: new files, new modules, a new dependency,
+        or a change to the architecture.'
+    probabilities:
+      '0': 0.0
+      '1': 0.95
+      '2': 0.05
+      '3': 0.0
+  observed_at: '2026-09-28T07:55:01+09:00'
+pre_survey_estimate:
+  files_expected:
+  - internal/ui/minibuffer.go
+  - internal/ui/minibuffer_test.go
+  changed_lines_approx: 70
+  new_functions_needed: 2
+  new_files_needed: 0
+  new_dependencies_needed: []
+  covering_tests_exist: true
+  spillover_modules: []
+  work_still_required: true
+  test_change_kind: new_behavior_tests
+  added_test_cases_approx: 5
+  body_change_kind: new_logic
+  change_containment: single_function
+  caller_and_dependency_count: 3
+  changes_external_contract: false
+  changes_behavior: true
+  evidence: internal/ui/minibuffer.go:211,213 は現在もNewGraphemesとNextを使用しており、修正は必要。:154,166,475
+    に呼び出しがあり、呼出元2関数（HandleKey・View）と外部依存unisegを数えて3。:260,261 にFirstGraphemeClusterInStringとRuneCountInStringの既存利用があり、go.mod:11
+    はuniseg v0.4.7を直接依存として宣言。internal/ui/minibuffer_test.go:801,809 に10秒制限の描画テスト補助、:846,874,903,931
+    に既存性能テスト、:1252,1359 に書記素移動テストがあるが、対象の空白連続入力はない。feature-docs/minibuffer-grapheme-cursor-highlight/reviews/round1.yaml:38,41
+    に状態を引き継ぐ走査への置換と回帰テスト追加案が未解決として記録されている。行数・追加数は描画と4キーを検証するテスト2関数の追加案の概算。ファイル変更・テスト実行はしていない
+decided_at: '2026-09-28T07:55:09+09:00'

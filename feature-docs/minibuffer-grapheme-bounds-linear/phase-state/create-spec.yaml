@@ -1,0 +1,36 @@
+schema_version: 1
+feature: minibuffer-grapheme-bounds-linear
+phase: create-spec
+status: completed
+generation: 1
+base_revision: e73b7a7dddffc7ed4b227f62cf6cd71aaba56c3b
+last_input_digest: sha256:c0c3c54083160fc2a61aaba856ff880dbd81ec722a7c53f6a2ad06403e69b6d7
+active_request_id: null
+packets: {}
+answers: {}
+worker_runs:
+- request_id: create-spec-run-0001
+  status: completed
+  input_digest: sha256:7a5a2292975f8c60b665e1b61aff6326a59c581f2f98b5266e27b783386b5b73
+  output_digest: sha256:d285ecf8c51f2b1f3d27ef4349312a69d9756d149573a94901cfbf7f55476fe1
+- request_id: create-spec-run-0002
+  status: completed
+  input_digest: sha256:c0c3c54083160fc2a61aaba856ff880dbd81ec722a7c53f6a2ad06403e69b6d7
+  output_digest: sha256:1cb99634146c45b541279dbf3b5e414df71f15b15e43b7b8c21c57791796a225
+artifacts:
+- path: feature-docs/minibuffer-grapheme-bounds-linear/SPEC.md
+  sha256: sha256:0582f9e4d1f9cd382883b3d2d8dea64fd54872e1beb62eaf5594a2c87afc55a7
+  produced_by: create-spec-run-0002
+patches: []
+progress_fingerprint: null
+stale_redispatch_count: 0
+resolved_input_cache:
+  design_system_candidates:
+    generation_digest: sha256:bdd7f792018171b4af141d4c92c0dfb8b983aa4154b5b3eeef448a08c2e51e06
+    resolved_at_generation: 1
+    paths:
+    - internal/ui/theme.go
+    digests:
+      internal/ui/theme.go: sha256:19a88778bd7c8cf9fe4d95978bbc61a96a7586aca59139f8eaba7adb46ad5215
+    truncated: false
+last_error: null
