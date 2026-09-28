@@ -44,4 +44,3 @@ follow_up_drafts: []
 lessons_candidates:
   - "review round1 で spec / performance の LiteLLM 実行が rate_limited で skip され、Codex 実行で補われた"
   - "review 評価者のしきい値未満の気付き: AC-4 のテストは termenv.Ascii 下で reversedRuns が常に空になり反転区間なしの確認が必ず通る。状況 (a) でカーソル単独の行が収まらない枝を通るテストが無い（tests.yaml の unconfirmed_reds に記録済み）"
-  - "implementer 報告の conflict_retries / deviations はセッションログから特定できなかったため、計画 files と実際の変更ファイルの一致（minibuffer.go / minibuffer_test.go、加えて test-docs の tests.yaml）から空とした"
