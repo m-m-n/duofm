@@ -201,6 +201,7 @@ Three display modes toggled with `I` key:
 - Improved support for complex Unicode symbols (☆, ü, ①, →, etc.)
 - Minibuffer (search and shell command input) renders wide characters, ZWJ-joined emoji, and other grapheme clusters within a single line without breaking a cluster across the display boundary, and stays within the terminal width regardless of prompt or input content
 - Minibuffer cursor movement (Left/Right, Ctrl+B/Ctrl+F) moves by grapheme cluster boundaries; the cursor's containing grapheme cluster is rendered as a single reverse-video range, and text editing operations (insert, Backspace, Delete, Ctrl+K, Ctrl+U, Ctrl+A/Ctrl+E) remain rune-based
+- When the minibuffer's width re-measurement limit is reached and the line still exceeds the content width, the display range shrinks to the cursor alone (the grapheme at the cursor, or the cursor block at the end of input) if that fits; otherwise neither input nor cursor is shown
 
 ### Search and Filter
 
@@ -851,6 +852,7 @@ brew install gnu-tar gzip bzip2 xz zip p7zip
 - Async directory loading for responsive UI
 - Independent pane operations
 - Minibuffer rendering (prompt truncation, input display range, line assembly) runs in time linear in prompt and input length, so redrawing does not stall with inputs containing many combining characters
+- Minibuffer grapheme cluster boundary calculation (cursor movement and rendering) runs in time linear in input length
 - File marks preserved during filter/refresh/auto-refresh
 - Efficient sorting with directory-first ordering
 - History limited to 100 entries per pane (configurable: 20,000 for shell commands)
